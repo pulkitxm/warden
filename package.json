@@ -1,0 +1,47 @@
+{
+  "name": "warden",
+  "version": "0.1.0",
+  "description": "A trust layer for npm that thinks before it executes: diffs and scores every new or changed package before any install script runs.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "warden": "./dist/cli/index.js",
+    "bnpm": "./dist/cli/bnpm.js",
+    "bnpx": "./dist/cli/bnpx.js"
+  },
+  "exports": {
+    ".": "./dist/engine.js",
+    "./types": "./dist/types.js"
+  },
+  "files": [
+    "dist",
+    "adapters"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "bun run build",
+    "dev": "bun src/cli/index.ts",
+    "warden": "bun src/cli/index.ts",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "strip-comments": "bun scripts/strip-comments.mjs"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.28.0",
+    "@babel/traverse": "^7.28.0",
+    "tar": "^7.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "@types/babel__traverse": "^7.20.6",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

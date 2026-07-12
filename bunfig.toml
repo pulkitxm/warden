@@ -1,0 +1,7 @@
+[test]
+root = "test"
+coverage = true
+coverageThreshold = 1.0
+coverageSkipTestFiles = true
+coverageReporter = ["text"]
+coveragePathIgnorePatterns = ["test/helpers/**"]
