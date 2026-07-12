@@ -42,7 +42,13 @@ export function verifyIntegrity(data: Uint8Array | ArrayBuffer, expected: string
   return false;
 }
 
-export class IntegrityError extends Error {}
+// Explicit constructor: Bun's function coverage counts a synthesized one as never called.
+export class IntegrityError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = "IntegrityError";
+  }
+}
 
 /** Throw unless bytes match the expected integrity. */
 export function assertIntegrity(data: Uint8Array | ArrayBuffer, expected: string): void {

@@ -86,7 +86,7 @@ bun demo/agent-sim.ts demo/skill-file/AGENTS.md   # the agent refuses react-code
 
 > **Status:** validated against the offline mini-registry and re-verified live.
 > The false positives found in the first real-registry pass (esbuild, next,
-> three, express, request, got) are **fixed** — see `Task_tracker/issues.md` for
+> three, express, request, got) are **fixed** — see `task-tracker/issues.md` for
 > the before/after. Known residual: minified bundles still WARN (not block), and
 > slopsquat only catches truly-nonexistent names (a defensively-registered
 > hallucinated name like `react-codeshift` needs the curated list on the

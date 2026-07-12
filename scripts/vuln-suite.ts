@@ -11,7 +11,7 @@
  * model tokens. One process, bounded concurrency.
  *
  * Run: bun scripts/vuln-suite.ts
- * Writes: Task_tracker/vuln-test-results.md and .json
+ * Writes: task-tracker/vuln-test-results.md and .json
  */
 
 import { startMiniRegistry } from "../fixtures/registry/server.ts";
@@ -197,14 +197,14 @@ async function main() {
   }
   const md = L.join("\n") + "\n";
 
-  await Bun.write("Task_tracker/vuln-test-results.md", md);
-  await Bun.write("Task_tracker/vuln-test-results.json", JSON.stringify({ matrix: { tp, fp, tn, fn }, precision, recall, f1, results }, null, 2));
+  await Bun.write("task-tracker/vuln-test-results.md", md);
+  await Bun.write("task-tracker/vuln-test-results.json", JSON.stringify({ matrix: { tp, fp, tn, fn }, precision, recall, f1, results }, null, 2));
 
   // Console summary
   process.stderr.write(
     `\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(strict)=${pct(tp, tp + fn)} recall(lenient)=${pct(lenientTp, lenientTp + lenientFn)} precision=${pct(tp, tp + fp)} specificity=${pct(tn, tn + fp)}\n` +
       `Misses(FN)=${fns.length} FalseAlarms(FP)=${fps.length} Errors=${errors.length}\n` +
-      `Report: Task_tracker/vuln-test-results.md\n`,
+      `Report: task-tracker/vuln-test-results.md\n`,
   );
 }
 

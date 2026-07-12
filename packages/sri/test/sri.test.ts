@@ -30,3 +30,7 @@ test("parseIntegrity", () => {
 test("assertIntegrity throws on mismatch", () => {
   expect(() => assertIntegrity(data, "sha512-wrong")).toThrow(IntegrityError);
 });
+
+test("assertIntegrity passes silently on a match", () => {
+  expect(() => assertIntegrity(data, computeIntegrity(data))).not.toThrow();
+});

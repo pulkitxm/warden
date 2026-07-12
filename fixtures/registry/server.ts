@@ -77,9 +77,12 @@ async function proxyTo(url: string): Promise<Response> {
   }
 }
 
-// Run standalone: `bun fixtures/registry/server.ts` for manual demo poking.
-if (import.meta.main) {
-  const reg = startMiniRegistry(4873);
-  process.stderr.write(`mini-registry on ${reg.url}\n`);
-  process.stderr.write(`  WARDEN_REGISTRY=${reg.url} WARDEN_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);
+/** Standalone entry (`bun fixtures/registry/server.ts`) for manual demo poking. */
+export function main(port = 4873, write: (s: string) => unknown = process.stderr.write.bind(process.stderr)): MiniRegistry {
+  const reg = startMiniRegistry(port);
+  write(`mini-registry on ${reg.url}\n`);
+  write(`  WARDEN_REGISTRY=${reg.url} WARDEN_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);
+  return reg;
 }
+
+if (import.meta.main) main();

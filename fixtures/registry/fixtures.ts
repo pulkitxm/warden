@@ -12,6 +12,11 @@ export interface FixtureVersion {
   maintainer: { name: string; email: string };
   provenance?: boolean;
   ageHours: number;
+  /** Advertised integrity override — set a wrong value to craft an
+   * integrity-mismatch fixture. Defaults to the real tarball integrity. */
+  integrity?: string;
+  /** Advertise the tarball URL but don't serve it (fetches 404). */
+  missingTarball?: boolean;
 }
 export interface FixturePackage {
   name: string;
@@ -121,7 +126,7 @@ export function materialize(base: string, packages: FixturePackage[] = FIXTURES)
     for (const [ver, v] of Object.entries(pkg.versions)) {
       const tgz = makeTgz(v.files);
       const tarballPath = `/${pkg.name}/-/${pkg.name}-${ver}.tgz`;
-      tarballs[tarballPath] = tgz;
+      if (!v.missingTarball) tarballs[tarballPath] = tgz;
       time[ver] = new Date(now - v.ageHours * 3_600_000).toISOString();
       versions[ver] = {
         name: pkg.name,
@@ -131,7 +136,7 @@ export function materialize(base: string, packages: FixturePackage[] = FIXTURES)
         _npmUser: v.maintainer,
         dist: {
           tarball: `${base}${tarballPath}`,
-          integrity: computeIntegrity(tgz),
+          integrity: v.integrity ?? computeIntegrity(tgz),
           ...(v.provenance ? { attestations: { url: `${base}/-/npm/v1/attestations/${pkg.name}@${ver}` } } : {}),
         },
       };

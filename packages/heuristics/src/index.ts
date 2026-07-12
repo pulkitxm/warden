@@ -85,7 +85,7 @@ export function ruleInstallScripts(input: AnalysisInput): Signal[] {
 }
 
 // --- Rule B: suspicious script/source content --------------------------------
-// Calibrated against real packages (see Task_tracker/issues.md). Plain network
+// Calibrated against real packages (see task-tracker/issues.md). Plain network
 // access (require http/https/net, fetch) and lone process.env reads are NOT
 // signals — they are ubiquitous in legitimate libraries (every HTTP client,
 // every server, every native installer reading proxy env). Only a hardcoded

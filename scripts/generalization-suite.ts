@@ -5,7 +5,7 @@
  * co-designed suite. Measures how the engine holds up on unseen techniques.
  *
  * No LLM. Run: bun scripts/generalization-suite.ts
- * Writes: Task_tracker/generalization-results.md
+ * Writes: task-tracker/generalization-results.md
  */
 
 import { startMiniRegistry } from "../fixtures/registry/server.ts";
@@ -95,8 +95,8 @@ async function main() {
   L.push("\n## All results\n| spec | label | type | expected | verdict | categories |");
   L.push("|---|---|---|---|---|---|");
   for (const r of results) L.push(`| ${r.spec} | ${r.label} | ${r.type} | ${(r as Case).expect ?? "-"} | ${r.verdict} | ${r.categories.join(",")} |`);
-  await Bun.write("Task_tracker/generalization-results.md", L.join("\n") + "\n");
+  await Bun.write("task-tracker/generalization-results.md", L.join("\n") + "\n");
 
-  process.stderr.write(`\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(unseen)=${pct(tp, tp + fn)} specificity=${pct(tn, tn + fp)} | misses=${misses.length} falseAlarms=${falseAlarms.length}\nReport: Task_tracker/generalization-results.md\n`);
+  process.stderr.write(`\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(unseen)=${pct(tp, tp + fn)} specificity=${pct(tn, tn + fp)} | misses=${misses.length} falseAlarms=${falseAlarms.length}\nReport: task-tracker/generalization-results.md\n`);
 }
 main();

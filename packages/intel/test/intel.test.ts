@@ -21,3 +21,13 @@ test("whole-package entry (no versions) matches any version", () => {
 test("unknown package is not blocked", () => {
   expect(defaultBlocklist.match("lodash", "4.17.21")).toBeNull();
 });
+
+test("size counts every entry across names", () => {
+  const bl = new Blocklist([
+    { id: "A", name: "p" },
+    { id: "B", name: "p", versions: ["1.0.0"] },
+    { id: "C", name: "q" },
+  ]);
+  expect(bl.size()).toBe(3);
+  expect(defaultBlocklist.size()).toBeGreaterThan(0);
+});

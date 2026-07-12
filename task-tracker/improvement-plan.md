@@ -1,6 +1,6 @@
 # Warden — Improvement Plan (post real-world test)
 
-The real-registry test (`Task_tracker/issues.md`) showed the engine is
+The real-registry test (`task-tracker/issues.md`) showed the engine is
 mechanically sound but **mis-calibrated**: it over-fires on the network/env/
 minification capabilities that pervade real packages, and it has two correctness
 bugs (version fallback, slopsquat-by-nonexistence). Fixing calibration without a

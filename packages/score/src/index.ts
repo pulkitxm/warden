@@ -75,7 +75,7 @@ function decide(signals: Signal[], ctx: ScoreContext): { level: VerdictLevel; re
   // always "recent" so recency can't be the discriminator. Hijacks of
   // established packages are caught by the blocklist and the hard intent tells
   // (provenance downgrade, maintainer change) below, which are NOT suppressed.
-  // This is a deliberate low-false-positive tradeoff (see Task_tracker/issues.md).
+  // This is a deliberate low-false-positive tradeoff (see task-tracker/issues.md).
   const suppressCapabilityBlock = Boolean(ctx.established);
 
   // 1. Name attacks (already gated on popularity/homoglyph/nonexistence): block alone.

@@ -49,6 +49,15 @@ test("malformed response -> falls back to template", async () => {
   expect(r.summary).toContain("evil-pkg");
 });
 
+test("unbalanced JSON braces in the model output -> template", async () => {
+  process.env.OPENAI_API_KEY = "sk-test";
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ choices: [{ message: { content: '{"summary": "truncated' } }] }), { status: 200 })) as unknown as typeof fetch;
+  const r = await explain(V);
+  expect(r.used).toBe(false);
+  expect(r.summary).toContain("evil-pkg");
+});
+
 test("HTTP error -> falls back to template", async () => {
   process.env.OPENAI_API_KEY = "sk-test";
   globalThis.fetch = (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch;
