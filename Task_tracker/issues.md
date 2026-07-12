@@ -16,7 +16,8 @@ Re-verified against the live registry after the fix.
 | I8 wraps npm not pnpm/bun | **FIXED** | `wnpm install` uses the first available of pnpm > bun > npm. |
 | I9 version 0.0.0 display | **FIXED** | slopsquat/nonexistent path shows the requested version or "unknown". |
 | I5 native-module consistency | **FIXED** | validated on 11 real native/install-script packages (sqlite3/ssh2/keytar/grpc/canvas/electron/...) — zero false blocks. |
-| **I10 downloads fail-open** | **FIXED** | establishment now falls back to the bundled popular list; d3/next no longer false-block when the downloads API is slow. |
+| **I10 downloads fail-open** | **FIXED** | establishment = downloads>=100k OR popular-list OR downloads-unknown (a failed downloads fetch is treated conservatively, not as "obscure"). Fixes d3/next AND @types/node/tsx under concurrent load. |
+| **Generalization (fresh untuned batch)** | **MEASURED + hardened** | honest baseline 43% strict recall on unseen attacks; after fixing the CLASS (host-agnostic env-dump exfil, reverse-shell, DNS, indirect-eval, direct-URL deps) -> 79% strict / 93% surfaced, specificity 100%. See `generalization-results.md`. |
 | (vuln suite) lifecycle+sink misses, IMDS, fs-exfil, destructive-fs, dep-confusion, name coverage | **FIXED** | see `vuln-failure-analysis.md` → RESOLUTION. Suite now 25/0/48/0. |
 | I6 LLM untested live · I7 latency/concurrency · I8 npm-wrap | **OPEN** | unchanged; tracked in improvement-plan P3/P4. |
 

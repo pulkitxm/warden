@@ -108,13 +108,19 @@ export function ruleScriptContent(input: AnalysisInput): Signal[] {
   );
   const hasSink = findings.some(({ f }) => f.kind === "raw_ip" || f.kind === "metadata_host");
   const hasEnv = findings.some(({ f }) => f.kind === "env_exfil");
+  const hasEnvDump = findings.some(({ f }) => f.kind === "env_dump");
+  const hasNetworkAny = findings.some(({ f }) => f.kind === "network" || f.kind === "raw_ip" || f.kind === "metadata_host" || f.kind === "dns_egress");
 
   for (const { f, file } of findings) {
-    if (f.kind === "network" || f.kind === "env_exfil") continue; // capability, too common to be a signal alone
-    if (f.kind === "raw_ip") {
+    if (f.kind === "network" || f.kind === "env_exfil" || f.kind === "env_dump") continue; // capability / used only for exfil-shape
+    if (f.kind === "reverse_shell") {
+      out.push(sig("code-reverse_shell", "exfiltration", 60, "high", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "raw_ip") {
       out.push(sig("code-raw_ip", "exfiltration", 30, "high", `code ${f.detail}`, { file, action: true }));
     } else if (f.kind === "metadata_host") {
       out.push(sig("code-metadata_host", "exfiltration", 30, "high", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "dns_egress") {
+      out.push(sig("code-dns_egress", "exfiltration", 20, "medium", `code ${f.detail}`, { file, action: true }));
     } else if (f.kind === "fs_sensitive") {
       out.push(sig("code-fs_sensitive", "exfiltration", 20, "medium", `code ${f.detail}`, { file, action: true }));
     } else if (f.kind === "destructive_fs") {
@@ -129,11 +135,15 @@ export function ruleScriptContent(input: AnalysisInput): Signal[] {
     }
   }
 
-  // Exfiltration shape: an env dump AND a hardcoded raw IP / metadata endpoint.
-  // Requiring the sink (not just any network call) is what removes the express/
-  // request/esbuild false positives while keeping the axios/Shai-Hulud pattern.
-  if (hasSink && hasEnv) {
-    out.push(sig("exfil-shape", "exfiltration", 35, "high", "reads environment variables and sends them to a hardcoded IP (exfiltration shape)", { action: true }));
+  // Exfiltration shape, two forms:
+  //  - env READ + a hardcoded raw IP / metadata endpoint (destination is a tell), or
+  //  - whole-environment DUMP + ANY network egress (the dump itself is the tell,
+  //    so this catches hostname/domain exfiltration, not just raw IPs).
+  // A single env var read + a request to a hostname is NOT flagged (that is what
+  // every legitimate API client does) — the discriminator is the raw IP or the
+  // whole-env dump.
+  if ((hasSink && hasEnv) || (hasEnvDump && hasNetworkAny)) {
+    out.push(sig("exfil-shape", "exfiltration", 35, "high", "sends environment variables to an external destination (exfiltration shape)", { action: true }));
   }
   return out;
 }
@@ -230,7 +240,29 @@ export function ruleMetadata(input: AnalysisInput): Signal[] {
   return out;
 }
 
-const RULES = [ruleInstallScripts, ruleScriptContent, ruleObfuscation, ruleNameSimilarity, ruleMetadata];
+// --- Rule: direct-URL / git dependencies (manifest) --------------------------
+// A dependency pinned to a raw http(s)/git/tarball URL fetches untrusted,
+// unpinned code outside the registry (GuardDog `direct_url_dependency`). Legit
+// in some monorepos, so this warns rather than blocks on its own.
+const URL_DEP_RE = /^(https?:|git\+|git:|github:|bitbucket:|gitlab:)/i;
+export function ruleManifest(input: AnalysisInput): Signal[] {
+  const pkg = input.scanFiles.find((f) => f.path === "package.json");
+  if (!pkg?.text) return [];
+  let parsed: { dependencies?: Record<string, string>; devDependencies?: Record<string, string>; optionalDependencies?: Record<string, string> };
+  try {
+    parsed = JSON.parse(pkg.text);
+  } catch {
+    return [];
+  }
+  const deps = { ...parsed.dependencies, ...parsed.devDependencies, ...parsed.optionalDependencies };
+  const urlDeps = Object.entries(deps).filter(([, v]) => typeof v === "string" && URL_DEP_RE.test(v));
+  if (!urlDeps.length) return [];
+  return [
+    sig("direct-url-dependency", "metadata_anomaly", 30, "medium", `depends on a raw URL/git dependency: ${urlDeps.map(([k, v]) => `${k}@${v}`).slice(0, 3).join(", ")}`, { action: true }),
+  ];
+}
+
+const RULES = [ruleInstallScripts, ruleScriptContent, ruleObfuscation, ruleNameSimilarity, ruleMetadata, ruleManifest];
 
 /** Run all rules and return the flat Signal list. */
 export function analyze(input: AnalysisInput): Signal[] {

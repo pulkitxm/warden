@@ -27,7 +27,7 @@ _(none)_
 
 | label:type | total | block | warn | allow | error |
 |---|---|---|---|---|---|
-| benign:real-popular | 48 | 0 | 16 | 32 | 0 |
+| benign:real-popular | 48 | 0 | 17 | 31 | 0 |
 | malicious:base64-eval-loader | 1 | 1 | 0 | 0 | 0 |
 | malicious:blocklist-known-malware | 3 | 3 | 0 | 0 | 0 |
 | malicious:cloud-imds-theft | 1 | 1 | 0 | 0 | 0 |
@@ -70,13 +70,13 @@ _(none)_
 | express | benign | real-popular | warn | 20 | metadata_anomaly |
 | fastify | benign | real-popular | warn | 90 | obfuscation,exfiltration,metadata_anomaly |
 | glob | benign | real-popular | allow | 0 |  |
-| got | benign | real-popular | allow | 0 |  |
+| got | benign | real-popular | warn | 55 | exfiltration,metadata_anomaly |
 | jest | benign | real-popular | allow | 0 |  |
 | koa | benign | real-popular | allow | 0 |  |
 | lodash | benign | real-popular | allow | 0 |  |
 | moment | benign | real-popular | allow | 0 |  |
 | ms | benign | real-popular | allow | 0 |  |
-| next | benign | real-popular | warn | 100 | obfuscation,install_script,metadata_anomaly,exfiltration |
+| next | benign | real-popular | warn | 100 | obfuscation,exfiltration,install_script,metadata_anomaly |
 | node-fetch | benign | real-popular | allow | 0 |  |
 | node-gyp | benign | real-popular | allow | 0 |  |
 | prettier | benign | real-popular | allow | 0 |  |

@@ -28,6 +28,10 @@ export interface PackageMeta {
   hasProvenance?: boolean;
   previousHadProvenance?: boolean;
   weeklyDownloads?: number;
+  /** True when the downloads API call FAILED (network/timeout), as opposed to
+   * returning a low/zero count. Establishment treats unknown conservatively so a
+   * downloads-API outage can't flip a popular package to "obscure" (issue I10). */
+  downloadsUnknown?: boolean;
   deprecated?: boolean;
   tarballUrl?: string;
   integrity?: string;
@@ -59,6 +63,20 @@ async function getJson<T>(url: string, timeoutMs = 10_000): Promise<T | null> {
     return (await res.json()) as T;
   } catch {
     return null;
+  }
+}
+
+/** Fetch weekly downloads, distinguishing a failed fetch (unknown) from a low
+ * count. A 404 (no stats yet) is "known low"; a network/timeout error is unknown. */
+async function fetchDownloads(url: string): Promise<{ value?: number; unknown: boolean }> {
+  try {
+    const res = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5_000) });
+    if (res.status === 404) return { value: 0, unknown: false };
+    if (!res.ok) return { unknown: true };
+    const data = (await res.json()) as { downloads?: number };
+    return typeof data.downloads === "number" ? { value: data.downloads, unknown: false } : { unknown: true };
+  } catch {
+    return { unknown: true };
   }
 }
 
@@ -96,7 +114,7 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
 
   const publishedAt = time[resolved];
   const ageDays = publishedAt ? Math.max(0, (Date.now() - Date.parse(publishedAt)) / 86_400_000) : undefined;
-  const weekly = await getJson<{ downloads?: number }>(`${downloadsBase()}/${encodeName(name)}`, 5_000);
+  const weekly = await fetchDownloads(`${downloadsBase()}/${encodeName(name)}`);
 
   const curEmail = vd._npmUser?.email;
   const prevEmail = prevData?._npmUser?.email;
@@ -115,7 +133,8 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
     maintainerEmailChanged: Boolean(curEmail && prevEmail && curEmail !== prevEmail),
     hasProvenance: Boolean(vd.dist?.attestations),
     previousHadProvenance: prevData ? Boolean(prevData.dist?.attestations) : undefined,
-    weeklyDownloads: typeof weekly?.downloads === "number" ? weekly.downloads : undefined,
+    weeklyDownloads: weekly.value,
+    downloadsUnknown: weekly.unknown,
     deprecated: Boolean(vd.deprecated),
     tarballUrl: vd.dist?.tarball,
     integrity: vd.dist?.integrity,

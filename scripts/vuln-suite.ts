@@ -102,7 +102,7 @@ async function main() {
 
   process.stderr.write(`Running ${CASES.length} cases (no LLM) against ${reg.url} ...\n`);
 
-  const results = await runPool<Case, Result>(CASES, 6, async (c) => {
+  const results = await runPool<Case, Result>(CASES, 3, async (c) => {
     try {
       const v = await checkPackage(c.spec, { cache });
       return { ...c, verdict: v.verdict, score: v.risk_score, categories: v.categories, source: v.source };

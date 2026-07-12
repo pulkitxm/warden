@@ -410,9 +410,12 @@
       "spec": "got",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "allow",
-      "score": 0,
-      "categories": [],
+      "verdict": "warn",
+      "score": 55,
+      "categories": [
+        "exfiltration",
+        "metadata_anomaly"
+      ],
       "source": "heuristics"
     },
     {
@@ -770,9 +773,9 @@
       "score": 100,
       "categories": [
         "obfuscation",
+        "exfiltration",
         "install_script",
-        "metadata_anomaly",
-        "exfiltration"
+        "metadata_anomaly"
       ],
       "source": "heuristics"
     },

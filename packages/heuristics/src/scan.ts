@@ -20,7 +20,10 @@ export type FindingKind =
   | "env_exfil"
   | "metadata_host" // cloud IMDS / metadata endpoints
   | "fs_sensitive" // reads of credential/source paths (.npmrc, .ssh, .git, ...)
-  | "destructive_fs"; // rm -rf / unlink of home/cwd
+  | "destructive_fs" // rm -rf / unlink of home/cwd
+  | "env_dump" // serializes the ENTIRE environment (host-agnostic exfil tell)
+  | "dns_egress" // dns lookups (a covert exfil channel)
+  | "reverse_shell"; // socket wired to a spawned shell
 
 export interface Finding {
   kind: FindingKind;
@@ -157,6 +160,28 @@ function scanContentPatterns(code: string): Finding[] {
   }
   if ((/\b(rmSync|rmdirSync)\b/.test(code) && /recursive\s*:\s*true/.test(code)) || /\brimraf\s*\(/.test(code)) {
     out.push({ kind: "destructive_fs", detail: "recursively deletes files" });
+  }
+  // Whole-environment SERIALIZATION — the exfiltration tell regardless of the
+  // destination host. Restricted to JSON.stringify(process.env): `{...process.env}`
+  // and `Object.assign({}, process.env)` are the standard way to pass inherited
+  // env to a spawned child process (cross-env/execa/etc.) and are NOT exfil.
+  if (/JSON\.stringify\s*\(\s*process\.env\b/.test(code)) {
+    out.push({ kind: "env_dump", detail: "serializes the entire environment (JSON.stringify(process.env))" });
+  }
+  // DNS lookups — a covert exfiltration channel (secret encoded in a hostname).
+  if (/require\(\s*['"]dns['"]\s*\)|\bdns\.(lookup|resolve\w*)\s*\(/.test(code)) {
+    out.push({ kind: "dns_egress", detail: "performs DNS lookups (possible DNS exfiltration)" });
+  }
+  // Indirect eval that the AST pass misses: (0,eval)(...), globalThis['eval'].
+  if (/\(\s*0\s*,\s*eval\s*\)|(?:globalThis|window|global)\s*\[\s*['"]eval['"]\s*\]/.test(code)) {
+    out.push({ kind: "eval", detail: "uses indirect eval" });
+  }
+  // Reverse shell: a socket connection wired to a spawned shell. Never legit.
+  if (
+    /net\.(connect|createConnection)|new\s+net\.Socket/.test(code) &&
+    /(spawn|exec|execSync)\s*\(\s*['"]?(?:\/bin\/)?(?:sh|bash|cmd(?:\.exe)?)/.test(code)
+  ) {
+    out.push({ kind: "reverse_shell", detail: "wires a socket to a spawned shell (reverse shell)" });
   }
   return out;
 }

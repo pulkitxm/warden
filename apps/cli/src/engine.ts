@@ -122,10 +122,12 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     }
   }
 
-  // Establishment: downloads >= 100k, OR on the bundled popular list (so a
-  // downloads-API outage cannot flip a known-popular package to "not
-  // established" and false-block it — issue I10).
-  const established = (meta.weeklyDownloads ?? 0) >= 100_000 || popularityOf(meta.name) !== undefined;
+  // Establishment: downloads >= 100k, OR on the bundled popular list, OR the
+  // downloads API couldn't be reached (treat unknown conservatively — a
+  // downloads-API outage must not flip a popular package to "obscure" and
+  // false-block it; issue I10). Tradeoff: during such an outage, a genuinely
+  // obscure package's name/capability attack may only WARN.
+  const established = (meta.weeklyDownloads ?? 0) >= 100_000 || popularityOf(meta.name) !== undefined || Boolean(meta.downloadsUnknown);
 
   const d = diffVersions(current, previous, { metaScripts: meta.scripts, prevMetaScripts: meta.previousScripts });
   const input: AnalysisInput = {

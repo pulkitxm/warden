@@ -55,7 +55,7 @@ const LIFECYCLE_IDS = new Set(["install-script-added", "install-script-changed"]
 // IP) and don't do any of these, so they stay clear.
 const LIFECYCLE_SINK_IDS = new Set([
   "code-raw_ip", "code-metadata_host", "code-fs_sensitive", "code-destructive_fs",
-  "code-eval", "code-base64",
+  "code-dns_egress", "code-eval", "code-base64",
   "script-raw_ip", "script-network", "script-shell_exec", "script-eval",
 ]);
 
@@ -81,6 +81,11 @@ function decide(signals: Signal[], ctx: ScoreContext): { level: VerdictLevel; re
   // 1. Name attacks (already gated on popularity/homoglyph/nonexistence): block alone.
   if (signals.some((s) => NAME_ATTACK_IDS.has(s.id))) {
     return { level: "block", reason: "high-confidence name attack (typosquat/slopsquat)" };
+  }
+
+  // 1b. Reverse shell — a socket wired to a spawned shell is never legitimate.
+  if (signals.some((s) => s.id === "code-reverse_shell")) {
+    return { level: "block", reason: "reverse shell (socket wired to a spawned shell)" };
   }
 
   // 2. Hard intent (account/publisher takeover) corroborated by a second signal:
