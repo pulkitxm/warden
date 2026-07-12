@@ -1,0 +1,10 @@
+{
+  "note": "Seed malicious-package blocklist. Refreshed from OSV npm all.zip (MAL- advisories) + ossf/malicious-packages by scripts/fetch-intel.ts. An entry with no `versions` blocks the whole package (OSV 'introduced: 0'). Entries below are real compromised versions from verified 2025-2026 incidents.",
+  "entries": [
+    { "id": "MAL-CHALK-2025", "name": "chalk", "versions": ["5.6.1"], "ref": "npmjs.help phishing, Sept 8 2025" },
+    { "id": "MAL-DEBUG-2025", "name": "debug", "versions": ["4.4.2"], "ref": "npmjs.help phishing, Sept 8 2025" },
+    { "id": "MAL-ANSI-STYLES-2025", "name": "ansi-styles", "versions": ["6.2.2"], "ref": "Sept 8 2025 wave" },
+    { "id": "MAL-AXIOS-2026", "name": "axios", "versions": ["1.14.1", "0.30.4"], "ref": "Sapphire Sleet, Mar 31 2026" },
+    { "id": "MAL-PLAIN-CRYPTO-JS-2026", "name": "plain-crypto-js", "ref": "axios RAT dependency, whole package malicious" }
+  ]
+}

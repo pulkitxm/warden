@@ -441,7 +441,8 @@ function main() {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean)
-    .filter((f) => !/(^|\/)(package-lock\.json|bun\.lock|pnpm-lock\.yaml)$/.test(f));
+    .filter((f) => !/(^|\/)(package-lock\.json|bun\.lock|pnpm-lock\.yaml)$/.test(f))
+    .filter((f) => !f.startsWith("wnpm/"));
 
   let changedFiles = 0;
   let totalRemoved = 0;

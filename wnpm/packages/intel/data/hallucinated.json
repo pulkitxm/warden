@@ -1,0 +1,15 @@
+{
+  "note": "Curated list of package names that LLMs are known to hallucinate (slopsquat targets). Blocked even if the name has since been registered (often defensively). Source: USENIX 2025 dataset, Aikido/CSA reporting. This is the stopgap until a live hallucination-pattern model; refresh from published datasets.",
+  "names": [
+    "react-codeshift",
+    "react-hooks-helpers",
+    "express-async-router",
+    "node-fetch-retry-helper",
+    "lodash-utils-extended",
+    "vue-composition-helpers-pro",
+    "axios-cache-adapter-plus",
+    "eslint-config-standard-pro",
+    "typescript-runtime-checker",
+    "jest-mock-extended-helpers"
+  ]
+}
