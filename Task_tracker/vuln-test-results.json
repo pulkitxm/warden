@@ -1,0 +1,807 @@
+{
+  "matrix": {
+    "tp": 15,
+    "fp": 2,
+    "tn": 46,
+    "fn": 10
+  },
+  "precision": 0.8823529411764706,
+  "recall": 0.6,
+  "f1": 0.7142857142857143,
+  "results": [
+    {
+      "spec": "mal-postinstall-env@1.0.1",
+      "label": "malicious",
+      "type": "postinstall-env-exfil",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-preinstall-harvester@2.0.0",
+      "label": "malicious",
+      "type": "preinstall-cred-harvester",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-curl-bash@0.0.1",
+      "label": "malicious",
+      "type": "curl-pipe-bash",
+      "verdict": "warn",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-obfuscated-eval@1.2.0",
+      "label": "malicious",
+      "type": "obfuscated-eval-drainer",
+      "verdict": "block",
+      "score": 95,
+      "categories": [
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-provenance-downgrade@1.0.1",
+      "label": "malicious",
+      "type": "provenance-downgrade",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "provenance_downgrade",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-base64-loader@1.0.0",
+      "label": "malicious",
+      "type": "base64-eval-loader",
+      "verdict": "warn",
+      "score": 95,
+      "categories": [
+        "install_script",
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-source-leak@1.0.0",
+      "label": "malicious",
+      "type": "source-code-leak",
+      "verdict": "warn",
+      "score": 90,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-secret-theft@1.0.0",
+      "label": "malicious",
+      "type": "secret-file-theft",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-imds-steal@1.0.0",
+      "label": "malicious",
+      "type": "cloud-imds-theft",
+      "verdict": "warn",
+      "score": 90,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-reverse-shell@1.0.0",
+      "label": "malicious",
+      "type": "reverse-shell",
+      "verdict": "warn",
+      "score": 100,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "@acme-corp/internal-config@99.0.0",
+      "label": "malicious",
+      "type": "dependency-confusion",
+      "verdict": "warn",
+      "score": 90,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-protestware@2.0.0",
+      "label": "malicious",
+      "type": "protestware",
+      "verdict": "warn",
+      "score": 60,
+      "categories": [
+        "install_script",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "mal-fake-native@1.0.0",
+      "label": "malicious",
+      "type": "fake-native-download",
+      "verdict": "warn",
+      "score": 90,
+      "categories": [
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "lodahs",
+      "label": "malicious",
+      "type": "typosquat",
+      "verdict": "block",
+      "score": 60,
+      "categories": [
+        "typosquat",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "expresss",
+      "label": "malicious",
+      "type": "typosquat",
+      "verdict": "block",
+      "score": 60,
+      "categories": [
+        "typosquat",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "reqeust",
+      "label": "malicious",
+      "type": "typosquat",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "momnet",
+      "label": "malicious",
+      "type": "typosquat",
+      "verdict": "block",
+      "score": 60,
+      "categories": [
+        "typosquat",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "axsios",
+      "label": "malicious",
+      "type": "typosquat",
+      "verdict": "block",
+      "score": 90,
+      "categories": [
+        "slopsquat"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "l0dash",
+      "label": "malicious",
+      "type": "homoglyph-typosquat",
+      "verdict": "block",
+      "score": 90,
+      "categories": [
+        "slopsquat"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "react-hooks-fetcher-helper-xyz",
+      "label": "malicious",
+      "type": "slopsquat",
+      "verdict": "block",
+      "score": 90,
+      "categories": [
+        "slopsquat"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "data-fetch-utils-pro-2026",
+      "label": "malicious",
+      "type": "slopsquat",
+      "verdict": "block",
+      "score": 90,
+      "categories": [
+        "slopsquat"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "@typescript_eslinter/eslint",
+      "label": "malicious",
+      "type": "slopsquat-scoped",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "chalk@5.6.1",
+      "label": "malicious",
+      "type": "blocklist-known-malware",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "known_malware"
+      ],
+      "source": "blocklist"
+    },
+    {
+      "spec": "axios@1.14.1",
+      "label": "malicious",
+      "type": "blocklist-known-malware",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "known_malware"
+      ],
+      "source": "blocklist"
+    },
+    {
+      "spec": "plain-crypto-js",
+      "label": "malicious",
+      "type": "blocklist-known-malware",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "known_malware"
+      ],
+      "source": "blocklist"
+    },
+    {
+      "spec": "react",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "react-dom",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 58,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "vue",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 60,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "svelte",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "lodash",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 29,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "express",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 20,
+      "categories": [
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "koa",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "fastify",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 90,
+      "categories": [
+        "obfuscation",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "axios",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 88,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "got",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "node-fetch",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "undici",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "chalk",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "commander",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 30,
+      "categories": [
+        "install_script",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "yargs",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 20,
+      "categories": [
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "typescript",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 70,
+      "categories": [
+        "obfuscation",
+        "install_script",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "esbuild",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 20,
+      "categories": [
+        "install_script"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "webpack",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "rollup",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 88,
+      "categories": [
+        "obfuscation",
+        "install_script"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "vite",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 79,
+      "categories": [
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "@babel/core",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "@types/node",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "@typescript-eslint/parser",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "eslint",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 63,
+      "categories": [
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "prettier",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 100,
+      "categories": [
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "jest",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "vitest",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 94,
+      "categories": [
+        "install_script",
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "sharp",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "node-gyp",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "bcrypt",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 25,
+      "categories": [
+        "install_script"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "better-sqlite3",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "dotenv",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "cross-env",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "uuid",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 25,
+      "categories": [
+        "install_script"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "semver",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "glob",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 58,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "rimraf",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "ms",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "qs",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 29,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "ws",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "debug",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "three",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 44,
+      "categories": [
+        "obfuscation",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "d3",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "block",
+      "score": 51,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "moment",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 58,
+      "categories": [
+        "obfuscation"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "zod",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "next",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "block",
+      "score": 100,
+      "categories": [
+        "obfuscation",
+        "install_script",
+        "exfiltration",
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    },
+    {
+      "spec": "core-js",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
+      "source": "heuristics"
+    },
+    {
+      "spec": "chokidar",
+      "label": "benign",
+      "type": "real-popular",
+      "verdict": "warn",
+      "score": 20,
+      "categories": [
+        "metadata_anomaly"
+      ],
+      "source": "heuristics"
+    }
+  ]
+}

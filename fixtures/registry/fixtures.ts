@@ -6,21 +6,21 @@
 import { computeIntegrity } from "@warden/sri";
 import { makeTgz, type FixtureFile } from "./tarWriter.ts";
 
-interface FixtureVersion {
+export interface FixtureVersion {
   files: FixtureFile[];
   scripts?: Record<string, string>;
   maintainer: { name: string; email: string };
   provenance?: boolean;
   ageHours: number;
 }
-interface FixturePackage {
+export interface FixturePackage {
   name: string;
   downloads: number;
   latest: string;
   versions: Record<string, FixtureVersion>;
 }
 
-const pkgJson = (name: string, version: string, scripts?: Record<string, string>): FixtureFile => ({
+export const pkgJson = (name: string, version: string, scripts?: Record<string, string>): FixtureFile => ({
   path: "package.json",
   content: JSON.stringify({ name, version, ...(scripts ? { scripts } : {}) }),
 });
@@ -108,13 +108,13 @@ export interface Materialized {
 
 /** Build packuments (with `base`-rooted tarball URLs), tarball bytes, and
  * download points for every fixture package. */
-export function materialize(base: string): Materialized {
+export function materialize(base: string, packages: FixturePackage[] = FIXTURES): Materialized {
   const packuments: Record<string, unknown> = {};
   const tarballs: Record<string, Uint8Array<ArrayBuffer>> = {};
   const downloads: Record<string, number> = {};
   const now = Date.now();
 
-  for (const pkg of FIXTURES) {
+  for (const pkg of packages) {
     downloads[pkg.name] = pkg.downloads;
     const versions: Record<string, unknown> = {};
     const time: Record<string, string> = {};
