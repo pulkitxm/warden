@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!warden", "!node_modules"]
+    "includes": ["**", "!dist", "!wnpm", "!node_modules"]
   },
   "formatter": {
     "enabled": true,

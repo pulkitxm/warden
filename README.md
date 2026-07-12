@@ -9,8 +9,11 @@ deterministic supply-chain heuristics plus an optional LLM explanation, and
 blocks anything high-risk before a single script runs — whether a human typed
 the command or a coding agent (Claude Code, Codex) did.
 
-> Hackathon MVP. See [`docs/PRD.md`](docs/PRD.md) for the full product spec and
-> [`docs/DEMO.md`](docs/DEMO.md) for the demo runbook.
+> Hackathon MVP. Full documentation lives in [`docs/`](docs/):
+> [architecture](docs/architecture.md) · [CLI reference](docs/cli.md) ·
+> [heuristics & scoring](docs/heuristics.md) · [agent integration](docs/agents.md) ·
+> [configuration](docs/configuration.md) · [development](docs/development.md) ·
+> [product spec](docs/prd.md) · [demo runbook](docs/demo.md)
 
 ## Why
 
@@ -88,8 +91,12 @@ reads and self-corrects from.
 | `ANTHROPIC_API_KEY` | Enables the LLM explanation (Haiku). Optional — heuristics work without it. |
 | `WARDEN_CACHE_DIR` | Verdict cache location (default `~/.warden-cache`). |
 | `WARDEN_LLM_MODEL` | Override the model (default `claude-haiku-4-5`). |
+| `WARDEN_LLM_BASE` | Override the Anthropic API base URL. |
 | `WARDEN_REGISTRY` | Override the npm registry base URL. |
+| `WARDEN_DOWNLOADS` | Override the downloads-stats API base URL. |
 | `WARDEN_DEBUG` | Print LLM-call count per run (for the cache-hit metric). |
+
+See [`docs/configuration.md`](docs/configuration.md) for details.
 
 ## Develop
 
@@ -111,4 +118,4 @@ bun run strip-comments    # remove any code comments (CI runs --check)
 Core engine, CLI, and Claude Code hook are working (MVP). Not yet built:
 sandboxed script execution, the registry firehose worker for proactive scoring,
 reachability-aware `warden audit`, and the Codex execpolicy adapter. See
-[`docs/PRD.md`](docs/PRD.md) §8.
+[`docs/prd.md`](docs/prd.md) §8.

@@ -6,7 +6,7 @@ Two pieces that make Warden work inside Claude Code:
    tool call, extracts install/`npx` commands, and deterministically **denies**
    HIGH-risk packages before they execute. The model cannot skip it — this is
    the layer that holds even under prompt injection from a malicious skill file.
-2. **Skill** (`skills/warden/SKILL.md`) — *interpretation*. Teaches the agent to
+2. **Skill** (`skill/SKILL.md`) — *interpretation*. Teaches the agent to
    run `warden check --json` before proposing a package and to act on the
    verdict (suggest the correct name on a typosquat, ask for confirmation on
    MEDIUM, refuse on HIGH).
@@ -27,7 +27,7 @@ bun install && bun run build && npm link
 #    project .claude/settings.json (or user ~/.claude/settings.json)
 
 # 3. Add the skill — copy the skill folder into your project
-cp -r adapters/claude-code/skills/warden .claude/skills/warden
+cp -r adapters/claude-code/skill .claude/skills/warden
 ```
 
 If you don't want `npm link`, replace `"warden hook"` in `settings.json`
@@ -35,7 +35,7 @@ with `"node /absolute/path/to/warden/dist/cli/index.js hook"`.
 
 ## Verify
 
-Seed a HIGH verdict (see `docs/DEMO.md`), then ask the agent to install that
+Seed a HIGH verdict (see `docs/demo.md`), then ask the agent to install that
 package; the hook returns a `deny` decision with a plain-English reason and the
 agent self-corrects. Note that a mere typosquat usually scores MEDIUM
 (`confirm_with_human`), which the hook deliberately does not deny — only HIGH

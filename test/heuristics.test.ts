@@ -223,3 +223,24 @@ describe("score — gating and damping", () => {
     expect(r.level).toBe("HIGH");
   });
 });
+
+describe("analyze — agent-config and typosquat edges", () => {
+  it("flags AGENTS.md shipped in the tarball", () => {
+    const files = [{ path: "AGENTS.md", size: 5, content: "hi", binary: false }];
+    const diff = diffFileSets(files, undefined, {});
+    const signals = analyze(cleanNewPackage.meta, diff);
+    expect(signals.some((s) => s.flag === "writes_agent_config")).toBe(true);
+  });
+
+  it("does not flag agent-config paths on established diffs without changes", () => {
+    const diff = diffFileSets([], [], {});
+    const signals = analyze(cleanEstablishedPackage.meta, diff);
+    expect(signals.some((s) => s.flag === "writes_agent_config")).toBe(false);
+  });
+
+  it("ignores the scope when checking typosquats", () => {
+    const meta = { ...cleanNewPackage.meta, name: "@acme/lodahs" };
+    const signals = analyze(meta, diffFileSets([], undefined, {}));
+    expect(signals.some((s) => s.flag === "typosquat")).toBe(true);
+  });
+});

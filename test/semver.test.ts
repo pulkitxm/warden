@@ -120,3 +120,25 @@ describe("maxSatisfying", () => {
     expect(maxSatisfying(V, ">=banana")).toBeUndefined();
   });
 });
+
+describe("maxSatisfying — edge cases", () => {
+  it("never resolves TO a prerelease, even for an exact prerelease range", () => {
+    expect(maxSatisfying(V, "2.1.0-beta.1")).toBeUndefined();
+  });
+
+  it("handles tilde on 0.x and caret partial equivalences", () => {
+    expect(maxSatisfying(V, "~0.2.3")).toBe("0.2.9");
+    expect(maxSatisfying(V, "^1.x")).toBe("1.9.9");
+    expect(maxSatisfying(V, "~1.x")).toBe("1.9.9");
+  });
+
+  it("treats an impossible compound range as unsatisfied", () => {
+    expect(maxSatisfying(V, ">=2 <1")).toBeUndefined();
+    expect(maxSatisfying(V, "<0.0.1")).toBeUndefined();
+  });
+
+  it("accepts v-prefixed versions in ranges and lists", () => {
+    expect(maxSatisfying(["v1.2.3", "2.0.0"], "^1")).toBe("v1.2.3");
+    expect(maxSatisfying(V, "=v1.2.3")).toBe("1.2.3");
+  });
+});

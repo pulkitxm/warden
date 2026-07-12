@@ -13,7 +13,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done
 Baseline already built (branch `build-warden-mvp`): registry client, tarball diff,
 heuristic scorer, verdict cache, LLM verdict (Haiku, escalation-gated), CLI
 (`warden`/`bnpm`/`bnpx`), Claude Code hook adapter, 26 tests. See `README.md`,
-`docs/PRD.md`, `docs/DEMO.md`.
+`docs/prd.md`, `docs/demo.md`.
 
 ---
 
@@ -80,7 +80,7 @@ heuristic scorer, verdict cache, LLM verdict (Haiku, escalation-gated), CLI
   with `slopsquat` flag.
 
 - [ ] **Demo fixtures: `react-codeshift` slopsquat + axios-style malicious diff.**
-  Files: `test/fixtures.ts`, `docs/DEMO.md`.
+  Files: `test/fixtures.ts`, `docs/demo.md`.
   Gap: the two headline demo beats need reliable local fixtures (no live malware).
   Effort: S. Verify: fixture tests assert BLOCK with expected flags.
 

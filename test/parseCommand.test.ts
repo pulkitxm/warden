@@ -146,3 +146,39 @@ describe("parseCommand — wrapper prefixes (hook bypass fix)", () => {
     });
   });
 });
+
+describe("parseCommand — additional shapes", () => {
+  it("parses quoted package names", () => {
+    expect(parseCommand('npm i "left-pad"')).toEqual({ kind: "install", packages: ["left-pad"] });
+    expect(parseCommand("npm i 'chalk@5.3.0'")).toEqual({
+      kind: "install",
+      packages: ["chalk@5.3.0"],
+    });
+  });
+
+  it("parses bun add and yarn add with flags", () => {
+    expect(parseCommand("bun add -d typescript")).toEqual({
+      kind: "install",
+      packages: ["typescript"],
+    });
+    expect(parseCommand("yarn add --dev vitest")).toEqual({
+      kind: "install",
+      packages: ["vitest"],
+    });
+  });
+
+  it("does not treat non-install pm subcommands as installs", () => {
+    expect(parseCommand("npm run build")).toBeNull();
+    expect(parseCommand("pnpm test")).toBeNull();
+    expect(parseCommand("npm uninstall left-pad")).toBeNull();
+  });
+
+  it("handles piped compounds and empty segments", () => {
+    expect(parseCommand("echo hi | npm i left-pad")).toEqual({
+      kind: "install",
+      packages: ["left-pad"],
+    });
+    expect(parseCommand("&&")).toBeNull();
+    expect(parseCommand("")).toBeNull();
+  });
+});
