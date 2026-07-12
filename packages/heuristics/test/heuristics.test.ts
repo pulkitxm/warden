@@ -127,3 +127,27 @@ test("clean package yields no action signals", () => {
   const s = analyze(base({ name: "tiny-slugify", meta: { maintainers: ["dev"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 400 }, scanFiles: [{ path: "index.js", text: "export const x=1;" }] }));
   expect(s.filter((x) => x.action)).toHaveLength(0);
 });
+
+test("established scoped packages are never scoped-impersonation (@types FP fix)", () => {
+  for (const name of ["@types/react", "@types/lodash", "@testing-library/react"]) {
+    const s = analyze(base({ name, meta: { maintainers: ["types"], existsOnRegistry: true, weeklyDownloads: 20_000_000 } }));
+    expect(s.find((x) => x.id === "scoped-impersonation")).toBeUndefined();
+  }
+});
+
+test("established flag alone (downloads unknown) also suppresses scoped-impersonation", () => {
+  const s = analyze(base({ name: "@types/react", meta: { maintainers: ["types"], existsOnRegistry: true, established: true } }));
+  expect(s.find((x) => x.id === "scoped-impersonation")).toBeUndefined();
+});
+
+test("obscure scope wrapping a mega-popular name is still scoped-impersonation", () => {
+  const s = analyze(base({ name: "@typescript_eslinter/eslint", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 12 } }));
+  expect(idsOf(s)).toContain("scoped-impersonation");
+});
+
+test("homoglyph squat of a top package is the strong homoglyph signal", () => {
+  const s = analyze(base({ name: "l0dash", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 5 } }));
+  const t = s.find((x) => x.category === "typosquat");
+  expect(t?.id).toBe("homoglyph-typosquat");
+  expect(t!.weight).toBeGreaterThanOrEqual(60);
+});

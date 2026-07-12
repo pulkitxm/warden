@@ -143,3 +143,17 @@ LATENCY: axios cold = 1.64s wall, 139 MB RSS (packument + downloads + 2 tarballs
 - "Real-world use" interpreted as: a developer or agent running `wnpm`/`wnpx`
   against the public npm registry on real package names. Tested that path directly.
 - No `OPENAI_API_KEY` was available, so the LLM path is tested only via fallback.
+
+---
+
+## Code-standards review pass (2026-07-13)
+
+Independent sub-agent review of the monorepo found 4 new defects; all fixed and
+regression-tested (`bun test`: 72 pass).
+
+| Finding | Severity | Fix |
+|---|---|---|
+| `scoped-impersonation` false-blocked the whole `@types/*` / `@testing-library/*` ecosystem (rule ran before establishment suppression) | **critical** | establishment check now runs first; obscure-scope impersonation (`@typescript_eslinter/eslint`) still blocks. Verified: `@types/react` → allow, `l0dash` → block |
+| `homoglyph-typosquat` branch was dead code (`normalizedCollision && !distance` can never hold), so digit-substitution squats of top packages only WARNed | major | distance package now reports `homoglyph: true` when homoglyph folding (not just delimiter stripping) produced the collision; `l0dash`/`ch4lk` now block |
+| BK-tree over OSA distance violates the triangle inequality → pruning silently missed true distance-2 squats (`myr2sql`→`mysql`) | minor | replaced with a linear scan over the ~120-name corpus (microseconds; a true metric is required before any tree returns) |
+| `readTgz` had no decompression cap (gzip-bomb memory exhaustion when integrity is absent) | minor | ISIZE pre-check + post-inflate cap at 512 MB with a clear error |

@@ -26,10 +26,24 @@ test("real package returns null (not a squat of itself)", () => {
   expect(findNearestPopular("react")).toBeNull();
 });
 
-test("homoglyph squat is a normalized collision", () => {
+test("homoglyph squat is a normalized collision and flagged as homoglyph", () => {
   const m = findNearestPopular("l0dash");
   expect(m?.target).toBe("lodash");
   expect(m?.normalizedCollision).toBe(true);
+  expect(m?.homoglyph).toBe(true);
+});
+
+test("delimiter-only variant is a collision but NOT a homoglyph", () => {
+  const m = findNearestPopular("cross_env");
+  expect(m?.target).toBe("cross-env");
+  expect(m?.normalizedCollision).toBe(true);
+  expect(m?.homoglyph).toBe(false);
+});
+
+test("linear scan finds distance-2 matches a BK-tree over OSA missed", () => {
+  const m = findNearestPopular("myr2sql");
+  expect(m?.target).toBe("mysql");
+  expect(m?.distance).toBe(2);
 });
 
 test("delimiter variant of a real package is detected but marked a collision", () => {

@@ -174,9 +174,20 @@ export function ruleNameSimilarity(input: AnalysisInput): Signal[] {
     return out; // nothing else to say about a package that isn't there
   }
 
+  // An established package (real, high download count OR on the popular list) is
+  // not a typosquat — it IS a real package. Removes false positives on popular
+  // short-named / seed-missing packages like `got`, and is robust to a
+  // downloads-API outage via the popular-list fallback (see issue I10). This
+  // MUST run before scoped-impersonation: legitimate scoped ecosystems
+  // (@types/react, @testing-library/react) wrap popular unscoped names too, and
+  // their establishment is what distinguishes them from @typo_scope/eslint.
+  const established = input.meta.established ?? (input.meta.weeklyDownloads ?? 0) >= 100_000;
+  if (established) return out;
+
   // Scoped impersonation: an unfamiliar scope wrapping a very popular unscoped
   // name (e.g. @typescript_eslinter/eslint). A real popular package would not
-  // live under a random scope, so treat it as a name attack.
+  // live under a random OBSCURE scope — established scoped packages already
+  // returned above.
   const scoped = input.name.match(/^@[^/]+\/(.+)$/);
   if (scoped) {
     const bareWeekly = popularityOf(scoped[1]!);
@@ -186,18 +197,11 @@ export function ruleNameSimilarity(input: AnalysisInput): Signal[] {
     }
   }
 
-  // An established package (real, high download count OR on the popular list) is
-  // not a typosquat — it IS a real package. Removes false positives on popular
-  // short-named / seed-missing packages like `got`, and is robust to a
-  // downloads-API outage via the popular-list fallback (see issue I10).
-  const established = input.meta.established ?? (input.meta.weeklyDownloads ?? 0) >= 100_000;
-  if (established) return out;
-
   const m = findNearestPopular(input.name);
   if (m) {
     const popularityGap = m.targetWeekly >= 1_000_000;
-    if (m.normalizedCollision && !m.distance) {
-      // Homoglyph collision (g00gle→google): strong.
+    if (m.normalizedCollision && m.homoglyph) {
+      // Homoglyph collision (l0dash→lodash): strong.
       out.push(sig("homoglyph-typosquat", "typosquat", 60, "high", `name is a homoglyph of popular package "${m.target}" (~${Math.round(m.targetWeekly / 1e6)}M weekly)`, { action: true }));
     } else if (m.normalizedCollision) {
       // Delimiter/plural variant of a real package (class-names vs classnames):

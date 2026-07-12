@@ -59,55 +59,28 @@ export function damerau(a: string, b: string): number {
   return d[m]![n]!;
 }
 
-/** BK-tree over a fixed corpus for fast distance-bounded nearest queries. */
-class BKTree {
-  private root: { term: string; children: Map<number, BKTreeNode> } | null = null;
-  add(term: string): void {
-    if (!this.root) {
-      this.root = { term, children: new Map() };
-      return;
-    }
-    let node: BKTreeNode = this.root;
-    for (;;) {
-      const dist = damerau(term, node.term);
-      if (dist === 0) return;
-      const child = node.children.get(dist);
-      if (!child) {
-        node.children.set(dist, { term, children: new Map() });
-        return;
-      }
-      node = child;
-    }
-  }
-  /** All corpus terms within `max` edits of `query`, nearest first. */
-  query(query: string, max: number): Array<{ term: string; distance: number }> {
-    if (!this.root) return [];
-    const out: Array<{ term: string; distance: number }> = [];
-    const stack: BKTreeNode[] = [this.root];
-    while (stack.length) {
-      const node = stack.pop()!;
-      const dist = damerau(query, node.term);
-      if (dist <= max) out.push({ term: node.term, distance: dist });
-      for (let d = dist - max; d <= dist + max; d++) {
-        const child = node.children.get(d);
-        if (child) stack.push(child);
-      }
-    }
-    return out.sort((a, b) => a.distance - b.distance);
-  }
-}
-interface BKTreeNode {
-  term: string;
-  children: Map<number, BKTreeNode>;
-}
-
-const tree = new BKTree();
+// NOTE: nearest-neighbour search is a LINEAR SCAN, deliberately. A BK-tree was
+// used before, but OSA distance (Damerau with adjacent transposition) violates
+// the triangle inequality, so BK-tree pruning silently dropped true distance-2
+// matches (e.g. myr2sql→mysql). At ~120 corpus names a scan is microseconds; if
+// a real top-10k list ships later, use a true-metric distance before re-adding
+// a tree.
 const byName = new Map<string, PopularPackage>();
 const byNormalized = new Map<string, PopularPackage>();
 for (const p of POPULAR) {
-  tree.add(p.name);
   byName.set(p.name, p);
   byNormalized.set(normalize(p.name), p);
+}
+
+function nearestByDistance(bare: string, max: number): { term: string; distance: number } | null {
+  let best: { term: string; distance: number } | null = null;
+  for (const p of POPULAR) {
+    const distance = damerau(bare, p.name);
+    if (distance > 0 && distance <= max && (!best || distance < best.distance)) {
+      best = { term: p.name, distance };
+    }
+  }
+  return best;
 }
 
 /** Weekly downloads if `name` is a known popular package (exact match), else
@@ -125,6 +98,13 @@ export interface NameMatch {
   distance: number;
   /** True when the only difference is homoglyph/delimiter (normalized-equal). */
   normalizedCollision: boolean;
+  /** True when homoglyph folding was required for the collision (l0dash→lodash),
+   * as opposed to a delimiter-only variant (cross_env→cross-env). */
+  homoglyph: boolean;
+}
+
+function foldDelimiters(name: string): string {
+  return name.replace(/[-_.]/g, "");
 }
 
 /**
@@ -147,17 +127,18 @@ export function findNearestPopular(name: string, maxDistance = 2): NameMatch | n
       targetWeekly: collision.weekly,
       distance: damerau(bare, collision.name),
       normalizedCollision: true,
+      homoglyph: foldDelimiters(bare) !== foldDelimiters(collision.name.toLowerCase()),
     };
   }
 
-  const hits = tree.query(bare, maxDistance).filter((h) => h.distance > 0);
-  if (!hits.length) return null;
-  const best = hits[0]!;
+  const best = nearestByDistance(bare, maxDistance);
+  if (!best) return null;
   const meta = byName.get(best.term)!;
   return {
     target: best.term,
     targetWeekly: meta.weekly,
     distance: best.distance,
     normalizedCollision: false,
+    homoglyph: false,
   };
 }

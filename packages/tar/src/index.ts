@@ -75,10 +75,30 @@ export function readTar(tarBytes: Uint8Array): TarEntry[] {
   return entries;
 }
 
+/** Decompression bomb guard: refuse archives that inflate beyond this. */
+const MAX_UNPACKED_BYTES = 512 * 1024 * 1024;
+
+/** The gzip trailer's ISIZE field: uncompressed size mod 2^32. A cheap
+ * pre-decompression bomb check (exact for anything under 4 GiB). */
+function gzipIsize(bytes: Uint8Array): number {
+  if (bytes.length < 4) return 0;
+  const n = bytes.length;
+  return (bytes[n - 4]! | (bytes[n - 3]! << 8) | (bytes[n - 2]! << 16) | (bytes[n - 1]! << 24)) >>> 0;
+}
+
 /** Gunzip a `.tgz` and read its files. Input must be ArrayBuffer-backed (as
- * produced by fetch().arrayBuffer() or fs reads), which Bun.gunzipSync requires. */
+ * produced by fetch().arrayBuffer() or fs reads), which Bun.gunzipSync requires.
+ * Refuses decompression bombs (checked via the gzip ISIZE hint before
+ * inflating, and against the real size after). */
 export function readTgz(tgzBytes: Uint8Array<ArrayBuffer>): TarEntry[] {
-  return readTar(Bun.gunzipSync(tgzBytes));
+  if (gzipIsize(tgzBytes) > MAX_UNPACKED_BYTES) {
+    throw new Error(`tarball declares an unpacked size over the ${MAX_UNPACKED_BYTES}-byte cap`);
+  }
+  const raw = Bun.gunzipSync(tgzBytes);
+  if (raw.length > MAX_UNPACKED_BYTES) {
+    throw new Error(`tarball unpacks to ${raw.length} bytes, over the ${MAX_UNPACKED_BYTES}-byte cap`);
+  }
+  return readTar(raw);
 }
 
 /** Convenience: decode an entry's bytes as UTF-8 text. */
