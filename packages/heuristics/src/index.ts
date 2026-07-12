@@ -6,7 +6,7 @@
 
 import type { Signal, Category, Confidence } from "@warden/schema";
 import { findNearestPopular } from "@warden/distance";
-import { scanShell, scanJs, obfuscationScore, type FindingKind } from "./scan.ts";
+import { scanShell, scanJs, obfuscationScore } from "./scan.ts";
 
 export interface ScanFile {
   path: string;
@@ -58,13 +58,6 @@ function sig(
   };
 }
 
-/** Map a scan finding kind to a category. */
-function categoryFor(kind: FindingKind): Category {
-  if (kind === "network" || kind === "raw_ip" || kind === "env_exfil") return "exfiltration";
-  if (kind === "base64" || kind === "eval") return "obfuscation";
-  return "install_script"; // child_process, shell_exec
-}
-
 // --- Rule A: install scripts -------------------------------------------------
 export function ruleInstallScripts(input: AnalysisInput): Signal[] {
   const out: Signal[] = [];
@@ -88,31 +81,49 @@ export function ruleInstallScripts(input: AnalysisInput): Signal[] {
 }
 
 // --- Rule B: suspicious script/source content --------------------------------
+// Calibrated against real packages (see Task_tracker/issues.md). Plain network
+// access (require http/https/net, fetch) and lone process.env reads are NOT
+// signals — they are ubiquitous in legitimate libraries (every HTTP client,
+// every server, every native installer reading proxy env). Only a hardcoded
+// raw-IP sink, an env-dump-to-raw-IP (exfiltration shape), eval, and base64
+// count. child_process is a capability (non-blocking on its own) kept only so
+// the obfuscation+exec-sink correlation can see it.
 export function ruleScriptContent(input: AnalysisInput): Signal[] {
   const out: Signal[] = [];
-  // Shell bodies of added/changed lifecycle scripts.
+  // Shell bodies of lifecycle scripts: suspicious patterns HERE are strong (a
+  // postinstall has no business running curl|bash), so keep them as actions.
   for (const [name, body] of Object.entries({ ...input.addedScripts, ...input.changedScripts })) {
     for (const f of scanShell(body)) {
-      out.push(sig(`script-${f.kind}`, categoryFor(f.kind), 25, "high", `${name} script ${f.detail}`, { action: true }));
+      const cat: Category = f.kind === "network" || f.kind === "raw_ip" ? "exfiltration" : "install_script";
+      out.push(sig(`script-${f.kind}`, cat, 25, "high", `${name} script ${f.detail}`, { action: true }));
     }
   }
-  // JS source of changed/added files.
+
   const findings = input.scanFiles.flatMap((file) =>
     file.text ? scanJs(file.text).map((f) => ({ f, file: file.path })) : [],
   );
-  const hasNetwork = findings.some(({ f }) => f.kind === "network" || f.kind === "raw_ip");
+  const hasRawIp = findings.some(({ f }) => f.kind === "raw_ip");
   const hasEnv = findings.some(({ f }) => f.kind === "env_exfil");
+
   for (const { f, file } of findings) {
-    if (f.kind === "env_exfil" && !hasNetwork) continue; // env read alone is noise
-    const weight = f.kind === "network" || f.kind === "raw_ip" ? 25 : f.kind === "eval" || f.kind === "base64" ? 20 : 15;
-    out.push(sig(`code-${f.kind}`, categoryFor(f.kind), weight, "medium", `code ${f.detail}`, { file, action: true }));
+    if (f.kind === "network" || f.kind === "env_exfil") continue; // capability, too common to be a signal alone
+    if (f.kind === "raw_ip") {
+      out.push(sig("code-raw_ip", "exfiltration", 30, "high", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "eval") {
+      out.push(sig("code-eval", "obfuscation", 20, "medium", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "base64") {
+      out.push(sig("code-base64", "obfuscation", 15, "medium", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "child_process") {
+      // Capability only (native modules use it): non-action, low weight.
+      out.push(sig("code-child_process", "install_script", 10, "low", `code ${f.detail}`, { file }));
+    }
   }
-  if (hasNetwork && hasEnv) {
-    out.push(
-      sig("exfil-shape", "exfiltration", 30, "high", "reads environment variables and performs network I/O (exfiltration shape)", {
-        action: true,
-      }),
-    );
+
+  // Exfiltration shape: an env dump AND a hardcoded raw IP together. Requiring
+  // the raw IP (not just any network call) is what removes the express/request/
+  // esbuild false positives while keeping the axios/Shai-Hulud pattern.
+  if (hasRawIp && hasEnv) {
+    out.push(sig("exfil-shape", "exfiltration", 35, "high", "reads environment variables and sends them to a hardcoded IP (exfiltration shape)", { action: true }));
   }
   return out;
 }
@@ -140,6 +151,12 @@ export function ruleNameSimilarity(input: AnalysisInput): Signal[] {
     out.push(sig("nonexistent-package", "slopsquat", 90, "high", `package "${input.name}" does not exist on the registry (likely a hallucinated / slopsquatted name)`, { action: true }));
     return out; // nothing else to say about a package that isn't there
   }
+
+  // An established package (real, high download count) is not a typosquat — it
+  // IS a real package. This removes false positives on popular short-named or
+  // seed-missing packages like `got`. (A full top-10k name list would also fix
+  // this by recognizing them directly; the download guard is the cheap proxy.)
+  if ((input.meta.weeklyDownloads ?? 0) >= 100_000) return out;
 
   const m = findNearestPopular(input.name);
   if (m) {

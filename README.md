@@ -84,11 +84,13 @@ wnpm install acme-http@1.0.1      # BLOCK: hijacked-diff (provenance + exfil)
 bun demo/agent-sim.ts demo/skill-file/AGENTS.md   # the agent refuses react-codeshift
 ```
 
-> ⚠️ **Current status:** the engine is validated against the offline mini-registry.
-> Live-registry testing surfaced false positives on some real packages (e.g.
-> `esbuild`, `next`) that are being recalibrated — see
-> `Task_tracker/issues.md` and `Task_tracker/improvement-plan.md`. Use the
-> offline demo for now; `wnpx lodahs` and the agent-sim beat are accurate live.
+> **Status:** validated against the offline mini-registry and re-verified live.
+> The false positives found in the first real-registry pass (esbuild, next,
+> three, express, request, got) are **fixed** — see `Task_tracker/issues.md` for
+> the before/after. Known residual: minified bundles still WARN (not block), and
+> slopsquat only catches truly-nonexistent names (a defensively-registered
+> hallucinated name like `react-codeshift` needs the curated list on the
+> roadmap). Live `wnpm install <popular pkg>` is now safe to demo.
 
 ## Stack
 

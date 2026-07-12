@@ -15,6 +15,9 @@ export interface PackageMeta {
   name: string;
   version: string;
   existsOnRegistry: boolean;
+  /** True when a concrete version was requested but is absent from the registry
+   * (removed/unpublished). The engine must NOT analyze a fallback version. */
+  requestedVersionMissing?: boolean;
   versions: string[];
   previousVersion?: string;
   publishedAt?: string;
@@ -79,6 +82,10 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
   const ordered = Object.keys(pack.versions).sort((a, b) => (Date.parse(time[a] ?? "") || 0) - (Date.parse(time[b] ?? "") || 0));
   const tags = pack["dist-tags"] ?? {};
   let resolved = tags[version] ?? version;
+  // A concrete requested version that is absent (removed/unpublished) must not
+  // silently fall back to latest — that would score the wrong bytes and let a
+  // blocklisted-but-removed version slip through.
+  const requestedVersionMissing = version !== "latest" && !tags[version] && !pack.versions[resolved];
   if (!pack.versions[resolved]) resolved = tags.latest ?? ordered.at(-1) ?? version;
   const vd = pack.versions[resolved];
   if (!vd) return { name, version, existsOnRegistry: false, versions: ordered, maintainers: [] };
@@ -98,6 +105,7 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
     name,
     version: resolved,
     existsOnRegistry: true,
+    requestedVersionMissing,
     versions: ordered,
     previousVersion: prev,
     publishedAt,

@@ -1,5 +1,28 @@
 # Warden — Real-World Test Findings
 
+## Resolution status (recalibration, 2026-07-12)
+
+Re-verified against the live registry after the fix.
+
+| Issue | Status | Now |
+|---|---|---|
+| I1 network/env = exfiltration false blocks | **FIXED** | esbuild ALLOW, next/three/typescript/vue/react-dom WARN (not block), express/request no longer tagged exfiltration. Network/env are no longer standalone signals; exfiltration now needs a **public** raw-IP sink or env-dump-to-raw-IP. |
+| I2 version fallback | **FIXED** | `chalk@5.6.1` now resolves to 5.6.1 and blocks (known_malware); a truly missing version errors (exit 30) instead of scoring latest. |
+| (new) `got` false typosquat | **FIXED** | established packages (>=100k weekly) are exempt from name-similarity; `got` ALLOW. |
+| I4 obfuscation on minified bundles | **PARTIAL** | no longer blocks (establishment suppresses), but still produces noisy WARNs (vue/react-dom/typescript). Needs the diff-gate + minified-vs-obfuscated distinction. |
+| I3 slopsquat via non-existence | **OPEN** | truly-nonexistent names block; `react-codeshift` (now defensively registered) still ALLOWs live. Needs the curated hallucinated-name list (P2.2). |
+| I5 native-module consistency | **IMPROVED** | esbuild/sharp/node-gyp now consistent (allow/low-warn) after dropping network-as-signal; explicit binary-host allowlist still a follow-up. |
+| I6 LLM untested live · I7 latency/concurrency · I8 npm-wrap · I10 downloads fail-open | **OPEN** | unchanged; tracked in improvement-plan P3/P4. |
+
+Key tradeoff made: established packages never block on capability correlations
+(obfuscation/exec-sink/exfil-shape); hijacks of established packages are caught
+by the blocklist and the hard intent tells (provenance downgrade, maintainer
+change). This trades a small amount of heuristic hijack-detection for a large
+drop in false positives — the stated #1 product risk.
+
+---
+
+
 Tested the actual CLI (`wnpx <pkg> --json`) against the **live npm registry**
 (registry.npmjs.org), not the mini-registry, on 2026-07-12. Every row below is a
 real command with real output. Severities reflect how badly each hurts real use

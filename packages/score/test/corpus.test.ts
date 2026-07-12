@@ -64,6 +64,35 @@ describe("false-positive corpus (must not block)", () => {
       changedScripts: {},
       scanFiles: [{ path: "index.js", text: "module.exports=function(){return '';};" }],
     },
+    // Real-world regressions (see Task_tracker/issues.md): these all FALSE-BLOCKED
+    // before recalibration because network/env capability was scored as exfil.
+    "express-like (uses http + env, no raw IP)": {
+      name: "express",
+      version: "5.0.0",
+      isNewPackage: true,
+      meta: { maintainers: ["dougwilson"], existsOnRegistry: true, weeklyDownloads: 30_000_000, ageDays: 120 },
+      addedScripts: {},
+      changedScripts: {},
+      scanFiles: [{ path: "lib/app.js", text: "const http=require('http');const port=process.env.PORT;module.exports=()=>http.createServer();" }],
+    },
+    "native-installer (install script + child_process + https download)": {
+      name: "esbuild",
+      version: "0.21.5",
+      isNewPackage: true,
+      meta: { maintainers: ["evanw"], existsOnRegistry: true, weeklyDownloads: 40_000_000, ageDays: 120 },
+      addedScripts: { postinstall: "node install.js" },
+      changedScripts: {},
+      scanFiles: [{ path: "install.js", text: "const cp=require('child_process');const https=require('https');const proxy=process.env.HTTPS_PROXY;https.get('https://registry.npmjs.org/esbuild-bin');" }],
+    },
+    "deprecated http library (request)": {
+      name: "request",
+      version: "2.88.2",
+      isNewPackage: true,
+      meta: { maintainers: ["mikeal"], existsOnRegistry: true, weeklyDownloads: 10_000_000, ageDays: 900, deprecated: true },
+      addedScripts: {},
+      changedScripts: {},
+      scanFiles: [{ path: "index.js", text: "const http=require('http');const https=require('https');const t=process.env.NODE_TLS_REJECT_UNAUTHORIZED;" }],
+    },
   };
 
   for (const [name, input] of Object.entries(benign)) {

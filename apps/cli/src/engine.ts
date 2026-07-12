@@ -66,6 +66,15 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     return score(analyze(input), { package: name, version: version ?? "0.0.0", integrity: "", source: "heuristics" });
   }
 
+  // Requested exact version is missing (removed/unpublished): do NOT analyze a
+  // fallback version. Still honor the blocklist against the REQUESTED version
+  // (a removed-but-known-bad version must stay blocked), otherwise error out.
+  if (meta.requestedVersionMissing && version) {
+    const removedHit = blocklist.match(name, version);
+    if (removedHit) return blocklistVerdict(name, version, "", removedHit.id);
+    throw new Error(`version ${version} of ${name} was not found on the registry (removed or never published)`);
+  }
+
   // Blocklist hard-block (before any analysis).
   const hit = blocklist.match(meta.name, meta.version);
   if (hit) return blocklistVerdict(meta.name, meta.version, meta.integrity ?? "", hit.id);

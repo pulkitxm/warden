@@ -55,6 +55,11 @@ test("integrity-keyed cache: second check is a cache hit", async () => {
   expect(second.verdict).toBe(first.verdict);
 });
 
+test("missing exact version does not fall back to latest (errors instead)", async () => {
+  // left-pad exists but @9.9.9 does not; must NOT silently analyze latest.
+  await expect(checkPackage("left-pad@9.9.9", { cache: cache() })).rejects.toThrow(/not found/);
+});
+
 test("verdict validates the schema shape (agent contract)", async () => {
   const v = await checkPackage("lodahs", { cache: cache(), blocklist: new Blocklist([]) });
   for (const key of ["schema_version", "package", "version", "integrity", "verdict", "risk_score", "categories", "summary", "evidence", "analyzer_version", "source"]) {

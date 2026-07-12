@@ -24,7 +24,27 @@ export interface Finding {
   detail: string;
 }
 
-const RAW_IPV4 = /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/;
+/**
+ * Detect a hardcoded PUBLIC IPv4 literal. Reserved/localhost/private ranges are
+ * excluded — `0.0.0.0`, `127.0.0.1`, `10.x`, `192.168.x`, `169.254.x`,
+ * `172.16-31.x`, `255.x` appear all over legitimate code (dev servers, bind
+ * addresses) and are not exfiltration tells. Only routable IPs are.
+ */
+function findPublicIp(s: string): boolean {
+  const re = /\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g;
+  for (const m of s.matchAll(re)) {
+    const o = [m[1], m[2], m[3], m[4]].map((x) => Number(x));
+    if (o.some((x) => x > 255)) continue;
+    const [a, b] = o as [number, number, number, number];
+    if (a === 0 || a === 127 || a === 255) continue; // this-host / loopback / broadcast
+    if (a === 10) continue; // private
+    if (a === 169 && b === 254) continue; // link-local
+    if (a === 172 && b >= 16 && b <= 31) continue; // private
+    if (a === 192 && b === 168) continue; // private
+    return true;
+  }
+  return false;
+}
 
 const SHELL_PATTERNS: Array<{ re: RegExp; kind: FindingKind; detail: string }> = [
   { re: /\bcurl\b/, kind: "network", detail: "invokes curl" },
@@ -41,7 +61,7 @@ const SHELL_PATTERNS: Array<{ re: RegExp; kind: FindingKind; detail: string }> =
 export function scanShell(body: string): Finding[] {
   const out: Finding[] = [];
   for (const { re, kind, detail } of SHELL_PATTERNS) if (re.test(body)) out.push({ kind, detail });
-  if (RAW_IPV4.test(body)) out.push({ kind: "raw_ip", detail: "references a raw IP address" });
+  if (findPublicIp(body)) out.push({ kind: "raw_ip", detail: "references a raw IP address" });
   return out;
 }
 
@@ -113,7 +133,7 @@ export function scanJs(code: string): Finding[] {
       }
     },
     Literal(node: any) {
-      if (typeof node.value === "string" && RAW_IPV4.test(node.value)) {
+      if (typeof node.value === "string" && findPublicIp(node.value)) {
         add({ kind: "raw_ip", detail: "contains a raw IP address literal" });
       }
     },
@@ -128,7 +148,7 @@ function scanRegex(code: string): Finding[] {
   if (/require\(\s*['"]child_process['"]\s*\)/.test(code)) out.push({ kind: "child_process", detail: "requires child_process" });
   if (/\bfetch\s*\(/.test(code)) out.push({ kind: "network", detail: "calls fetch()" });
   if (/Buffer\.from\([^)]*['"]base64['"]/.test(code)) out.push({ kind: "base64", detail: "decodes a base64 buffer" });
-  if (RAW_IPV4.test(code)) out.push({ kind: "raw_ip", detail: "contains a raw IP address literal" });
+  if (findPublicIp(code)) out.push({ kind: "raw_ip", detail: "contains a raw IP address literal" });
   return out;
 }
 

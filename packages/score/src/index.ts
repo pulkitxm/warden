@@ -29,7 +29,6 @@ import {
   type Verdict,
   type VerdictLevel,
   type VerdictSource,
-  type Category,
 } from "@warden/schema";
 
 export interface ScoreContext {
@@ -41,16 +40,12 @@ export interface ScoreContext {
   established?: boolean;
 }
 
-const INTENT_CATEGORIES = new Set<Category>([
-  "known_malware",
-  "slopsquat",
-  "typosquat",
-  "provenance_downgrade",
-]);
-
 const NAME_ATTACK_IDS = new Set(["typosquat", "homoglyph-typosquat", "nonexistent-package"]);
-const CORROBORATED_INTENT_IDS = new Set(["provenance-downgrade", "exfil-shape", "maintainer-changed"]);
-const EXEC_SINK_IDS = new Set(["code-network", "code-eval", "code-child_process", "script-network", "script-shell_exec", "script-eval"]);
+// Hard intent tells: account/publisher takeover signals. High precision, so they
+// block when corroborated regardless of how established the package is.
+const HARD_INTENT_IDS = new Set(["provenance-downgrade", "maintainer-changed"]);
+// Exec sinks for the obfuscation-correlation rule.
+const EXEC_SINK_IDS = new Set(["code-eval", "code-child_process", "script-shell_exec", "script-eval", "script-network"]);
 
 /** Keep only signals that count: newness (requiresAction) needs an action signal. */
 function applicable(signals: Signal[]): Signal[] {
@@ -62,26 +57,41 @@ function decide(signals: Signal[], ctx: ScoreContext): { level: VerdictLevel; re
   if (ctx.source === "blocklist") return { level: "block", reason: "on the known-malware blocklist" };
 
   const actionSignals = signals.filter((s) => s.action);
-  const recentPublish = signals.some((s) => s.id === "recent-publish");
-  const suppressCapabilityBlock = Boolean(ctx.established) && !recentPublish;
+  // Established packages never block on capability correlations (obfuscation,
+  // exec sinks, exfil shape) — a rebuilt minified bundle in a 40M-downloads/wk
+  // package is normal, and high-release-cadence packages like `next` are almost
+  // always "recent" so recency can't be the discriminator. Hijacks of
+  // established packages are caught by the blocklist and the hard intent tells
+  // (provenance downgrade, maintainer change) below, which are NOT suppressed.
+  // This is a deliberate low-false-positive tradeoff (see Task_tracker/issues.md).
+  const suppressCapabilityBlock = Boolean(ctx.established);
 
   // 1. Name attacks (already gated on popularity/homoglyph/nonexistence): block alone.
   if (signals.some((s) => NAME_ATTACK_IDS.has(s.id))) {
     return { level: "block", reason: "high-confidence name attack (typosquat/slopsquat)" };
   }
 
-  // 2. Corroborated intent: an intent tell plus any other action signal.
-  const intentTell = signals.find((s) => CORROBORATED_INTENT_IDS.has(s.id));
-  if (intentTell && actionSignals.some((s) => s.id !== intentTell.id)) {
-    return { level: "block", reason: `${intentTell.category.replace(/_/g, " ")} corroborated by a second signal` };
+  // 2. Hard intent (account/publisher takeover) corroborated by a second signal:
+  //    blocks regardless of establishment — this is the axios shape.
+  const hard = signals.find((s) => HARD_INTENT_IDS.has(s.id));
+  if (hard && actionSignals.some((s) => s.id !== hard.id)) {
+    return { level: "block", reason: `${hard.category.replace(/_/g, " ")} corroborated by a second signal` };
   }
 
-  // 3. Capability correlation: obfuscation + an exec/network sink (not for
-  //    established, non-recent packages, where this is normal build tooling).
-  const hasObfuscation = signals.some((s) => s.category === "obfuscation" && s.id === "obfuscated");
-  const hasExecSink = signals.some((s) => EXEC_SINK_IDS.has(s.id));
-  if (hasObfuscation && hasExecSink && !suppressCapabilityBlock) {
-    return { level: "block", reason: "obfuscated code combined with a network/exec sink" };
+  // 3. Capability correlations — suppressed for established, non-recent packages
+  //    (a stably-minified bundle that calls a sink is normal build tooling; the
+  //    real attacks ride in on new/recent versions, which are not suppressed).
+  if (!suppressCapabilityBlock) {
+    // 3a. Env-dump-to-raw-IP exfiltration shape.
+    if (signals.some((s) => s.id === "exfil-shape")) {
+      return { level: "block", reason: "environment variables sent to a hardcoded IP" };
+    }
+    // 3b. Newly obfuscated code combined with an exec sink.
+    const hasObfuscation = signals.some((s) => s.category === "obfuscation" && s.id === "obfuscated");
+    const hasExecSink = signals.some((s) => EXEC_SINK_IDS.has(s.id));
+    if (hasObfuscation && hasExecSink) {
+      return { level: "block", reason: "obfuscated code combined with an exec sink" };
+    }
   }
 
   // Otherwise: warn if there is any action signal or meaningful score.
