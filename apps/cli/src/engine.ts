@@ -10,6 +10,7 @@ import { readTgz } from "@warden/tar";
 import { verifyIntegrity } from "@warden/sri";
 import { diffVersions } from "@warden/diff";
 import { analyze, type AnalysisInput } from "@warden/heuristics";
+import { popularityOf } from "@warden/distance";
 import { score } from "@warden/score";
 import { explain } from "@warden/llm";
 import { VerdictCache } from "@warden/cache";
@@ -103,6 +104,11 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     }
   }
 
+  // Establishment: downloads >= 100k, OR on the bundled popular list (so a
+  // downloads-API outage cannot flip a known-popular package to "not
+  // established" and false-block it — issue I10).
+  const established = (meta.weeklyDownloads ?? 0) >= 100_000 || popularityOf(meta.name) !== undefined;
+
   const d = diffVersions(current, previous, { metaScripts: meta.scripts, prevMetaScripts: meta.previousScripts });
   const input: AnalysisInput = {
     name: meta.name,
@@ -118,13 +124,13 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
       hasProvenance: meta.hasProvenance,
       previousHadProvenance: meta.previousHadProvenance,
       existsOnRegistry: true,
+      established,
     },
     addedScripts: d.addedScripts,
     changedScripts: d.changedScripts,
     scanFiles: d.scanFiles,
   };
 
-  const established = (meta.weeklyDownloads ?? 0) >= 100_000;
   const base = score(analyze(input), { package: meta.name, version: meta.version, integrity, source: "heuristics", established });
 
   // Stage-2 LLM only rewrites the summary (verdict stays deterministic).

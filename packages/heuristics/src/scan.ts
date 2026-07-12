@@ -17,7 +17,10 @@ export type FindingKind =
   | "base64"
   | "child_process"
   | "raw_ip"
-  | "env_exfil";
+  | "env_exfil"
+  | "metadata_host" // cloud IMDS / metadata endpoints
+  | "fs_sensitive" // reads of credential/source paths (.npmrc, .ssh, .git, ...)
+  | "destructive_fs"; // rm -rf / unlink of home/cwd
 
 export interface Finding {
   kind: FindingKind;
@@ -138,6 +141,23 @@ export function scanJs(code: string): Finding[] {
       }
     },
   });
+  for (const f of scanContentPatterns(code)) add(f);
+  return out;
+}
+
+/** Content-pattern findings that work on any source (incl. minified): cloud
+ * metadata hosts, sensitive-file reads, and destructive fs ops. */
+function scanContentPatterns(code: string): Finding[] {
+  const out: Finding[] = [];
+  if (/169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200/.test(code)) {
+    out.push({ kind: "metadata_host", detail: "contacts a cloud metadata (IMDS) endpoint" });
+  }
+  if (/\.npmrc\b|\bid_rsa\b|\.ssh\b|\.aws\b|\.git\/|readdirSync\s*\(\s*process\.cwd\s*\(\s*\)/.test(code)) {
+    out.push({ kind: "fs_sensitive", detail: "reads credential/source paths (.npmrc/.ssh/.aws/.git/cwd)" });
+  }
+  if ((/\b(rmSync|rmdirSync)\b/.test(code) && /recursive\s*:\s*true/.test(code)) || /\brimraf\s*\(/.test(code)) {
+    out.push({ kind: "destructive_fs", detail: "recursively deletes files" });
+  }
   return out;
 }
 
@@ -149,6 +169,7 @@ function scanRegex(code: string): Finding[] {
   if (/\bfetch\s*\(/.test(code)) out.push({ kind: "network", detail: "calls fetch()" });
   if (/Buffer\.from\([^)]*['"]base64['"]/.test(code)) out.push({ kind: "base64", detail: "decodes a base64 buffer" });
   if (findPublicIp(code)) out.push({ kind: "raw_ip", detail: "contains a raw IP address literal" });
+  out.push(...scanContentPatterns(code));
   return out;
 }
 

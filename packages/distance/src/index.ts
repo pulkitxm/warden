@@ -110,6 +110,13 @@ for (const p of POPULAR) {
   byNormalized.set(normalize(p.name), p);
 }
 
+/** Weekly downloads if `name` is a known popular package (exact match), else
+ * undefined. Used as the establishment fallback (when the downloads API is
+ * unavailable) and by scoped-impersonation detection on the unscoped part. */
+export function popularityOf(name: string): number | undefined {
+  return byName.get(name)?.weekly;
+}
+
 export interface NameMatch {
   /** The popular package the candidate resembles. */
   target: string;

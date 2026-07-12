@@ -1,5 +1,47 @@
 # Warden — Vulnerability Suite: Failure Analysis
 
+## RESOLUTION (fixes applied 2026-07-12)
+
+After the fixes below, the suite is **TP=25 FP=0 TN=48 FN=0** — strict recall,
+precision, and specificity all 100% (was: recall 60%, 10 FN, 2 FP). What changed:
+
+- **Block rule: lifecycle script + malicious sink** (Cluster A, 7 FN → 0). A
+  postinstall/preinstall that contacts a hardcoded public IP, pipes curl to a
+  shell, decodes-then-evals, hits a cloud-metadata endpoint, reads credential/
+  source paths, or deletes recursively now blocks. Native installers download
+  from HOSTNAMES (no raw IP) and do none of these, so they stay clear.
+- **New detectors** (Cluster B): cloud metadata / IMDS endpoints (incl.
+  link-local 169.254.169.254), sensitive-file reads (.npmrc/.ssh/.aws/.git/cwd),
+  destructive fs (recursive delete) — catches IMDS theft, source/secret leak,
+  and protestware.
+- **Name coverage** (Cluster C, 2 FN → 0): popular-name list expanded ~4x (now
+  includes `request`, fixing the `reqeust` typosquat), and scope-aware matching
+  flags an unfamiliar scope wrapping a very popular unscoped name
+  (`@typescript_eslinter/eslint`).
+- **Establishment robustness** (FP d3/next, I10 → fixed): establishment now
+  falls back to the bundled popular-name list when the downloads API is
+  unavailable, so a network blip no longer flips a known-popular package to
+  "not established" and false-blocks it.
+
+**Out-of-suite validation (guards against overfitting):** 11 real native /
+install-script / postinstall packages NOT in the suite (sqlite3, ssh2, keytar,
+cpu-features, leveldown, grpc, canvas, @sentry/node, @prisma/engines, cypress,
+electron) all returned ALLOW or WARN — **zero false blocks**.
+
+**Honest caveat:** the malicious fixtures and these detectors were co-designed,
+so 100% means "the engine now covers every technique represented in this suite,"
+NOT "catches all real malware." Real attacks are messier and novel techniques
+will slip. The suite is a regression floor, not a completeness proof. Remaining
+real gaps to harden next: fs-exfil detection is path-pattern based (evadable by
+dynamic path construction), dependency-confusion relies on the lifecycle+sink
+rule rather than a dedicated org-scope check, and the popular list is ~120 names
+(a real top-10k drop-in is still the right move).
+
+---
+
+## Original findings (pre-fix, for the record)
+
+
 Run: 73 cases (25 malicious, 48 benign), no LLM. Full log in `vuln-test-results.md`.
 
 ## Scorecard

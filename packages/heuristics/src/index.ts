@@ -5,7 +5,7 @@
  */
 
 import type { Signal, Category, Confidence } from "@warden/schema";
-import { findNearestPopular } from "@warden/distance";
+import { findNearestPopular, popularityOf } from "@warden/distance";
 import { scanShell, scanJs, obfuscationScore } from "./scan.ts";
 
 export interface ScanFile {
@@ -28,6 +28,10 @@ export interface AnalysisInput {
     previousHadProvenance?: boolean;
     /** false = name not found on the registry at all (slopsquat). */
     existsOnRegistry?: boolean;
+    /** Computed by the engine (downloads >= 100k OR on the popular list). When
+     * set, it is authoritative over weeklyDownloads (robust to a downloads-API
+     * outage — see issue I10). */
+    established?: boolean;
   };
   /** Lifecycle scripts newly added in this version. */
   addedScripts: Record<string, string>;
@@ -102,13 +106,19 @@ export function ruleScriptContent(input: AnalysisInput): Signal[] {
   const findings = input.scanFiles.flatMap((file) =>
     file.text ? scanJs(file.text).map((f) => ({ f, file: file.path })) : [],
   );
-  const hasRawIp = findings.some(({ f }) => f.kind === "raw_ip");
+  const hasSink = findings.some(({ f }) => f.kind === "raw_ip" || f.kind === "metadata_host");
   const hasEnv = findings.some(({ f }) => f.kind === "env_exfil");
 
   for (const { f, file } of findings) {
     if (f.kind === "network" || f.kind === "env_exfil") continue; // capability, too common to be a signal alone
     if (f.kind === "raw_ip") {
       out.push(sig("code-raw_ip", "exfiltration", 30, "high", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "metadata_host") {
+      out.push(sig("code-metadata_host", "exfiltration", 30, "high", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "fs_sensitive") {
+      out.push(sig("code-fs_sensitive", "exfiltration", 20, "medium", `code ${f.detail}`, { file, action: true }));
+    } else if (f.kind === "destructive_fs") {
+      out.push(sig("code-destructive_fs", "metadata_anomaly", 25, "high", `code ${f.detail}`, { file, action: true }));
     } else if (f.kind === "eval") {
       out.push(sig("code-eval", "obfuscation", 20, "medium", `code ${f.detail}`, { file, action: true }));
     } else if (f.kind === "base64") {
@@ -119,10 +129,10 @@ export function ruleScriptContent(input: AnalysisInput): Signal[] {
     }
   }
 
-  // Exfiltration shape: an env dump AND a hardcoded raw IP together. Requiring
-  // the raw IP (not just any network call) is what removes the express/request/
-  // esbuild false positives while keeping the axios/Shai-Hulud pattern.
-  if (hasRawIp && hasEnv) {
+  // Exfiltration shape: an env dump AND a hardcoded raw IP / metadata endpoint.
+  // Requiring the sink (not just any network call) is what removes the express/
+  // request/esbuild false positives while keeping the axios/Shai-Hulud pattern.
+  if (hasSink && hasEnv) {
     out.push(sig("exfil-shape", "exfiltration", 35, "high", "reads environment variables and sends them to a hardcoded IP (exfiltration shape)", { action: true }));
   }
   return out;
@@ -152,11 +162,24 @@ export function ruleNameSimilarity(input: AnalysisInput): Signal[] {
     return out; // nothing else to say about a package that isn't there
   }
 
-  // An established package (real, high download count) is not a typosquat — it
-  // IS a real package. This removes false positives on popular short-named or
-  // seed-missing packages like `got`. (A full top-10k name list would also fix
-  // this by recognizing them directly; the download guard is the cheap proxy.)
-  if ((input.meta.weeklyDownloads ?? 0) >= 100_000) return out;
+  // Scoped impersonation: an unfamiliar scope wrapping a very popular unscoped
+  // name (e.g. @typescript_eslinter/eslint). A real popular package would not
+  // live under a random scope, so treat it as a name attack.
+  const scoped = input.name.match(/^@[^/]+\/(.+)$/);
+  if (scoped) {
+    const bareWeekly = popularityOf(scoped[1]!);
+    if (bareWeekly !== undefined && bareWeekly >= 10_000_000) {
+      out.push(sig("scoped-impersonation", "typosquat", 55, "high", `scoped name wraps popular package "${scoped[1]}" (~${Math.round(bareWeekly / 1e6)}M weekly) under an unfamiliar scope`, { action: true }));
+      return out;
+    }
+  }
+
+  // An established package (real, high download count OR on the popular list) is
+  // not a typosquat — it IS a real package. Removes false positives on popular
+  // short-named / seed-missing packages like `got`, and is robust to a
+  // downloads-API outage via the popular-list fallback (see issue I10).
+  const established = input.meta.established ?? (input.meta.weeklyDownloads ?? 0) >= 100_000;
+  if (established) return out;
 
   const m = findNearestPopular(input.name);
   if (m) {

@@ -1,13 +1,13 @@
 {
   "matrix": {
-    "tp": 15,
-    "fp": 2,
-    "tn": 46,
-    "fn": 10
+    "tp": 25,
+    "fp": 0,
+    "tn": 48,
+    "fn": 0
   },
-  "precision": 0.8823529411764706,
-  "recall": 0.6,
-  "f1": 0.7142857142857143,
+  "precision": 1,
+  "recall": 1,
+  "f1": 1,
   "results": [
     {
       "spec": "mal-postinstall-env@1.0.1",
@@ -39,7 +39,7 @@
       "spec": "mal-curl-bash@0.0.1",
       "label": "malicious",
       "type": "curl-pipe-bash",
-      "verdict": "warn",
+      "verdict": "block",
       "score": 100,
       "categories": [
         "install_script",
@@ -78,7 +78,7 @@
       "spec": "mal-base64-loader@1.0.0",
       "label": "malicious",
       "type": "base64-eval-loader",
-      "verdict": "warn",
+      "verdict": "block",
       "score": 95,
       "categories": [
         "install_script",
@@ -91,8 +91,8 @@
       "spec": "mal-source-leak@1.0.0",
       "label": "malicious",
       "type": "source-code-leak",
-      "verdict": "warn",
-      "score": 90,
+      "verdict": "block",
+      "score": 100,
       "categories": [
         "install_script",
         "exfiltration",
@@ -117,8 +117,8 @@
       "spec": "mal-imds-steal@1.0.0",
       "label": "malicious",
       "type": "cloud-imds-theft",
-      "verdict": "warn",
-      "score": 90,
+      "verdict": "block",
+      "score": 100,
       "categories": [
         "install_script",
         "exfiltration",
@@ -130,7 +130,7 @@
       "spec": "mal-reverse-shell@1.0.0",
       "label": "malicious",
       "type": "reverse-shell",
-      "verdict": "warn",
+      "verdict": "block",
       "score": 100,
       "categories": [
         "install_script",
@@ -143,7 +143,7 @@
       "spec": "@acme-corp/internal-config@99.0.0",
       "label": "malicious",
       "type": "dependency-confusion",
-      "verdict": "warn",
+      "verdict": "block",
       "score": 90,
       "categories": [
         "install_script",
@@ -156,8 +156,8 @@
       "spec": "mal-protestware@2.0.0",
       "label": "malicious",
       "type": "protestware",
-      "verdict": "warn",
-      "score": 60,
+      "verdict": "block",
+      "score": 85,
       "categories": [
         "install_script",
         "metadata_anomaly"
@@ -168,7 +168,7 @@
       "spec": "mal-fake-native@1.0.0",
       "label": "malicious",
       "type": "fake-native-download",
-      "verdict": "warn",
+      "verdict": "block",
       "score": 90,
       "categories": [
         "install_script",
@@ -205,9 +205,13 @@
       "spec": "reqeust",
       "label": "malicious",
       "type": "typosquat",
-      "verdict": "allow",
-      "score": 0,
-      "categories": [],
+      "verdict": "block",
+      "score": 80,
+      "categories": [
+        "exfiltration",
+        "typosquat",
+        "metadata_anomaly"
+      ],
       "source": "heuristics"
     },
     {
@@ -270,9 +274,12 @@
       "spec": "@typescript_eslinter/eslint",
       "label": "malicious",
       "type": "slopsquat-scoped",
-      "verdict": "allow",
-      "score": 0,
-      "categories": [],
+      "verdict": "block",
+      "score": 65,
+      "categories": [
+        "typosquat",
+        "metadata_anomaly"
+      ],
       "source": "heuristics"
     },
     {
@@ -512,9 +519,10 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 79,
+      "score": 99,
       "categories": [
         "obfuscation",
+        "exfiltration",
         "metadata_anomaly"
       ],
       "source": "heuristics"
@@ -584,8 +592,9 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 94,
+      "score": 100,
       "categories": [
+        "exfiltration",
         "install_script",
         "obfuscation",
         "metadata_anomaly"
@@ -742,7 +751,7 @@
       "spec": "d3",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "block",
+      "verdict": "warn",
       "score": 51,
       "categories": [
         "obfuscation"
@@ -773,13 +782,13 @@
       "spec": "next",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "block",
+      "verdict": "warn",
       "score": 100,
       "categories": [
         "obfuscation",
         "install_script",
-        "exfiltration",
-        "metadata_anomaly"
+        "metadata_anomaly",
+        "exfiltration"
       ],
       "source": "heuristics"
     },

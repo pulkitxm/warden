@@ -10,9 +10,11 @@ Re-verified against the live registry after the fix.
 | I2 version fallback | **FIXED** | `chalk@5.6.1` now resolves to 5.6.1 and blocks (known_malware); a truly missing version errors (exit 30) instead of scoring latest. |
 | (new) `got` false typosquat | **FIXED** | established packages (>=100k weekly) are exempt from name-similarity; `got` ALLOW. |
 | I4 obfuscation on minified bundles | **PARTIAL** | no longer blocks (establishment suppresses), but still produces noisy WARNs (vue/react-dom/typescript). Needs the diff-gate + minified-vs-obfuscated distinction. |
-| I3 slopsquat via non-existence | **OPEN** | truly-nonexistent names block; `react-codeshift` (now defensively registered) still ALLOWs live. Needs the curated hallucinated-name list (P2.2). |
-| I5 native-module consistency | **IMPROVED** | esbuild/sharp/node-gyp now consistent (allow/low-warn) after dropping network-as-signal; explicit binary-host allowlist still a follow-up. |
-| I6 LLM untested live · I7 latency/concurrency · I8 npm-wrap · I10 downloads fail-open | **OPEN** | unchanged; tracked in improvement-plan P3/P4. |
+| I3 slopsquat via non-existence | **PARTIAL** | truly-nonexistent + scoped-impersonation now block; a defensively-registered hallucinated name (react-codeshift) still needs the curated list. |
+| I5 native-module consistency | **FIXED** | validated on 11 real native/install-script packages (sqlite3/ssh2/keytar/grpc/canvas/electron/...) — zero false blocks. |
+| **I10 downloads fail-open** | **FIXED** | establishment now falls back to the bundled popular list; d3/next no longer false-block when the downloads API is slow. |
+| (vuln suite) lifecycle+sink misses, IMDS, fs-exfil, destructive-fs, dep-confusion, name coverage | **FIXED** | see `vuln-failure-analysis.md` → RESOLUTION. Suite now 25/0/48/0. |
+| I6 LLM untested live · I7 latency/concurrency · I8 npm-wrap | **OPEN** | unchanged; tracked in improvement-plan P3/P4. |
 
 Key tradeoff made: established packages never block on capability correlations
 (obfuscation/exec-sink/exfil-shape); hijacks of established packages are caught

@@ -40,12 +40,24 @@ export interface ScoreContext {
   established?: boolean;
 }
 
-const NAME_ATTACK_IDS = new Set(["typosquat", "homoglyph-typosquat", "nonexistent-package"]);
+const NAME_ATTACK_IDS = new Set(["typosquat", "homoglyph-typosquat", "nonexistent-package", "scoped-impersonation"]);
 // Hard intent tells: account/publisher takeover signals. High precision, so they
 // block when corroborated regardless of how established the package is.
 const HARD_INTENT_IDS = new Set(["provenance-downgrade", "maintainer-changed"]);
 // Exec sinks for the obfuscation-correlation rule.
 const EXEC_SINK_IDS = new Set(["code-eval", "code-child_process", "script-shell_exec", "script-eval", "script-network"]);
+// Lifecycle (install/preinstall/postinstall) script signals.
+const LIFECYCLE_IDS = new Set(["install-script-added", "install-script-changed"]);
+// Sinks that make a lifecycle script malicious: a script that both runs at
+// install time AND contacts a hardcoded public IP / cloud metadata endpoint,
+// pipes curl to a shell, decodes-then-evals, reads credential/source files, or
+// deletes recursively. Legit native installers download from HOSTNAMES (no raw
+// IP) and don't do any of these, so they stay clear.
+const LIFECYCLE_SINK_IDS = new Set([
+  "code-raw_ip", "code-metadata_host", "code-fs_sensitive", "code-destructive_fs",
+  "code-eval", "code-base64",
+  "script-raw_ip", "script-network", "script-shell_exec", "script-eval",
+]);
 
 /** Keep only signals that count: newness (requiresAction) needs an action signal. */
 function applicable(signals: Signal[]): Signal[] {
@@ -78,15 +90,23 @@ function decide(signals: Signal[], ctx: ScoreContext): { level: VerdictLevel; re
     return { level: "block", reason: `${hard.category.replace(/_/g, " ")} corroborated by a second signal` };
   }
 
-  // 3. Capability correlations — suppressed for established, non-recent packages
-  //    (a stably-minified bundle that calls a sink is normal build tooling; the
-  //    real attacks ride in on new/recent versions, which are not suppressed).
+  // 3. Capability correlations — suppressed for established packages (a rebuilt
+  //    minified bundle that calls a sink is normal build tooling; hijacks of
+  //    established packages are caught by the blocklist + hard tells above).
   if (!suppressCapabilityBlock) {
-    // 3a. Env-dump-to-raw-IP exfiltration shape.
-    if (signals.some((s) => s.id === "exfil-shape")) {
-      return { level: "block", reason: "environment variables sent to a hardcoded IP" };
+    // 3a. Lifecycle script + a malicious sink (the dominant real-world class:
+    //     postinstall curl|bash, socket to a raw IP, base64->eval, IMDS theft,
+    //     source/secret exfil, destructive fs).
+    const hasLifecycle = signals.some((s) => LIFECYCLE_IDS.has(s.id));
+    const lifecycleSink = signals.find((s) => LIFECYCLE_SINK_IDS.has(s.id));
+    if (hasLifecycle && lifecycleSink) {
+      return { level: "block", reason: `install-time script combined with a ${lifecycleSink.category.replace(/_/g, " ")} sink` };
     }
-    // 3b. Newly obfuscated code combined with an exec sink.
+    // 3b. Env-dump-to-raw-IP / metadata exfiltration shape.
+    if (signals.some((s) => s.id === "exfil-shape")) {
+      return { level: "block", reason: "environment variables sent to a hardcoded IP / metadata endpoint" };
+    }
+    // 3c. Newly obfuscated code combined with an exec sink.
     const hasObfuscation = signals.some((s) => s.category === "obfuscation" && s.id === "obfuscated");
     const hasExecSink = signals.some((s) => EXEC_SINK_IDS.has(s.id));
     if (hasObfuscation && hasExecSink) {
