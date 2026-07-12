@@ -1,5 +1,10 @@
 import { test, expect } from "bun:test";
-import { Blocklist, defaultBlocklist } from "../src/index.ts";
+import { Blocklist, defaultBlocklist, defaultHallucinated } from "../src/index.ts";
+
+test("curated hallucinated names are recognized", () => {
+  expect(defaultHallucinated.has("react-codeshift")).toBe(true);
+  expect(defaultHallucinated.has("react")).toBe(false);
+});
 
 test("matches a known compromised version, not a clean one", () => {
   expect(defaultBlocklist.match("chalk", "5.6.1")?.id).toBe("MAL-CHALK-2025");

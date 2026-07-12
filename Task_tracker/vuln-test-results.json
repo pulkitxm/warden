@@ -328,11 +328,9 @@
       "spec": "react-dom",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 58,
-      "categories": [
-        "obfuscation"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -359,11 +357,9 @@
       "spec": "lodash",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 29,
-      "categories": [
-        "obfuscation"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -404,7 +400,7 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 88,
+      "score": 30,
       "categories": [
         "obfuscation"
       ],
@@ -507,7 +503,7 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 88,
+      "score": 30,
       "categories": [
         "obfuscation",
         "install_script"
@@ -519,7 +515,7 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 99,
+      "score": 96,
       "categories": [
         "obfuscation",
         "exfiltration",
@@ -559,7 +555,7 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 63,
+      "score": 35,
       "categories": [
         "obfuscation",
         "metadata_anomaly"
@@ -570,12 +566,9 @@
       "spec": "prettier",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 100,
-      "categories": [
-        "obfuscation",
-        "metadata_anomaly"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -681,11 +674,9 @@
       "spec": "glob",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 58,
-      "categories": [
-        "obfuscation"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -710,11 +701,9 @@
       "spec": "qs",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 29,
-      "categories": [
-        "obfuscation"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -739,12 +728,9 @@
       "spec": "three",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 44,
-      "categories": [
-        "obfuscation",
-        "metadata_anomaly"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {
@@ -752,7 +738,7 @@
       "label": "benign",
       "type": "real-popular",
       "verdict": "warn",
-      "score": 51,
+      "score": 49,
       "categories": [
         "obfuscation"
       ],
@@ -762,11 +748,9 @@
       "spec": "moment",
       "label": "benign",
       "type": "real-popular",
-      "verdict": "warn",
-      "score": 58,
-      "categories": [
-        "obfuscation"
-      ],
+      "verdict": "allow",
+      "score": 0,
+      "categories": [],
       "source": "heuristics"
     },
     {

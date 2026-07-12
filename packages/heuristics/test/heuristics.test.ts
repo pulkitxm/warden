@@ -109,6 +109,20 @@ test("env dump + raw IP together IS an exfiltration signal", () => {
   expect(idsOf(s)).toContain("exfil-shape");
 });
 
+test("plain minification is NOT flagged as obfuscation (I4 fix)", () => {
+  // Realistic long minified line: varied tokens/punctuation, mangled short
+  // names, no _0x / long-base64-blob / hex-escape.
+  const minified = "function f(a,b){return a+b}var c=[1,2,3,4,5],d={x:1,y:2};".repeat(150);
+  const s = analyze(base({ name: "some-bundle", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 20 }, scanFiles: [{ path: "dist/b.js", text: minified }] }));
+  expect(s.find((x) => x.id === "obfuscated")).toBeUndefined();
+});
+
+test("hex-identifier obfuscation IS flagged (I4 keeps true positives)", () => {
+  const obf = "var _0x1a2b=['a','b'];function _0x3c(){}" + ";var q='" + "Q".repeat(900) + "';";
+  const s = analyze(base({ name: "sketchy", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 20 }, scanFiles: [{ path: "index.js", text: obf }] }));
+  expect(s.find((x) => x.id === "obfuscated")).toBeDefined();
+});
+
 test("clean package yields no action signals", () => {
   const s = analyze(base({ name: "tiny-slugify", meta: { maintainers: ["dev"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 400 }, scanFiles: [{ path: "index.js", text: "export const x=1;" }] }));
   expect(s.filter((x) => x.action)).toHaveLength(0);

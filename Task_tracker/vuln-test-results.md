@@ -27,7 +27,7 @@ _(none)_
 
 | label:type | total | block | warn | allow | error |
 |---|---|---|---|---|---|
-| benign:real-popular | 48 | 0 | 23 | 25 | 0 |
+| benign:real-popular | 48 | 0 | 16 | 32 | 0 |
 | malicious:base64-eval-loader | 1 | 1 | 0 | 0 | 0 |
 | malicious:blocklist-known-malware | 3 | 3 | 0 | 0 | 0 |
 | malicious:cloud-imds-theft | 1 | 1 | 0 | 0 | 0 |
@@ -54,7 +54,7 @@ _(none)_
 | @babel/core | benign | real-popular | allow | 0 |  |
 | @types/node | benign | real-popular | allow | 0 |  |
 | @typescript-eslint/parser | benign | real-popular | allow | 0 |  |
-| axios | benign | real-popular | warn | 88 | obfuscation |
+| axios | benign | real-popular | warn | 30 | obfuscation |
 | bcrypt | benign | real-popular | warn | 25 | install_script |
 | better-sqlite3 | benign | real-popular | allow | 0 |  |
 | chalk | benign | real-popular | allow | 0 |  |
@@ -62,37 +62,37 @@ _(none)_
 | commander | benign | real-popular | warn | 30 | install_script,metadata_anomaly |
 | core-js | benign | real-popular | allow | 0 |  |
 | cross-env | benign | real-popular | allow | 0 |  |
-| d3 | benign | real-popular | warn | 51 | obfuscation |
+| d3 | benign | real-popular | warn | 49 | obfuscation |
 | debug | benign | real-popular | allow | 0 |  |
 | dotenv | benign | real-popular | allow | 0 |  |
 | esbuild | benign | real-popular | allow | 20 | install_script |
-| eslint | benign | real-popular | warn | 63 | obfuscation,metadata_anomaly |
+| eslint | benign | real-popular | warn | 35 | obfuscation,metadata_anomaly |
 | express | benign | real-popular | warn | 20 | metadata_anomaly |
 | fastify | benign | real-popular | warn | 90 | obfuscation,exfiltration,metadata_anomaly |
-| glob | benign | real-popular | warn | 58 | obfuscation |
+| glob | benign | real-popular | allow | 0 |  |
 | got | benign | real-popular | allow | 0 |  |
 | jest | benign | real-popular | allow | 0 |  |
 | koa | benign | real-popular | allow | 0 |  |
-| lodash | benign | real-popular | warn | 29 | obfuscation |
-| moment | benign | real-popular | warn | 58 | obfuscation |
+| lodash | benign | real-popular | allow | 0 |  |
+| moment | benign | real-popular | allow | 0 |  |
 | ms | benign | real-popular | allow | 0 |  |
 | next | benign | real-popular | warn | 100 | obfuscation,install_script,metadata_anomaly,exfiltration |
 | node-fetch | benign | real-popular | allow | 0 |  |
 | node-gyp | benign | real-popular | allow | 0 |  |
-| prettier | benign | real-popular | warn | 100 | obfuscation,metadata_anomaly |
-| qs | benign | real-popular | warn | 29 | obfuscation |
+| prettier | benign | real-popular | allow | 0 |  |
+| qs | benign | real-popular | allow | 0 |  |
 | react | benign | real-popular | allow | 0 |  |
-| react-dom | benign | real-popular | warn | 58 | obfuscation |
+| react-dom | benign | real-popular | allow | 0 |  |
 | rimraf | benign | real-popular | allow | 0 |  |
-| rollup | benign | real-popular | warn | 88 | obfuscation,install_script |
+| rollup | benign | real-popular | warn | 30 | obfuscation,install_script |
 | semver | benign | real-popular | allow | 0 |  |
 | sharp | benign | real-popular | allow | 0 |  |
 | svelte | benign | real-popular | allow | 0 |  |
-| three | benign | real-popular | warn | 44 | obfuscation,metadata_anomaly |
+| three | benign | real-popular | allow | 0 |  |
 | typescript | benign | real-popular | warn | 70 | obfuscation,install_script,metadata_anomaly |
 | undici | benign | real-popular | allow | 0 |  |
 | uuid | benign | real-popular | warn | 25 | install_script |
-| vite | benign | real-popular | warn | 99 | obfuscation,exfiltration,metadata_anomaly |
+| vite | benign | real-popular | warn | 96 | obfuscation,exfiltration,metadata_anomaly |
 | vitest | benign | real-popular | warn | 100 | exfiltration,install_script,obfuscation,metadata_anomaly |
 | vue | benign | real-popular | warn | 60 | obfuscation |
 | webpack | benign | real-popular | allow | 0 |  |

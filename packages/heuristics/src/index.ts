@@ -144,8 +144,10 @@ export function ruleObfuscation(input: AnalysisInput): Signal[] {
   for (const file of input.scanFiles) {
     if (!file.text) continue;
     if (!/\.(js|cjs|mjs|ts|cts|mts)$/i.test(file.path)) continue;
-    const { score, reason } = obfuscationScore(file.text);
-    if (score >= 0.5) {
+    const { score, reason, hard } = obfuscationScore(file.text);
+    // Only flag DELIBERATE obfuscation (hard signature). Plain minification is
+    // not a signal — that removes the vue/react-dom/typescript false WARNs.
+    if (hard) {
       out.push(sig("obfuscated", "obfuscation", Math.round(20 + score * 15), "medium", `appears obfuscated (${reason})`, { file: file.path, action: true }));
     }
   }

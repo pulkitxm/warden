@@ -9,6 +9,7 @@
  */
 
 import blocklistData from "../data/blocklist.json" with { type: "json" };
+import hallucinatedData from "../data/hallucinated.json" with { type: "json" };
 
 export interface BlocklistEntry {
   id: string;
@@ -50,3 +51,16 @@ export class Blocklist {
 }
 
 export const defaultBlocklist = new Blocklist();
+
+/** Known LLM-hallucinated (slopsquat) names — blocked even if since registered. */
+export class HallucinatedNames {
+  private set: Set<string>;
+  constructor(names: string[] = (hallucinatedData as { names: string[] }).names) {
+    this.set = new Set(names);
+  }
+  has(name: string): boolean {
+    return this.set.has(name);
+  }
+}
+
+export const defaultHallucinated = new HallucinatedNames();

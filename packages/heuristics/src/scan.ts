@@ -187,35 +187,47 @@ export function entropy(s: string, cap = 20_000): number {
   return h;
 }
 
-/** Obfuscation score 0..1 for a source string. */
-export function obfuscationScore(content: string): { score: number; reason: string } {
+/**
+ * Obfuscation score for a source string.
+ *
+ * `hard` distinguishes deliberate OBFUSCATION from ordinary MINIFICATION. Long
+ * lines / high entropy alone are minification (every bundler emits them) and are
+ * NOT flagged — that was the source of the vue/react-dom/typescript false WARNs.
+ * Only hard signatures set `hard`: hex-identifier soup (`_0x…`, the javascript-
+ * obfuscator default), long `\xNN` escape runs, string-array-decoder shape, or a
+ * very large embedded base64 blob (a packed payload, not an inlined asset).
+ */
+export function obfuscationScore(content: string): { score: number; reason: string; hard: boolean } {
   const lines = content.split("\n");
   const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
-  const avg = content.length / Math.max(1, lines.length);
   let score = 0;
+  let hard = false;
   const reasons: string[] = [];
-  if (longest > 2000) {
-    score += 0.4;
-    reasons.push(`line of ${longest} chars`);
-  } else if (avg > 400) {
-    score += 0.25;
-    reasons.push("very long average line length");
-  }
-  if (/[A-Za-z0-9+/]{200,}={0,2}/.test(content)) {
-    score += 0.35;
-    reasons.push("large encoded blob");
+
+  if (/\b_0x[0-9a-f]{4,}\b/.test(content)) {
+    score += 0.5; hard = true; reasons.push("hex-identifier obfuscation (_0x…)");
   }
   if (/(\\x[0-9a-fA-F]{2}){20,}/.test(content)) {
-    score += 0.35;
-    reasons.push("long hex-escape sequence");
+    score += 0.4; hard = true; reasons.push("long hex-escape sequence");
   }
-  if (/\b_0x[0-9a-f]{4,}\b/.test(content)) {
-    score += 0.3;
-    reasons.push("hex-identifier obfuscation (_0x…)");
+  // (String-array shape was dropped as a hard signature: legitimate minified
+  // bundles ship large string arrays — error tables, unicode data — so it
+  // over-fired on typescript/vue. _0x, hex-escape, and base64 blobs remain.)
+  // A large base64 blob is only a payload signature if it is also DECODED AND
+  // EXECUTED nearby (eval / new Function / atob / Buffer.from(...,'base64')).
+  // A blob alone is usually inlined data (source map, wasm, font) — that was the
+  // vue/typescript/d3/next over-fire.
+  if (
+    /[A-Za-z0-9+/]{800,}={0,2}/.test(content) &&
+    !/data:[^;]+;base64,/.test(content) &&
+    /\beval\s*\(|new\s+Function\s*\(|\batob\s*\(|Buffer\.from\s*\([^)]*['"]base64/.test(content)
+  ) {
+    score += 0.4; hard = true; reasons.push("large base64 blob that is decoded and executed");
   }
-  if (entropy(content) > 5.2 && longest > 500) {
-    score += 0.2;
-    reasons.push("high entropy");
-  }
-  return { score: Math.min(1, score), reason: reasons.join(", ") };
+  // Minification indicators — informational only, never `hard`.
+  if (longest > 2000) { score += 0.2; reasons.push(`minified (line of ${longest} chars)`); }
+  else if (content.length / Math.max(1, lines.length) > 400) { score += 0.1; reasons.push("long average line length"); }
+  if (entropy(content) > 5.2 && longest > 500) { score += 0.1; reasons.push("high entropy"); }
+
+  return { score: Math.min(1, score), reason: reasons.join(", "), hard };
 }

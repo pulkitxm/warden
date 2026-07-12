@@ -9,8 +9,12 @@ Re-verified against the live registry after the fix.
 | I1 network/env = exfiltration false blocks | **FIXED** | esbuild ALLOW, next/three/typescript/vue/react-dom WARN (not block), express/request no longer tagged exfiltration. Network/env are no longer standalone signals; exfiltration now needs a **public** raw-IP sink or env-dump-to-raw-IP. |
 | I2 version fallback | **FIXED** | `chalk@5.6.1` now resolves to 5.6.1 and blocks (known_malware); a truly missing version errors (exit 30) instead of scoring latest. |
 | (new) `got` false typosquat | **FIXED** | established packages (>=100k weekly) are exempt from name-similarity; `got` ALLOW. |
-| I4 obfuscation on minified bundles | **PARTIAL** | no longer blocks (establishment suppresses), but still produces noisy WARNs (vue/react-dom/typescript). Needs the diff-gate + minified-vs-obfuscated distinction. |
-| I3 slopsquat via non-existence | **PARTIAL** | truly-nonexistent + scoped-impersonation now block; a defensively-registered hallucinated name (react-codeshift) still needs the curated list. |
+| I4 obfuscation on minified bundles | **IMPROVED** | true obfuscation now needs a hard signature (_0x, hex-escape, or a decoded+executed base64 blob); plain minification is not flagged. react-dom/three/lodash cleared. Residual: vue/typescript/d3/next still WARN (their bundles combine a base64 blob + eval/new Function, statically indistinguishable from a packed payload) — but never block. |
+| I3 slopsquat via non-existence | **FIXED** | truly-nonexistent + scoped-impersonation block, and a curated hallucinated-name list catches defensively-registered names (react-codeshift). |
+| I6 LLM live path | **FIXED (tested via stub)** | LLM parse / call-count / malformed+HTTP-error fallback / allow-gating covered by fetch-stubbed tests; a real key still recommended for a live smoke test. |
+| I7 install concurrency | **FIXED** | `wnpm install` vets targets with a bounded pool (8). |
+| I8 wraps npm not pnpm/bun | **FIXED** | `wnpm install` uses the first available of pnpm > bun > npm. |
+| I9 version 0.0.0 display | **FIXED** | slopsquat/nonexistent path shows the requested version or "unknown". |
 | I5 native-module consistency | **FIXED** | validated on 11 real native/install-script packages (sqlite3/ssh2/keytar/grpc/canvas/electron/...) — zero false blocks. |
 | **I10 downloads fail-open** | **FIXED** | establishment now falls back to the bundled popular list; d3/next no longer false-block when the downloads API is slow. |
 | (vuln suite) lifecycle+sink misses, IMDS, fs-exfil, destructive-fs, dep-confusion, name coverage | **FIXED** | see `vuln-failure-analysis.md` → RESOLUTION. Suite now 25/0/48/0. |

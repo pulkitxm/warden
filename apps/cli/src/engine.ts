@@ -14,7 +14,7 @@ import { popularityOf } from "@warden/distance";
 import { score } from "@warden/score";
 import { explain } from "@warden/llm";
 import { VerdictCache } from "@warden/cache";
-import { defaultBlocklist, type Blocklist } from "@warden/intel";
+import { defaultBlocklist, defaultHallucinated, type Blocklist } from "@warden/intel";
 import { ANALYZER_VERSION, SCHEMA_VERSION, type Verdict } from "@warden/schema";
 
 export interface EngineDeps {
@@ -51,20 +51,38 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
   const blocklist = deps.blocklist ?? defaultBlocklist;
   const cache = deps.cache ?? new VerdictCache();
   const { name, version } = parseSpec(spec);
+
+  // Known LLM-hallucinated name (slopsquat) — block even if since registered.
+  if (defaultHallucinated.has(name)) {
+    return {
+      schema_version: SCHEMA_VERSION,
+      package: name,
+      version: version ?? "unknown",
+      integrity: "",
+      verdict: "block",
+      risk_score: 90,
+      categories: ["slopsquat"],
+      summary: `"${name}" is a known LLM-hallucinated (slopsquat) package name. Coding agents invent this name; do not install it.`,
+      evidence: [{ file: "-", detail: "on the curated hallucinated-name list" }],
+      analyzer_version: ANALYZER_VERSION,
+      source: "blocklist",
+    };
+  }
+
   const meta = await resolvePackage(name, version);
 
   // Slopsquat: the name does not exist on the registry at all.
   if (!meta.existsOnRegistry) {
     const input: AnalysisInput = {
       name,
-      version: version ?? "0.0.0",
+      version: version ?? "unknown",
       isNewPackage: true,
       meta: { maintainers: [], existsOnRegistry: false },
       addedScripts: {},
       changedScripts: {},
       scanFiles: [],
     };
-    return score(analyze(input), { package: name, version: version ?? "0.0.0", integrity: "", source: "heuristics" });
+    return score(analyze(input), { package: name, version: version ?? "unknown", integrity: "", source: "heuristics" });
   }
 
   // Requested exact version is missing (removed/unpublished): do NOT analyze a

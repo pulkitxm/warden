@@ -50,8 +50,19 @@ if (!targets.length) {
 
 try {
   process.stderr.write(bold(`\nWarden — vetting ${targets.length} package(s) before install\n`));
-  const verdicts: Verdict[] = [];
-  for (const t of targets) verdicts.push(await checkPackage(t));
+  // Vet targets concurrently (bounded) — a real dependency list shouldn't be
+  // checked one-at-a-time (issue I7). The integrity cache dedups repeats.
+  const LIMIT = 8;
+  const verdicts: Verdict[] = new Array(targets.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(LIMIT, targets.length) }, async () => {
+      while (next < targets.length) {
+        const idx = next++;
+        verdicts[idx] = await checkPackage(targets[idx]!);
+      }
+    }),
+  );
 
   if (values.json) {
     process.stdout.write(JSON.stringify(verdicts) + "\n");
@@ -68,9 +79,12 @@ try {
     process.exit(EXIT.block);
   }
 
-  // Cleared: install with scripts disabled (block path never reaches here).
-  process.stderr.write(dim("\nvetted; installing with lifecycle scripts disabled...\n"));
-  const proc = Bun.spawnSync(["npm", "install", "--ignore-scripts", ...explicit], { stdout: "inherit", stderr: "inherit" });
+  // Cleared: install with scripts disabled (block path never reaches here),
+  // wrapping the project's package manager (prefer pnpm/bun, then npm — I8).
+  const pm = ["pnpm", "bun", "npm"].find((p) => Bun.which(p)) ?? "npm";
+  const installArgs = pm === "bun" ? ["install", ...explicit] : ["install", "--ignore-scripts", ...explicit];
+  process.stderr.write(dim(`\nvetted; installing via ${pm} with lifecycle scripts disabled...\n`));
+  const proc = Bun.spawnSync([pm, ...installArgs], { stdout: "inherit", stderr: "inherit" });
   process.exit(proc.exitCode ?? 0);
 } catch (e) {
   process.stderr.write(`wnpm: analysis error: ${(e as Error).message}\n`);
