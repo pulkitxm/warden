@@ -75,10 +75,10 @@ export function readTar(tarBytes: Uint8Array): TarEntry[] {
   return entries;
 }
 
-/** Gunzip a `.tgz` and read its files. */
-export function readTgz(tgzBytes: Uint8Array): TarEntry[] {
-  const tar = Bun.gunzipSync(tgzBytes);
-  return readTar(tar);
+/** Gunzip a `.tgz` and read its files. Input must be ArrayBuffer-backed (as
+ * produced by fetch().arrayBuffer() or fs reads), which Bun.gunzipSync requires. */
+export function readTgz(tgzBytes: Uint8Array<ArrayBuffer>): TarEntry[] {
+  return readTar(Bun.gunzipSync(tgzBytes));
 }
 
 /** Convenience: decode an entry's bytes as UTF-8 text. */

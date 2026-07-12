@@ -6,7 +6,7 @@ import { $ } from "bun";
 import { readTgz, entryText } from "../src/index.ts";
 
 let dir: string;
-let tgz: Uint8Array;
+let tgz: Uint8Array<ArrayBuffer>;
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "warden-tar-"));
@@ -19,7 +19,7 @@ beforeAll(async () => {
   await writeFile(join(dir, "package", "lib", "big.js"), "x".repeat(3000));
   // Real npm-style tarball: package/ prefixed, gzipped, via system tar.
   await $`tar -czf ${join(dir, "out.tgz")} -C ${dir} package`.quiet();
-  tgz = new Uint8Array(await readFile(join(dir, "out.tgz")));
+  tgz = Uint8Array.from(await readFile(join(dir, "out.tgz")));
 });
 
 afterAll(async () => {
