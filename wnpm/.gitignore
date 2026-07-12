@@ -3,5 +3,3 @@ dist/
 *.log
 .env
 .warden-cache/
-coverage/
-.DS_Store

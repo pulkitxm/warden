@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  comments:
+    name: No code comments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Comment-stripper self-test
+        run: bun scripts/strip-comments.mjs --selftest
+      - name: No disallowed comments
+        run: bun scripts/strip-comments.mjs --check
+
+  lint:
+    name: Lint and format (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Biome check
+        run: bun run lint
+
+  test:
+    name: Tests (100% coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: bun test with enforced coverage threshold
+        run: bun run test:coverage
+
+  typecheck-build:
+    name: Type check, build, smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Type-check
+        run: bun run typecheck
+      - name: Build
+        run: bun run build
+      - name: CLI smoke test (node runs the built binaries)
+        run: |
+          node dist/cli/index.js --help
+          node dist/cli/index.js help
+          echo '{}' | node dist/cli/index.js hook

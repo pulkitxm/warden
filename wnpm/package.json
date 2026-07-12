@@ -1,0 +1,19 @@
+{
+  "name": "warden-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "bun build ./apps/cli/src/wnpm.ts --compile --outfile dist/wnpm && bun build ./apps/cli/src/wnpx.ts --compile --outfile dist/wnpx"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "acorn": "^8.14.0",
+    "acorn-walk": "^8.3.4"
+  }
+}

@@ -2,139 +2,120 @@
 
 **A trust layer for npm that thinks before it executes.**
 
-Warden diffs every new or changed package against its last trusted version,
-scores it with deterministic supply-chain heuristics plus an optional LLM
-explanation, and blocks anything high-risk **before a single install script
-runs** — whether a human typed the command or a coding agent (Codex) did.
+Every `npm install` and `npx` run today is a blind leap of faith: no diff, no
+history, no signal, just a bare version number and a prayer. Warden diffs every
+new or changed package against its last trusted release, scores it with
+deterministic supply-chain heuristics plus an optional LLM explanation, and
+blocks anything high-risk before a single script runs — whether a human typed
+the command or a coding agent (Claude Code, Codex) did.
 
-Two features carry the product:
+> Hackathon MVP. Full documentation lives in [`docs/`](docs/):
+> [architecture](docs/architecture.md) · [CLI reference](docs/cli.md) ·
+> [heuristics & scoring](docs/heuristics.md) · [agent integration](docs/agents.md) ·
+> [configuration](docs/configuration.md) · [development](docs/development.md) ·
+> [product spec](docs/prd.md) · [demo runbook](docs/demo.md)
 
-1. **The firewall** — `wnpm install <pkg>` blocks a typosquatted or malicious
-   package, with a specific reason, before any code runs.
-2. **Agent-safe mode** — `wnpx --json` emits a structured verdict a coding agent
-   reads and gates on, refusing a slopsquatted `npx` from a skill file.
+## Why
 
-## Install & use
+- Coding agents now run `npm install` / `npx` autonomously from skill files with
+  no human reviewing them first.
+- Supply-chain attacks escalated hard (454k+ malicious npm packages in 2025).
+  The dangerous cases are increasingly **hijacked legitimate packages** — which
+  scoring a package in isolation misses but a **diff against the prior version**
+  catches.
+- `npm audit` scores theoretical CVSS with no reachability, so most teams ignore
+  it. Warden scores *behavior* and produces a verdict an agent can read.
 
-Warden needs [Bun](https://bun.sh) (`curl -fsSL https://bun.sh/install | bash`).
+## How it works
+
+```
+              ┌──────────────────────────────────────┐
+ warden CLI ─▶│              Verdict Engine           │
+ agent hook ─▶│  cache → registry → diff → heuristics │─▶ verdict JSON
+ --json     ─▶│         → enrich → (LLM verdict)       │
+              └──────────────────────────────────────┘
+```
+
+- **Deterministic heuristics** do the detecting: added lifecycle scripts,
+  AST-scanned suspicious script content (curl-to-shell, eval, base64, raw IPs,
+  env exfiltration), typosquat edit-distance to popular packages, obfuscation,
+  maintainer changes, and writes to agent-config paths (`.claude/`, `.codex/`).
+- **Newness never raises risk on its own** — a brand-new, script-free package
+  scores LOW. Recency/low-installs only escalate alongside a real action signal.
+- **The LLM only writes the explanation**, only on escalation, from a compact
+  signal JSON (never raw files). Degrades to a templated explanation with no key.
+- **Verdicts cache per immutable `package@version`** — scored once, ever, for
+  everyone. Marginal cost per install ≈ zero.
+
+## Install
+
+> The npm name `warden` is taken by an unrelated package — install from this
+> repo, not from the registry.
 
 ```sh
-git clone https://github.com/pulkitxm/warden && cd warden
 bun install
-bun run build          # produces ./dist/wnpm and ./dist/wnpx (standalone binaries)
-
-# Put them on your PATH (any one of):
-bun link                       # exposes `wnpm` and `wnpx`
-# or copy ./dist/wnpm ./dist/wnpx into a directory on your PATH
-# or run directly: bun apps/cli/src/wnpx.ts <pkg>
+bun run build
+npm link          # puts `warden`, `bnpm`, `bnpx` on PATH
 ```
 
-### For a developer
+## Usage
 
 ```sh
-# Vet-and-install: blocks a bad package before any script runs
-wnpm install left-pad                 # exit 0 (allowed) and installs
-wnpm install lodahs                   # exit 20 (BLOCK: typosquat of lodash)
+# Score one package (human report)
+warden check express
 
-# Inspect one package before running it
-wnpx some-cli@latest                  # human report on stderr
-wnpm install --allow-risky <pkg>      # override a block if you are sure
+# Machine-readable verdict for an agent
+warden check some-cli@latest --json
+
+# Gated install — blocks HIGH by default, runs pnpm under the hood
+bnpm install left-pad chalk
+
+# Rich pre-run prompt / agent verdict for npx
+bnpx some-cli@latest --json
 ```
 
-Exit codes double as a CI gate: `0` allow, `10` warn, `20` block, `30` analysis
-error. `wnpm install || exit 1` fails the build on a block for free.
+Exit codes: `0` allowed/clean · `1` blocked (HIGH risk) · `2` usage error.
 
-### For a coding agent (Codex, etc.)
+### Coding-agent integration
 
-The agent runs `wnpx --json` before executing any `npx`/install command and
-gates on the verdict:
+The [Claude Code adapter](adapters/claude-code/) ships a **PreToolUse hook**
+(deterministic enforcement, holds under prompt injection) plus a **skill**
+(teaches the agent to check first and act on verdicts). The hook blocks a
+HIGH-risk `npm install`/`npx` mid-loop with a plain-English reason the agent
+reads and self-corrects from.
 
-```sh
-wnpx react-codeshift --json
-# {"verdict":"block","categories":["slopsquat"],"risk_score":90, ...}   exit 20
-```
-
-- **Exactly one JSON object on stdout** (all human output goes to stderr), so it
-  pipes cleanly into a tool result.
-- `wnpx --schema` prints the JSON Schema so an agent can self-describe the
-  contract.
-- Gate rule: `block` → do not run, tell the user why; `warn` → confirm first;
-  `allow` → proceed.
-
-A ready-to-use skill-file + policy is in `demo/skill-file/AGENTS.md`, and
-`demo/agent-sim.ts` shows the full gating loop.
-
-### Configuration (env vars)
+## Environment variables
 
 | Var | Purpose |
-|-----|---------|
-| `OPENAI_API_KEY` | Enables the LLM plain-English summary (optional; heuristics work without it). |
-| `WARDEN_CACHE` | Verdict cache path (default `~/.warden-cache/verdicts.sqlite`; `:memory:` for none). |
-| `WARDEN_LLM_MODEL` | LLM model (default `gpt-4o-mini`). |
-| `WARDEN_REGISTRY` / `WARDEN_DOWNLOADS` | Point at a different registry / downloads API (used by the offline demo). |
-| `NO_COLOR` | Disable ANSI colors. |
+|---|---|
+| `ANTHROPIC_API_KEY` | Enables the LLM explanation (Haiku). Optional — heuristics work without it. |
+| `WARDEN_CACHE_DIR` | Verdict cache location (default `~/.warden-cache`). |
+| `WARDEN_LLM_MODEL` | Override the model (default `claude-haiku-4-5`). |
+| `WARDEN_LLM_BASE` | Override the Anthropic API base URL. |
+| `WARDEN_REGISTRY` | Override the npm registry base URL. |
+| `WARDEN_DOWNLOADS` | Override the downloads-stats API base URL. |
+| `WARDEN_DEBUG` | Print LLM-call count per run (for the cache-hit metric). |
 
-### Try it offline (no network, no risk)
-
-```sh
-bun fixtures/registry/server.ts   # terminal A: mini npm registry on :4873
-export WARDEN_REGISTRY=http://localhost:4873 \
-       WARDEN_DOWNLOADS=http://localhost:4873/downloads/point/last-week
-wnpm install acme-http@1.0.1      # BLOCK: hijacked-diff (provenance + exfil)
-bun demo/agent-sim.ts demo/skill-file/AGENTS.md   # the agent refuses react-codeshift
-```
-
-> **Status:** validated against the offline mini-registry and re-verified live.
-> The false positives found in the first real-registry pass (esbuild, next,
-> three, express, request, got) are **fixed** — see `task-tracker/issues.md` for
-> the before/after. Known residual: minified bundles still WARN (not block), and
-> slopsquat only catches truly-nonexistent names (a defensively-registered
-> hallucinated name like `react-codeshift` needs the curated list on the
-> roadmap). Live `wnpm install <popular pkg>` is now safe to demo.
-
-## Stack
-
-Bun-native, ~3 real dependencies. Bun provides the runtime, test runner,
-bundler, SQLite, fetch, gzip, and single-binary compile. We install only
-`acorn` + `acorn-walk` (walkable JS AST) and write the rest in-house
-(`tar`, `sri`, `distance`, `schema`).
-
-## Layout
-
-```
-apps/cli/            wnpm + wnpx (bun build --compile → single binary)
-packages/
-  schema/            the frozen Verdict/Signal contract + JSON Schema
-  distance/          Damerau-Levenshtein + BK-tree + homoglyph/delimiter norm
-  tar/  sri/         in-house ustar reader + SRI on Bun primitives
-  heuristics/        rules A–G, each a pure (input) => Signal[]
-  score/             Signal[] → verdict, two-signal-to-block, FP corpus
-  registry/ diff/    packument + tarball fetch; file→SRI diff, skip-identical
-  intel/             OSV + OpenSSF malicious-package blocklist
-  cache/             bun:sqlite, keyed by dist.integrity
-  llm/               stage-2 verdict (OpenAI Structured Outputs) + fallback
-fixtures/            mini-registry, malicious + benign (false-positive) corpora
-research/            verified attack citations + the concept report
-```
+See [`docs/configuration.md`](docs/configuration.md) for details.
 
 ## Develop
 
+Bun is the runtime and toolchain (tests, dev runner, lockfile); `tsc` builds
+the Node-compatible `dist/` and type-checks; Biome lints and formats. Code
+comments are disallowed and enforced in CI.
+
 ```sh
-bun install
-bun test           # < 3s, offline; the false-positive corpus gates every rule
-bun run build      # compile wnpm + wnpx standalone binaries
+bun test                  # offline engine + parser tests
+bun run test:coverage     # enforces the 100% coverage threshold
+bun run typecheck
+bun run lint              # biome ci
+bun run format
+bun run strip-comments    # remove any code comments (CI runs --check)
 ```
 
-## Design notes
+## Status & roadmap
 
-- **Deterministic first, LLM second.** Heuristics do the detecting; the LLM only
-  writes the explanation, only on escalation, and its verdict is cached by
-  `dist.integrity` so each version is analyzed once, ever, for everyone.
-- **Newness never blocks on its own.** Recent-publish / low-installs only count
-  alongside an action signal. Delimiter/plural name variants of real packages
-  (class-names vs classnames) are low-weight — the false-positive corpus
-  (`esbuild`, `sharp`, `next`, `@babel/*`, …) must never block.
-- **One JSON object on stdout, humans on stderr.** That contract is what makes
-  `--json` pipeable and agent-safe.
-
-See `PLAN.md` for the build plan and `research/` for the attack citations.
+Core engine, CLI, and Claude Code hook are working (MVP). Not yet built:
+sandboxed script execution, the registry firehose worker for proactive scoring,
+reachability-aware `warden audit`, and the Codex execpolicy adapter. See
+[`docs/prd.md`](docs/prd.md) §8.

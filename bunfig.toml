@@ -1,13 +1,7 @@
 [test]
+root = "test"
 coverage = true
-# Everything loaded by tests must hit 100% line + function coverage.
 coverageThreshold = 1.0
 coverageSkipTestFiles = true
-# scripts/ and demo/ are manual harnesses; wnpm.ts/wnpx.ts are entry shims that
-# only `process.exit(await run(...))` — all their logic lives in main.ts.
-coveragePathIgnorePatterns = [
-  "scripts/**",
-  "demo/**",
-  "apps/cli/src/wnpm.ts",
-  "apps/cli/src/wnpx.ts",
-]
+coverageReporter = ["text"]
+coveragePathIgnorePatterns = ["test/helpers/**"]
