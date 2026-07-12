@@ -7,8 +7,9 @@
  * registry in fixtures/).
  */
 
-const REGISTRY = process.env.WARDEN_REGISTRY ?? "https://registry.npmjs.org";
-const DOWNLOADS = "https://api.npmjs.org/downloads/point/last-week";
+// Read at call time (not module load) so tests can point at a mini-registry.
+const registryBase = () => process.env.WARDEN_REGISTRY ?? "https://registry.npmjs.org";
+const downloadsBase = () => process.env.WARDEN_DOWNLOADS ?? "https://api.npmjs.org/downloads/point/last-week";
 
 export interface PackageMeta {
   name: string;
@@ -69,7 +70,7 @@ function encodeName(name: string): string {
 
 /** Resolve full metadata for name@version (version may be a tag or omitted). */
 export async function resolvePackage(name: string, version = "latest"): Promise<PackageMeta> {
-  const pack = await getJson<Packument>(`${REGISTRY}/${encodeName(name)}`);
+  const pack = await getJson<Packument>(`${registryBase()}/${encodeName(name)}`);
   if (!pack || !pack.versions) {
     return { name, version, existsOnRegistry: false, versions: [], maintainers: [] };
   }
@@ -88,7 +89,7 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
 
   const publishedAt = time[resolved];
   const ageDays = publishedAt ? Math.max(0, (Date.now() - Date.parse(publishedAt)) / 86_400_000) : undefined;
-  const weekly = await getJson<{ downloads?: number }>(`${DOWNLOADS}/${encodeName(name)}`, 5_000);
+  const weekly = await getJson<{ downloads?: number }>(`${downloadsBase()}/${encodeName(name)}`, 5_000);
 
   const curEmail = vd._npmUser?.email;
   const prevEmail = prevData?._npmUser?.email;
@@ -116,8 +117,8 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
   };
 }
 
-/** Fetch a tarball as bytes. */
-export async function fetchTarball(url: string, timeoutMs = 20_000): Promise<Uint8Array> {
+/** Fetch a tarball as bytes (ArrayBuffer-backed, ready for gunzip). */
+export async function fetchTarball(url: string, timeoutMs = 20_000): Promise<Uint8Array<ArrayBuffer>> {
   const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
