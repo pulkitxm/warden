@@ -1,35 +1,22 @@
-CACHE ?= :memory:
-TARGETS := install build check check-json install-pkg test typecheck
-ARGS := $(filter-out $(TARGETS),$(MAKECMDGOALS))
-PKG ?= $(if $(ARGS),$(firstword $(ARGS)),react)
+.PHONY: install build test typecheck ci
 
-.PHONY: install
 install:
 	bun install
+	git config core.hooksPath .githooks
 
-.PHONY: build
 build:
 	bun run build
 
-.PHONY: check
-check:
-	WARDEN_CACHE=$(CACHE) bun src/cli/index.ts check $(PKG)
-
-.PHONY: check-json
-check-json:
-	WARDEN_CACHE=$(CACHE) bun src/cli/index.ts check $(PKG) --json
-
-.PHONY: install-pkg
-install-pkg:
-	WARDEN_CACHE=$(CACHE) bun src/cli/index.ts install $(PKG)
-
-.PHONY: test
 test:
 	bun test
 
-.PHONY: typecheck
 typecheck:
 	bun run typecheck
 
-%:
-	@:
+ci:
+	bun install --frozen-lockfile
+	bun test
+	bun run typecheck
+	bun run build
+	./dist/wnpx --schema >/dev/null
+	./dist/wnpm invalid-command 2>&1 | grep -F 'unknown command "invalid-command"' >/dev/null
