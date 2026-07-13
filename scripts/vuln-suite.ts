@@ -186,7 +186,7 @@ async function main() {
     }
   }
 
-  const pct = (n: number, d: number) => (d ? ((100 * n) / d).toFixed(1) + "%" : "n/a");
+  const pct = (n: number, d: number) => (d ? `${((100 * n) / d).toFixed(1)}%` : "n/a");
   const precision = tp + fp ? tp / (tp + fp) : 0;
   const recall = tp + fn ? tp / (tp + fn) : 0;
   const f1 = precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
@@ -258,7 +258,7 @@ async function main() {
       `| ${r.spec} | ${r.label} | ${r.type} | ${r.verdict} | ${r.score} | ${r.categories.join(",")} |`,
     );
   }
-  const md = L.join("\n") + "\n";
+  const md = `${L.join("\n")}\n`;
 
   process.stdout.write(md);
 

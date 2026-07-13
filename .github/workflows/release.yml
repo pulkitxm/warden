@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin]
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: |
+          mkdir -p release
+          bun build src/bin/warden.ts --compile --target=bun-${{ matrix.os }}-${{ matrix.arch }} --outfile release/warden
+          bun build src/bin/wnpm.ts --compile --target=bun-${{ matrix.os }}-${{ matrix.arch }} --outfile release/wnpm
+          bun build src/bin/wnpx.ts --compile --target=bun-${{ matrix.os }}-${{ matrix.arch }} --outfile release/wnpx
+          tar -C release -czf warden-${{ matrix.os }}-${{ matrix.arch }}.tar.gz warden wnpm wnpx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: warden-${{ matrix.os }}-${{ matrix.arch }}
+          path: warden-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - run: cd release && sha256sum *.tar.gz > sha256sums.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.tar.gz
+            release/sha256sums.txt

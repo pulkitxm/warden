@@ -1,5 +1,5 @@
 function octal(n: number, len: number): string {
-  return n.toString(8).padStart(len - 1, "0") + "\0";
+  return `${n.toString(8).padStart(len - 1, "0")}\0`;
 }
 
 function header(path: string, size: number, typeflag = "0"): Uint8Array {
