@@ -34,11 +34,13 @@ interface Fake {
   deps: VerifyDeps;
   calls: Array<{ cmd: string[]; cwd: string }>;
   written: Record<string, string>;
+  writes: Array<{ path: string; content: string }>;
 }
 
-function fakeDeps(pkgJson: string, codes: number[] = [], which: string | null = null): Fake {
+function fakeDeps(pkgJson: string, codes: number[] = [], available: string[] = ["npm"]): Fake {
   const calls: Array<{ cmd: string[]; cwd: string }> = [];
   const written: Record<string, string> = {};
+  const writes: Array<{ path: string; content: string }> = [];
   let tick = 0;
   const deps: VerifyDeps = {
     exec: (cmd, cwd) => {
@@ -49,11 +51,12 @@ function fakeDeps(pkgJson: string, codes: number[] = [], which: string | null = 
     readFile: () => pkgJson,
     writeFile: (path, content) => {
       written[path] = content;
+      writes.push({ path, content });
     },
-    which: () => which,
+    which: (cmd) => (available.includes(cmd) ? `/bin/${cmd}` : null),
     now: () => tick++,
   };
-  return { deps, calls, written };
+  return { deps, calls, written, writes };
 }
 
 test("applyChanges pins changed dependencies to the exact verified version", () => {
@@ -76,6 +79,8 @@ test("applyChanges pins changed dependencies to the exact verified version", () 
   expect(pkg.devDependencies.tilde).toBe("1.0.9");
   expect(output.endsWith("\n")).toBe(true);
   expect(applyChanges("{}", [change()])).toBe("{}\n");
+  const bomInput = `﻿${JSON.stringify({ dependencies: { lib: "^1.0.0" } })}`;
+  expect(JSON.parse(applyChanges(bomInput, [change()])).dependencies.lib).toBe("1.2.0");
 });
 
 test("verifyPlan copies, patches, installs, and runs present scripts in order", () => {
@@ -109,16 +114,30 @@ test("verifyPlan stops after the first failing script", () => {
 });
 
 test("verifyPlan uses bun when the project and PATH support it", () => {
-  const { deps, calls } = fakeDeps("{}", [], "/bin/bun");
+  const { deps, calls } = fakeDeps("{}", [], ["bun"]);
   const result = verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
   expect(result.passed).toBe(true);
   expect(calls[0]?.cmd).toEqual(["bun", "install", "--ignore-scripts"]);
 });
 
 test("verifyPlan falls back to npm when bun is requested but missing", () => {
-  const { deps, calls } = fakeDeps("{}", [], null);
+  const { deps, calls } = fakeDeps("{}", [], ["npm"]);
   verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
   expect(calls[0]?.cmd).toEqual(["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"]);
+});
+
+test("verifyPlan falls back to bun when npm is requested but missing", () => {
+  const { deps, calls } = fakeDeps("{}", [], ["bun"]);
+  verifyPlan(project({ scripts: {} }), [], deps);
+  expect(calls[0]?.cmd).toEqual(["bun", "install", "--ignore-scripts"]);
+});
+
+test("verifyPlan fails without touching anything when no package manager exists", () => {
+  const { deps, calls, writes } = fakeDeps("{}", [], []);
+  const result = verifyPlan(project(), [change()], deps);
+  expect(result).toEqual({ workspace: "", passed: false, steps: [] });
+  expect(calls).toEqual([]);
+  expect(writes).toEqual([]);
 });
 
 test("applyPlan patches the real package.json and runs a single install", () => {
@@ -131,14 +150,37 @@ test("applyPlan patches the real package.json and runs a single install", () => 
   expect(result.steps[0]).toMatchObject({ name: "install", ok: true });
 });
 
-test("applyPlan reports failure when the install fails", () => {
-  const { deps } = fakeDeps("{}", [1]);
-  expect(applyPlan(project(), [], deps).applied).toBe(false);
+test("applyPlan reports failure and restores package.json when the install fails", () => {
+  const original = JSON.stringify({ dependencies: { lib: "^1.0.0" } });
+  const { deps, calls, written, writes } = fakeDeps(original, [1]);
+  const pkgPath = join("/proj", "package.json");
+  expect(applyPlan(project(), [change()], deps).applied).toBe(false);
+  expect(calls).toHaveLength(1);
+  expect(writes[0]?.content).toContain('"lib": "1.2.0"');
+  expect(written[pkgPath]).toBe(original);
+});
+
+test("applyPlan restores package.json when the install throws", () => {
+  const original = JSON.stringify({ dependencies: { lib: "^1.0.0" } });
+  const { deps, written } = fakeDeps(original);
+  deps.exec = () => {
+    throw new Error("spawn exploded");
+  };
+  expect(() => applyPlan(project(), [change()], deps)).toThrow("spawn exploded");
+  expect(written[join("/proj", "package.json")]).toBe(original);
+});
+
+test("applyPlan refuses to modify anything when no package manager exists", () => {
+  const { deps, calls, writes } = fakeDeps("{}", [], []);
+  expect(applyPlan(project(), [change()], deps)).toEqual({ applied: false, steps: [] });
+  expect(calls).toEqual([]);
+  expect(writes).toEqual([]);
 });
 
 test("defaultVerifyDeps talks to the real system", () => {
   expect(defaultVerifyDeps.exec(["sh", "-c", "exit 0"], tmpdir()).code).toBe(0);
   expect(defaultVerifyDeps.exec(["sh", "-c", "exit 3"], tmpdir()).code).toBe(3);
+  expect(defaultVerifyDeps.exec(["wnpm-no-such-binary-xyz"], tmpdir()).code).toBe(127);
   expect(typeof defaultVerifyDeps.which("sh")).toBe("string");
   expect(defaultVerifyDeps.now()).toBeGreaterThan(0);
 

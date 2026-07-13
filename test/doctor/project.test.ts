@@ -8,6 +8,7 @@ import {
   installedVersion,
   loadProject,
   type ProjectFs,
+  stripBom,
 } from "../../src/doctor/project.ts";
 
 const doctorProject = fileURLToPath(new URL("../../fixtures/doctor-project", import.meta.url));
@@ -75,6 +76,33 @@ test("installedVersion falls back from lockfile to node_modules to undefined", (
   expect(installedVersion("/p", "lib", fromModules)).toBe("1.1.1");
 
   expect(installedVersion("/p", "lib", memFs({}))).toBeUndefined();
+});
+
+test("loadProject tolerates a UTF-8 BOM in manifests the way npm does", () => {
+  const bom = "﻿";
+  const fs = memFs({
+    [join("/p", "package.json")]: `${bom}${JSON.stringify({
+      name: "bom-demo",
+      dependencies: { lib: "^1.0.0" },
+    })}`,
+    [join("/p", "package-lock.json")]: `${bom}${JSON.stringify({
+      packages: { "node_modules/lib": { version: "1.2.3" } },
+    })}`,
+  });
+  const project = loadProject("/p", fs);
+  expect(project.name).toBe("bom-demo");
+  expect(project.deps).toEqual([
+    { name: "lib", range: "^1.0.0", group: "prod", installed: "1.2.3" },
+  ]);
+
+  const fromModules = memFs({
+    [join("/p", "node_modules", "lib", "package.json")]: `${bom}{"version":"2.0.0"}`,
+  });
+  expect(installedVersion("/p", "lib", fromModules)).toBe("2.0.0");
+
+  expect(stripBom("plain")).toBe("plain");
+  expect(stripBom("﻿plain")).toBe("plain");
+  expect(stripBom("")).toBe("");
 });
 
 test("defaultProjectFs reads real files and checks existence", () => {
