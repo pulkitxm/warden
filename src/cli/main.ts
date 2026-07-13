@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { checkPackage } from "../engine.ts";
+import { runWardenIntent } from "../intent/index.ts";
 import {
   ANALYZER_VERSION,
   type CiFinding,
@@ -198,7 +199,7 @@ const initialConfig = (): UserConfig => ({
   intercept: { install: true, exec: true },
 });
 
-function wardenFailure(
+export function wardenFailure(
   deps: WardenDeps,
   json: boolean,
   kind: "usage" | "analysis" | "config",
@@ -1263,6 +1264,20 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 clean · 10 warn · 20 block · 30 error",
     example: "warden ci --reporter github --base origin/main",
     run: runWardenCi,
+  },
+  {
+    name: "intent",
+    description: "verify the diff does what the prompt asked",
+    positional: { kind: "[check|extract|diff|symbols|schema]" },
+    flags: [
+      { name: "--prompt", valueHint: "<text>", description: "the instruction the agent was given" },
+      { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
+      { name: "--json", description: "write the intent report JSON to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",
+    example: 'warden intent check --prompt "add rate limiting to the api client"',
+    run: runWardenIntent,
   },
   {
     name: "detect",

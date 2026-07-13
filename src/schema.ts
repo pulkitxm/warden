@@ -145,6 +145,104 @@ export const FINDINGS_JSON_SCHEMA = {
 
 export const CI_FINDINGS_JSON_SCHEMA = FINDINGS_JSON_SCHEMA;
 
+export const INTENT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema_version",
+    "source",
+    "prompt",
+    "base",
+    "claims",
+    "scope_creep",
+    "hallucinations",
+    "verdict",
+    "exit",
+    "llm",
+  ],
+  properties: {
+    schema_version: { type: "integer", const: SCHEMA_VERSION },
+    source: { type: "string", enum: ["prompt"] },
+    prompt: { type: "string" },
+    base: { type: "string" },
+    claims: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["claim_id", "claim", "kind", "verdict", "hunk_refs", "evidence", "origin"],
+        properties: {
+          claim_id: { type: "string" },
+          claim: { type: "string" },
+          kind: {
+            type: "string",
+            enum: ["behavior", "preservation", "constraint", "structural"],
+          },
+          verdict: { type: "string", enum: ["delivered", "partial", "dropped"] },
+          hunk_refs: { type: "array", items: { type: "string" } },
+          evidence: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["file", "detail"],
+              properties: {
+                file: { type: "string" },
+                line: { type: "integer" },
+                detail: { type: "string" },
+              },
+            },
+          },
+          origin: { type: "string", enum: ["keyword", "llm", "preservation", "none"] },
+        },
+      },
+    },
+    scope_creep: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["hunk_id", "file", "line_start", "line_end", "added_lines", "summary"],
+        properties: {
+          hunk_id: { type: "string" },
+          file: { type: "string" },
+          line_start: { type: "integer" },
+          line_end: { type: "integer" },
+          added_lines: { type: "integer" },
+          summary: { type: "string" },
+        },
+      },
+    },
+    hallucinations: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["symbol", "package", "file", "line", "proof", "source"],
+        properties: {
+          symbol: { type: "string" },
+          package: { type: "string" },
+          file: { type: "string" },
+          line: { type: "integer" },
+          proof: { type: "string" },
+          source: { type: "string", enum: ["curated", "node_modules"] },
+        },
+      },
+    },
+    verdict: { type: "string", enum: ["allow", "warn", "block"] },
+    exit: { type: "integer" },
+    llm: {
+      type: "object",
+      additionalProperties: false,
+      required: ["extract_calls", "match_calls"],
+      properties: {
+        extract_calls: { type: "integer" },
+        match_calls: { type: "integer" },
+      },
+    },
+  },
+} as const;
+
 export const EXIT = {
   allow: 0,
   warn: 10,
