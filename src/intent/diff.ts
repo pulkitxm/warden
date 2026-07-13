@@ -296,9 +296,7 @@ export function symbolScanFiles(
     if (!lines?.size) continue;
     try {
       files.set(diff.file, { code: readFile(diff.file), addedLines: lines });
-    } catch {
-      continue;
-    }
+    } catch {}
   }
   return files;
 }
