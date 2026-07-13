@@ -259,7 +259,7 @@ test("doctor marks a package unfixable when no release fixes the advisory", asyn
   const deps = stubbedDeps(["1.0.0"], undefined, () => "allow");
   const report = await runDoctor("/stub", { verify: false }, deps);
   expect(report.unfixable).toEqual([
-    { name: "stub-lib", reason: "no published version fixes the advisories" },
+    { name: "stub-lib", reason: "no published version fixes the reported issues" },
   ]);
   expect(report.plans).toEqual([]);
 });
