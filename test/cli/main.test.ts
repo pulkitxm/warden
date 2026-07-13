@@ -66,6 +66,12 @@ function makeWardenDeps(over: Partial<WardenDeps> = {}) {
       return value;
     },
     writeFile: (path, data) => files.set(path, data),
+    exists: (path) => files.has(path),
+    cwd: () => "/repo",
+    glob: () => [],
+    git: () => ({ exitCode: 1, stdout: "", stderr: "git unavailable" }),
+    isTTY: () => false,
+    prompt: () => Promise.resolve(""),
     ...over,
   };
   return { ...base, deps, files };
@@ -175,11 +181,23 @@ test("warden config rejects invalid files and settings", async () => {
   }
 });
 
-test("default warden config dependencies create directories", () => {
+test("default warden dependencies cover filesystem, workspace, git, TTY, and prompt", async () => {
   const root = mkdtempSync(join(tmpdir(), "warden-config-"));
   const nested = join(root, "nested");
   defaultWardenDeps.mkdir(nested);
   expect(existsSync(nested)).toBe(true);
+  defaultWardenDeps.writeFile(join(nested, "package.json"), "{}\n");
+  expect(defaultWardenDeps.exists(join(nested, "package.json"))).toBe(true);
+  expect(defaultWardenDeps.glob("package.json", nested)).toEqual(["package.json"]);
+  expect(defaultWardenDeps.cwd()).toBe(process.cwd());
+  expect(
+    defaultWardenDeps.git(["rev-parse", "--is-inside-work-tree"], process.cwd()).exitCode,
+  ).toBe(0);
+  expect(typeof defaultWardenDeps.isTTY()).toBe("boolean");
+  const saved = globalThis.prompt;
+  globalThis.prompt = () => "yes";
+  expect(await defaultWardenDeps.prompt("continue? ")).toBe("yes");
+  globalThis.prompt = saved;
   rmSync(root, { recursive: true });
 });
 
