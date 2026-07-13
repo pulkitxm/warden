@@ -4,12 +4,15 @@ shim_dir=$HOME/.warden/shims
 config=$HOME/.warden/config.json
 install_enabled=true
 exec_enabled=true
+mode=brief
 
 if [ -f "$config" ]; then
   install_value=$(sed -n -e 's/.*"install"[[:space:]]*:[[:space:]]*true.*/true/p' -e 's/.*"install"[[:space:]]*:[[:space:]]*false.*/false/p' "$config" | head -n 1)
   exec_value=$(sed -n -e 's/.*"exec"[[:space:]]*:[[:space:]]*true.*/true/p' -e 's/.*"exec"[[:space:]]*:[[:space:]]*false.*/false/p' "$config" | head -n 1)
+  mode_value=$(sed -n -e 's/.*"mode"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$config" | head -n 1)
   [ -n "$install_value" ] && install_enabled=$install_value
   [ -n "$exec_value" ] && exec_enabled=$exec_value
+  [ -n "$mode_value" ] && mode=$mode_value
 fi
 
 real_path=
@@ -50,6 +53,13 @@ vet_one() {
     result=$("$warden" check "$spec" --json)
   fi
   status=$?
+  if [ "$mode" = log ]; then
+    if [ -n "$result" ]; then
+      mkdir -p "$HOME/.warden"
+      printf '%s\n' "$result" >> "$HOME/.warden/log.jsonl"
+    fi
+    return 0
+  fi
   if [ "$status" -ge 20 ]; then
     [ -n "$result" ] && printf '%s\n' "$result" >&2
     exit "$status"

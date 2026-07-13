@@ -305,3 +305,19 @@ exit "\${WARDEN_EXIT:-0}"
     expect(block.exitCode).toBe(20);
     expect(text(block.stderr)).toBe("");
   }));
+
+test("log mode records every verdict and never blocks the manager", () =>
+  inSandbox((sandbox) => {
+    writeFileSync(
+      join(sandbox.home, ".warden", "config.json"),
+      '{"mode":"log","intercept":{"install":true,"exec":true}}\n',
+    );
+    const result = run(sandbox, "npm", ["install", "danger"], {
+      WARDEN_EXIT: "20",
+      WARDEN_VERDICT: "block",
+    });
+    expect(result.exitCode).toBe(0);
+    expect(text(result.stderr)).toBe("");
+    expect(log(join(sandbox.home, ".warden", "log.jsonl"))).toBe('{"verdict":"block"}\n');
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\n");
+  }));
