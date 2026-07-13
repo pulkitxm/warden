@@ -4,6 +4,7 @@ import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { checkPackage } from "../engine.ts";
 import {
+  ANALYZER_VERSION,
   type CiFinding,
   EXIT,
   exitCodeFor,
@@ -1224,6 +1225,11 @@ async function runWardenSelectManagers(argv: string[], deps: WardenDeps): Promis
   }
 }
 
+function runWardenVersion(_argv: string[], deps: WardenDeps): number {
+  deps.stdout(`${ANALYZER_VERSION}\n`);
+  return EXIT.allow;
+}
+
 const helpFlag = { name: "--help", description: "show this help" } as const;
 
 const visibleCommands = () => COMMAND_REGISTRY.filter((command) => !command.hidden);
@@ -1326,6 +1332,14 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     run: runWardenCompletions,
   },
   {
+    name: "version",
+    description: "print the warden version",
+    flags: [helpFlag],
+    exitCodes: "0 success",
+    example: "warden --version",
+    run: runWardenVersion,
+  },
+  {
     name: "select-managers",
     description: "select detected package managers",
     flags: [{ name: "--detected", valueHint: "<names>", description: "detected managers" }],
@@ -1340,6 +1354,7 @@ export async function runWarden(
   argv: string[],
   deps: WardenDeps = defaultWardenDeps,
 ): Promise<number> {
+  if (argv[0] === "--version" || argv[0] === "-v") return runWardenVersion(argv.slice(1), deps);
   if (!argv.length || argv[0] === "--help" || argv[0] === "help") {
     deps.stderr(renderWardenHelp());
     return EXIT.allow;
