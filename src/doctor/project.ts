@@ -65,7 +65,12 @@ export function installedVersion(
 }
 
 export function loadProject(dir: string, fs: ProjectFs = defaultProjectFs): Project {
-  const pkg = JSON.parse(fs.readFile(join(dir, "package.json"))) as PackageJson;
+  let pkg: PackageJson;
+  try {
+    pkg = JSON.parse(fs.readFile(join(dir, "package.json"))) as PackageJson;
+  } catch (e) {
+    throw new Error(`could not read package.json in "${dir}": ${(e as Error).message}`);
+  }
   const deps: ProjectDependency[] = [];
   const groups: Array<["prod" | "dev", Record<string, string> | undefined]> = [
     ["prod", pkg.dependencies],
@@ -73,7 +78,13 @@ export function loadProject(dir: string, fs: ProjectFs = defaultProjectFs): Proj
   ];
   for (const [group, map] of groups) {
     for (const [name, range] of Object.entries(map ?? {})) {
-      deps.push({ name, range, group, installed: installedVersion(dir, name, fs) });
+      if (deps.some((d) => d.name === name)) continue;
+      deps.push({
+        name,
+        range: String(range),
+        group,
+        installed: installedVersion(dir, name, fs),
+      });
     }
   }
   const packageManager =

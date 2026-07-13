@@ -1,4 +1,5 @@
 import { checkPackage } from "../engine.ts";
+import { type Blocklist, defaultBlocklist } from "../intel/index.ts";
 import { resolvePackage } from "../registry.ts";
 import type { Verdict, VerdictLevel } from "../schema.ts";
 import { minSatisfying } from "../semver.ts";
@@ -64,6 +65,7 @@ export interface DoctorDeps {
   vulns?: (name: string) => Promise<OsvVuln[] | null>;
   check?: (spec: string) => Promise<Verdict>;
   verifier?: VerifyDeps;
+  blocklist?: Blocklist;
 }
 
 const GATE_ATTEMPTS = 3;
@@ -72,9 +74,16 @@ async function auditDependency(
   dep: ProjectDependency,
   resolve: typeof resolvePackage,
   vulnsFn: (name: string) => Promise<OsvVuln[] | null>,
+  blocklist: Blocklist,
   notes: string[],
 ): Promise<DepAudit | null> {
-  const meta = await resolve(dep.name);
+  let meta: Awaited<ReturnType<typeof resolvePackage>>;
+  try {
+    meta = await resolve(dep.name);
+  } catch (e) {
+    notes.push(`${dep.name}: registry lookup failed (${(e as Error).message}); skipped`);
+    return null;
+  }
   if (!meta.existsOnRegistry) {
     notes.push(`${dep.name}: not found on the registry; skipped`);
     return null;
@@ -87,6 +96,7 @@ async function auditDependency(
   if (vulns === null) {
     notes.push(`${dep.name}: advisory lookup failed; treating vulnerabilities as unknown`);
   }
+  const hit = installed ? blocklist.match(dep.name, installed) : null;
   return {
     name: dep.name,
     range: dep.range,
@@ -95,6 +105,7 @@ async function auditDependency(
     versions: meta.versions,
     vulns: vulns ?? [],
     deprecated: Boolean(meta.deprecated),
+    blocklistId: hit?.id,
     notes: [],
   };
 }
@@ -133,12 +144,13 @@ export async function runDoctor(
   const vulnsFn = deps.vulns ?? fetchVulns;
   const check = deps.check ?? ((spec: string) => checkPackage(spec));
   const verifier = deps.verifier ?? defaultVerifyDeps;
+  const blocklist = deps.blocklist ?? defaultBlocklist;
 
   const project = loadProject(dir, deps.fs);
   const notes: string[] = [];
   const audits: DepAudit[] = [];
   for (const dep of project.deps) {
-    const audit = await auditDependency(dep, resolve, vulnsFn, notes);
+    const audit = await auditDependency(dep, resolve, vulnsFn, blocklist, notes);
     if (audit) audits.push(audit);
   }
 
@@ -149,10 +161,15 @@ export async function runDoctor(
   const latestChanges: Change[] = [];
 
   for (const audit of audits) {
-    const vulnerable = issues.some((i) => i.name === audit.name && i.kind === "vulnerability");
-    if (!vulnerable) continue;
+    const needsFix = issues.some(
+      (i) => i.name === audit.name && (i.kind === "vulnerability" || i.kind === "compromised"),
+    );
+    if (!needsFix) continue;
     if (!candidateOrder(audit, "minimal").length) {
-      unfixable.push({ name: audit.name, reason: "no published version fixes the advisories" });
+      unfixable.push({
+        name: audit.name,
+        reason: "no published version fixes the reported issues",
+      });
       continue;
     }
     const minimal = await selectCandidate(audit, "minimal", check, gates);

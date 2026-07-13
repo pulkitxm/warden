@@ -63,8 +63,18 @@ async function runDoctorCommand(
   });
 }
 
+function parseArgsSafe<T extends NonNullable<Parameters<typeof parseArgs>[0]>>(
+  config: T,
+): ReturnType<typeof parseArgs<T>> | null {
+  try {
+    return parseArgs(config);
+  } catch {
+    return null;
+  }
+}
+
 export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
     options: {
       json: { type: "boolean" },
@@ -75,6 +85,13 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr(
+      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-verify] [--apply]\n",
+    );
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   const verb = positionals[0];
   if (verb === "doctor") return runDoctorCommand(values, deps);
@@ -133,7 +150,7 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
 }
 
 export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
     options: {
       json: { type: "boolean" },
@@ -142,6 +159,11 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
     },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   if (values.schema) {
     deps.stdout(JSON.stringify(VERDICT_JSON_SCHEMA, null, 2) + "\n");

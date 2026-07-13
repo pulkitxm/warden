@@ -17,7 +17,7 @@ Prints the verdict JSON Schema.
 Audits the project's direct dependencies:
 
 1. Reads `package.json` plus installed versions from `package-lock.json` or `node_modules`.
-2. Queries OSV advisories and registry metadata for every dependency.
+2. Queries OSV advisories and registry metadata for every dependency, and checks installed versions against the known-malware blocklist (reported as `compromised`).
 3. Builds a minimal and a latest upgrade plan from versions that clear every advisory.
 4. Gates each candidate version through the standard verdict engine; blocked candidates are rejected with evidence.
 5. Verifies each surviving plan in a throwaway workspace: install with lifecycle scripts disabled, then the project's own `test`, `typecheck`, and `build` scripts.

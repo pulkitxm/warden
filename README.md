@@ -28,7 +28,7 @@ Exit codes are `0` allow, `10` warn, `20` block, and `30` analysis error. Use `-
 - provenance downgrades and maintainer changes
 - credential access, environment exfiltration, raw-IP traffic, reverse shells, and destructive filesystem calls
 - obfuscation combined with execution or network capabilities
-- known-vulnerable and deprecated dependencies in a project (`wnpm doctor`, via OSV)
+- known-vulnerable, blocklisted, and deprecated dependencies already installed in a project (`wnpm doctor`)
 
 Newness and low downloads never block by themselves. Deterministic rules decide the verdict; an optional OpenAI explanation can only rewrite the summary.
 

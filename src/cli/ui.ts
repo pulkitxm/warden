@@ -53,7 +53,12 @@ export function renderDoctorReport(r: DoctorReport): string {
     lines.push(bold(`  ${r.issues.length} issue(s) found — ${prod} affect production`));
     for (const i of r.issues) {
       const where = i.installed ? `${i.name}@${i.installed}` : i.name;
-      const tag = i.kind === "vulnerability" ? severityBadge(i.severity) : dim("deprecated");
+      const tag =
+        i.kind === "vulnerability"
+          ? severityBadge(i.severity)
+          : i.kind === "compromised"
+            ? c("31", "compromised")
+            : dim("deprecated");
       const fix = i.fixedIn ? dim(` (fixed in ${i.fixedIn})`) : "";
       lines.push(`  ${tag}  ${bold(where)} ${i.id ? dim(`[${i.id}]`) : ""}`.trimEnd());
       lines.push(`    ${i.summary}${fix}`);

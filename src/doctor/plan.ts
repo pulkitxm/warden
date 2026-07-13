@@ -9,10 +9,11 @@ export interface DepAudit {
   versions: string[];
   vulns: OsvVuln[];
   deprecated: boolean;
+  blocklistId?: string;
   notes: string[];
 }
 
-export type IssueKind = "vulnerability" | "deprecated";
+export type IssueKind = "vulnerability" | "compromised" | "deprecated";
 
 export interface Issue {
   name: string;
@@ -35,6 +36,17 @@ export interface Change {
 
 export function issuesOf(audit: DepAudit): Issue[] {
   const out: Issue[] = [];
+  if (audit.blocklistId) {
+    out.push({
+      name: audit.name,
+      group: audit.group,
+      installed: audit.installed,
+      kind: "compromised",
+      id: audit.blocklistId,
+      severity: "critical",
+      summary: `installed version is on the known-malware blocklist (${audit.blocklistId})`,
+    });
+  }
   if (audit.installed) {
     for (const vuln of audit.vulns) {
       if (!affectsVersion(vuln, audit.name, audit.installed)) continue;

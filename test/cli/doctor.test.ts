@@ -246,3 +246,20 @@ test("wnpm doctor runs end-to-end through the real doctor pipeline", async () =>
 test("defaultDeps wires the real doctor implementation", () => {
   expect(typeof defaultDeps.doctor).toBe("function");
 });
+
+test("unknown flags print usage and exit 2 instead of crashing", async () => {
+  const wnpm = makeDeps();
+  expect(await runWnpm(["doctor", "--bogus-flag"], wnpm.deps)).toBe(2);
+  expect(wnpm.err.join("")).toContain("usage: wnpm");
+
+  const missingValue = makeDeps();
+  expect(await runWnpm(["doctor", "--dir"], missingValue.deps)).toBe(2);
+  expect(missingValue.err.join("")).toContain("usage: wnpm");
+});
+
+test("wnpm doctor surfaces a readable error for a missing project directory", async () => {
+  const { deps, err } = makeDeps();
+  delete deps.doctor;
+  expect(await runWnpm(["doctor", "--dir", "/no/such/dir"], deps)).toBe(30);
+  expect(err.join("")).toContain("wnpm doctor: analysis error: could not read package.json");
+});
