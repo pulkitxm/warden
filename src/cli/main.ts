@@ -3,7 +3,9 @@ import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { checkPackage } from "../engine.ts";
-import { runWardenIntent } from "../intent/index.ts";
+import { runIntentPipeline, runWardenIntent } from "../intent/index.ts";
+import { intentSummaryLine } from "../intent/report.ts";
+import type { IntentReport } from "../intent/types.ts";
 import {
   ANALYZER_VERSION,
   type CiFinding,
@@ -939,16 +941,21 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   try {
     const { values } = parseArgs({
       args: argv,
-      options: { reporter: { type: "string", default: "summary" }, base: { type: "string" } },
+      options: {
+        reporter: { type: "string", default: "summary" },
+        base: { type: "string" },
+        "intent-prompt": { type: "string" },
+      },
     });
     if (!values.reporter || !["summary", "json", "github", "agent"].includes(values.reporter))
       throw new Error(`invalid reporter "${values.reporter}"`);
     const root = deps.cwd();
     gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
     const mergeBase = resolveMergeBase(deps, root, values.base);
-    const files = gitResult(deps, root, ["diff", "--name-only", mergeBase])
-      .split("\n")
-      .filter((file) => file === "package.json" || file.endsWith("/package.json"));
+    const changedFiles = gitResult(deps, root, ["diff", "--name-only", mergeBase]).split("\n");
+    const files = changedFiles.filter(
+      (file) => file === "package.json" || file.endsWith("/package.json"),
+    );
     const configPath = join(root, "warden.config.json");
     const failOn = deps.exists(configPath)
       ? (jsonFile<{ ci?: { failOn?: string } }>(deps, configPath).ci?.failOn ?? "block")
@@ -979,27 +986,61 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
         }),
       )
     ).filter((finding): finding is CiFinding => finding !== null);
-    const level = findings.some((finding) => finding.level === "block")
+    const promptPath = join(root, ".warden", "prompt.txt");
+    const intentPrompt =
+      values["intent-prompt"] ??
+      (deps.exists(promptPath) ? deps.readFile(promptPath).trim() : undefined);
+    const intent: IntentReport | undefined =
+      intentPrompt && changedFiles.some((file) => /\.[cm]?[jt]sx?$/.test(file))
+        ? (await runIntentPipeline(deps, root, mergeBase, intentPrompt)).report
+        : undefined;
+    const guardLevel = findings.some((finding) => finding.level === "block")
       ? "block"
       : findings.some((finding) => finding.level === "warn")
         ? "warn"
         : "allow";
+    const rank = { allow: 0, warn: 1, block: 2 } as const;
+    const level = intent && rank[intent.verdict] > rank[guardLevel] ? intent.verdict : guardLevel;
     const exit = exitCodeFor(level);
     deps.mkdir(join(root, ".warden"));
     deps.writeFile(
       join(root, ".warden", "last-run.json"),
-      `${JSON.stringify({ schema_version: SCHEMA_VERSION, findings, verdict: level, exit }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          schema_version: SCHEMA_VERSION,
+          findings,
+          ...(intent ? { intent } : {}),
+          verdict: level,
+          exit,
+        },
+        null,
+        2,
+      )}\n`,
     );
     if (values.reporter === "json") deps.stdout(`${JSON.stringify(findings)}\n`);
     else if (values.reporter === "agent")
-      deps.stdout(`${JSON.stringify({ findings, verdict: level, exit })}\n`);
+      deps.stdout(
+        `${JSON.stringify({ findings, ...(intent ? { intent } : {}), verdict: level, exit })}\n`,
+      );
     else {
       deps.stderr(ciSummary(findings, mergeBase.slice(0, 12), work.length));
+      if (intent) deps.stderr(`  intent  ${intentSummaryLine(intent)}\n`);
       if (values.reporter === "github") {
         for (const finding of findings) {
           const command = finding.level === "block" ? "error" : "warning";
           deps.stdout(
             `::${command} file=${annotationValue(finding.file)}${finding.line ? `,line=${finding.line}` : ""}::${annotationValue(`${finding.package}: ${finding.evidence}. Fix: ${finding.fix}`)}\n`,
+          );
+        }
+        for (const row of intent?.claims ?? []) {
+          if (row.verdict !== "dropped") continue;
+          deps.stdout(
+            `::error ::${annotationValue(`intent: dropped requirement: ${row.claim}`)}\n`,
+          );
+        }
+        for (const finding of intent?.hallucinations ?? []) {
+          deps.stdout(
+            `::error file=${annotationValue(finding.file)},line=${finding.line}::${annotationValue(`intent: hallucinated api ${finding.symbol}. ${finding.proof}`)}\n`,
           );
         }
       }
@@ -1254,6 +1295,11 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
         description: "select human, JSON, workflow, or agent output",
       },
       { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
+      {
+        name: "--intent-prompt",
+        valueHint: "<text>",
+        description: "also verify the diff against this prompt",
+      },
       helpFlag,
     ],
     exitCodes: "0 clean · 10 warn · 20 block · 30 error",
