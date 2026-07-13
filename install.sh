@@ -98,6 +98,10 @@ source_dir=${WARDEN_INSTALL_SOURCE:-}
 if [ -n "$source_dir" ]; then
   printf '\nusing local source %s\n' "$source_dir"
   for binary in warden wnpm wnpx; do
+    [ -x "$source_dir/dist/$binary" ] || {
+      printf 'warden installer: source is missing %s\n' "$binary" >&2
+      exit 1
+    }
     cp "$source_dir/dist/$binary" "$tmp/$binary"
   done
   version=local

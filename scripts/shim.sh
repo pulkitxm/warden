@@ -6,8 +6,8 @@ install_enabled=true
 exec_enabled=true
 
 if [ -f "$config" ]; then
-  install_value=$(sed -n 's/.*"install"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$config" | head -n 1)
-  exec_value=$(sed -n 's/.*"exec"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' "$config" | head -n 1)
+  install_value=$(sed -n -e 's/.*"install"[[:space:]]*:[[:space:]]*true.*/true/p' -e 's/.*"install"[[:space:]]*:[[:space:]]*false.*/false/p' "$config" | head -n 1)
+  exec_value=$(sed -n -e 's/.*"exec"[[:space:]]*:[[:space:]]*true.*/true/p' -e 's/.*"exec"[[:space:]]*:[[:space:]]*false.*/false/p' "$config" | head -n 1)
   [ -n "$install_value" ] && install_enabled=$install_value
   [ -n "$exec_value" ] && exec_enabled=$exec_value
 fi
