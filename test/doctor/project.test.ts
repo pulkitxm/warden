@@ -62,7 +62,7 @@ test("loadProject detects bun via bun.lock or bun.lockb", () => {
   expect(loadProject("/p", memFs(base)).packageManager).toBe("npm");
 });
 
-test("installedVersion falls back from lockfile to node_modules to undefined", () => {
+test("installedVersion prefers node_modules truth, falls back to lockfiles, then undefined", () => {
   const v1Lock = memFs({
     [join("/p", "package-lock.json")]: JSON.stringify({
       dependencies: { lib: { version: "3.1.4" } },
@@ -74,6 +74,22 @@ test("installedVersion falls back from lockfile to node_modules to undefined", (
     [join("/p", "node_modules", "lib", "package.json")]: JSON.stringify({ version: "1.1.1" }),
   });
   expect(installedVersion("/p", "lib", fromModules)).toBe("1.1.1");
+
+  const staleLock = memFs({
+    [join("/p", "package-lock.json")]: JSON.stringify({
+      packages: { "node_modules/lib": { version: "2.1.0" } },
+    }),
+    [join("/p", "node_modules", "lib", "package.json")]: JSON.stringify({ version: "2.1.4" }),
+  });
+  expect(installedVersion("/p", "lib", staleLock)).toBe("2.1.4");
+
+  const emptyModules = memFs({
+    [join("/p", "package-lock.json")]: JSON.stringify({
+      packages: { "node_modules/lib": { version: "5.0.0" } },
+    }),
+    [join("/p", "node_modules", "lib", "package.json")]: JSON.stringify({}),
+  });
+  expect(installedVersion("/p", "lib", emptyModules)).toBe("5.0.0");
 
   expect(installedVersion("/p", "lib", memFs({}))).toBeUndefined();
 });

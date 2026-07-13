@@ -155,8 +155,27 @@ export async function runDoctor(
     if (audit) audits.push(audit);
   }
 
-  const issues = audits.flatMap(issuesOf);
   const gates = new Map<string, GateRecord>();
+  for (const audit of audits) {
+    if (!audit.installed || audit.blocklistId) continue;
+    const key = `${audit.name}@${audit.installed}`;
+    try {
+      const verdict = await check(key);
+      const rec: GateRecord = {
+        name: audit.name,
+        version: audit.installed,
+        verdict: verdict.verdict,
+        categories: verdict.categories,
+        summary: verdict.summary,
+      };
+      gates.set(key, rec);
+      if (rec.verdict === "block") audit.installedBlocked = rec.summary;
+    } catch (e) {
+      notes.push(`${key}: installed-version gate check failed (${(e as Error).message})`);
+    }
+  }
+
+  const issues = audits.flatMap(issuesOf);
   const unfixable: UnfixableRecord[] = [];
   const minimalChanges: Change[] = [];
   const latestChanges: Change[] = [];
