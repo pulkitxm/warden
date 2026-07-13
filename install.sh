@@ -1,6 +1,18 @@
 #!/bin/sh
 set -eu
 
+install_complete=false
+tmp=
+cleanup() {
+  status=$?
+  [ -z "$tmp" ] || rm -rf "$tmp"
+  if [ "$status" -ne 0 ] && [ "$install_complete" != true ]; then
+    printf '\nwarden install failed; nothing was configured. rerun with sh -x install.sh to debug.\n' >&2
+  fi
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
 repo=pulkitxm/warden
 root=$HOME/.warden
 bin_dir=$root/bin
@@ -55,6 +67,7 @@ if [ "${1:-}" = "--uninstall" ]; then
   printf 'removed ~/.warden (binaries, shims, cache, config)\n'
   printf 'removed PATH line from %s\n' "$shell_rc"
   printf 'package managers restored to direct execution\n'
+  install_complete=true
   exit 0
 fi
 
@@ -109,7 +122,6 @@ else
 fi
 
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 source_dir=${WARDEN_INSTALL_SOURCE:-}
 if [ -n "$source_dir" ]; then
   printf '\nusing local source %s\n' "$source_dir"
@@ -171,6 +183,7 @@ if [ "$existing" = true ]; then
   printf '  binaries replaced; shims already present; PATH already configured\n'
   printf '  config kept (~/.warden/config.json untouched)\n\n'
   printf 'done\n'
+  install_complete=true
   exit 0
 fi
 
@@ -180,13 +193,27 @@ if [ -n "$source_dir" ]; then
 else
   curl -fsSL "https://raw.githubusercontent.com/$repo/main/scripts/shim.sh" -o "$tmp/shim.sh"
 fi
-installed_shims=
+detected=
 for manager in npm pnpm yarn bun npx bunx; do
   if command -v "$manager" >/dev/null 2>&1; then
+    detected="${detected}${detected:+ }$manager"
+  fi
+done
+if selected=$("$bin_dir/warden" select-managers --detected "$detected") && [ -n "$selected" ]; then
+  :
+else
+  selected=$detected
+  printf 'warden installer: manager selection failed or was empty; intercepting all detected managers\n' >&2
+fi
+installed_shims=
+for manager in $selected; do
+  case " $detected " in
+    *" $manager "*)
     cp "$tmp/shim.sh" "$shim_dir/$manager"
     chmod 755 "$shim_dir/$manager"
     installed_shims="$installed_shims $manager"
-  fi
+      ;;
+  esac
 done
 
 printf 'When warden finds a risky package:\n'
@@ -203,9 +230,15 @@ case "$choice" in
     ;;
 esac
 
+manager_json=
+for manager in $selected; do
+  manager_json="${manager_json}${manager_json:+, }\"$manager\""
+done
+
 cat >"$root/config.json" <<EOF
 {
   "mode": "$mode",
+  "managers": [$manager_json],
   "intercept": { "install": true, "exec": true }
 }
 EOF
@@ -243,3 +276,4 @@ else
   printf 'new shells pick it up automatically\n'
 fi
 printf 'verify with: warden check left-pad\n'
+install_complete=true

@@ -75,6 +75,11 @@ beforeAll(() => {
   mkdirSync(join(source, "scripts"), { recursive: true });
   const binary = `#!/bin/sh
 if [ "\${1:-}" = "--version" ]; then printf '1.2.3\n'; fi
+if [ "\${1:-}" = "select-managers" ]; then
+  [ "\${SELECT_MANAGERS_EXIT:-0}" -eq 0 ] || exit "$SELECT_MANAGERS_EXIT"
+  [ "\${SELECT_MANAGERS_EMPTY:-false}" = true ] && exit 0
+  printf '%s\n' "\${SELECT_MANAGERS_OUTPUT:-\${3:-}}"
+fi
 exit 0
 `;
   for (const name of ["warden", "wnpm", "wnpx"]) executable(join(dist, name), binary);
@@ -125,6 +130,7 @@ esac
 `;
   executable(join(stubs, "uname"), uname);
   const curl = `#!/bin/sh
+[ "\${CURL_EXIT:-0}" -eq 0 ] || exit "$CURL_EXIT"
 output=
 effective=false
 url=
@@ -227,7 +233,26 @@ test("fresh local install copies executable binaries and only present manager sh
     expect(existsSync(join(sandbox.home, ".warden", "shims", "npx"))).toBe(true);
     expect(existsSync(join(sandbox.home, ".warden", "shims", "pnpm"))).toBe(false);
     expect(config(sandbox)).toContain('"mode": "brief"');
+    expect(JSON.parse(config(sandbox)).managers).toEqual(["npm", "bun", "npx"]);
+    expect(output(result)).not.toContain("warden install failed");
   }));
+
+test("manager selection writes only selected shims and falls back to all when empty", () => {
+  inSandbox(["npm", "bun", "npx", "bunx"], (sandbox) => {
+    const selected = run(sandbox, [], { env: { SELECT_MANAGERS_OUTPUT: "npm npx" } });
+    expect(selected.exitCode).toBe(0);
+    expect(existsSync(join(sandbox.home, ".warden", "shims", "npm"))).toBe(true);
+    expect(existsSync(join(sandbox.home, ".warden", "shims", "npx"))).toBe(true);
+    expect(existsSync(join(sandbox.home, ".warden", "shims", "bun"))).toBe(false);
+    expect(JSON.parse(config(sandbox)).managers).toEqual(["npm", "npx"]);
+  });
+  inSandbox(["npm", "bun"], (sandbox) => {
+    const fallback = run(sandbox, [], { env: { SELECT_MANAGERS_EMPTY: "true" } });
+    expect(fallback.exitCode).toBe(0);
+    expect(output(fallback)).toContain("manager selection failed or was empty");
+    expect(JSON.parse(config(sandbox)).managers).toEqual(["npm", "bun"]);
+  });
+});
 
 test("prompt maps empty and garbage to brief, 2 to log, and EOF to brief", () => {
   for (const [answer, mode] of [
@@ -398,6 +423,18 @@ test("download install rejects a corrupted checksum", () =>
     });
     expect(result.exitCode).toBe(1);
     expect(existsSync(join(sandbox.home, ".warden"))).toBe(false);
+  }));
+
+test("failed download prints the install failure banner", () =>
+  inSandbox([], (sandbox) => {
+    const result = run(sandbox, [], {
+      local: false,
+      env: { CURL_EXIT: "1" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(text(result.stderr)).toContain(
+      "warden install failed; nothing was configured. rerun with sh -x install.sh to debug.",
+    );
   }));
 
 test("download install rejects a checksum file without the asset", () =>

@@ -32,10 +32,12 @@ added 64 packages in 2.1s
 ```json
 {
   "mode": "brief",
+  "managers": ["npm", "pnpm", "bun", "npx", "bunx"],
   "intercept": { "install": true, "exec": true }
 }
 ```
 
+- `managers` records the commands selected in the installer's manager picker; only those commands receive shims.
 - `install` covers `npm/pnpm/yarn/bun install|add|i|update`; `exec` covers `npx`, `bunx`, `pnpm dlx`.
 - `warden config intercept off` (or `install off`, `exec off`) flips it without touching shims or PATH; `on` restores it.
 - This is user-level config only. A repo's `warden.config.json` can never turn interception on for someone who disabled it.

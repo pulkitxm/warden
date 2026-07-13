@@ -73,6 +73,7 @@ function makeWardenDeps(over: Partial<WardenDeps> = {}) {
     isTTY: () => false,
     prompt: () => Promise.resolve(""),
     ...over,
+    selectManagers: over.selectManagers ?? defaultWardenDeps.selectManagers,
   };
   return { ...base, deps, files };
 }

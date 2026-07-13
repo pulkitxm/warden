@@ -33,6 +33,111 @@ export interface WardenDeps extends RunDeps {
   git: (args: string[], cwd: string) => { exitCode: number; stdout: string; stderr: string };
   isTTY: () => boolean;
   prompt: (question: string) => Promise<string>;
+  selectManagers: (names: string[]) => Promise<string[]>;
+}
+
+export interface ManagerSelection {
+  cursor: number;
+  selected: boolean[];
+  done: "confirm" | "cancel" | null;
+}
+
+export interface ManagerTerminal {
+  raw: (enabled: boolean) => unknown;
+  resume: () => unknown;
+  pause: () => unknown;
+  write: (value: string) => unknown;
+  input: (handler: (value: string) => void) => () => void;
+  interrupt: (handler: () => void) => () => void;
+}
+
+export function reduceManagerSelection(state: ManagerSelection, input: string): ManagerSelection {
+  const next = { ...state, selected: [...state.selected] };
+  for (let index = 0; index < input.length && !next.done; index++) {
+    const key = input.slice(index, index + 3);
+    if (key === "\u001b[A") {
+      next.cursor = (next.cursor - 1 + next.selected.length) % next.selected.length;
+      index += 2;
+    } else if (key === "\u001b[B") {
+      next.cursor = (next.cursor + 1) % next.selected.length;
+      index += 2;
+    } else if (input[index] === " ") {
+      next.selected[next.cursor] = !next.selected[next.cursor];
+    } else if (input[index] === "\r" || input[index] === "\n") {
+      next.done = "confirm";
+    } else if (input[index] === "\u0003") {
+      next.done = "cancel";
+    }
+  }
+  return next;
+}
+
+export const defaultManagerTerminal: ManagerTerminal = {
+  raw: (enabled) => process.stdin.setRawMode(enabled),
+  resume: () => process.stdin.resume(),
+  pause: () => process.stdin.pause(),
+  write: process.stderr.write.bind(process.stderr),
+  input: (handler) => {
+    const listener = (value: Buffer) => handler(value.toString());
+    process.stdin.on("data", listener);
+    return () => process.stdin.off("data", listener);
+  },
+  interrupt: (handler) => {
+    process.once("SIGINT", handler);
+    return () => process.off("SIGINT", handler);
+  },
+};
+
+export async function selectManagers(
+  names: string[],
+  terminal: ManagerTerminal = defaultManagerTerminal,
+): Promise<string[]> {
+  let state: ManagerSelection = {
+    cursor: 0,
+    selected: names.map(() => true),
+    done: null,
+  };
+  let first = true;
+  let stopInput: (() => void) | undefined;
+  let stopInterrupt: (() => void) | undefined;
+  const render = () => {
+    const rewind = first ? "" : `\u001b[${names.length + 2}A`;
+    first = false;
+    terminal.write(
+      `${rewind}\u001b[2KWhich detected package managers should warden intercept?\n${names
+        .map(
+          (name, index) =>
+            `\u001b[2K${state.cursor === index ? ">" : " "} ${state.selected[index] ? "[x]" : "[ ]"} ${name}`,
+        )
+        .join("\n")}\n\u001b[2KUp/down move, space toggles, enter confirms\n`,
+    );
+  };
+  try {
+    terminal.raw(true);
+    terminal.resume();
+    const result = await new Promise<string[]>((resolve, reject) => {
+      stopInput = terminal.input((input) => {
+        state = reduceManagerSelection(state, input);
+        if (state.done === "cancel") {
+          reject(new Error("manager selection cancelled"));
+          return;
+        }
+        if (state.done === "confirm") {
+          resolve(names.filter((_, index) => state.selected[index]));
+          return;
+        }
+        render();
+      });
+      stopInterrupt = terminal.interrupt(() => reject(new Error("manager selection cancelled")));
+      render();
+    });
+    return result;
+  } finally {
+    stopInput?.();
+    stopInterrupt?.();
+    terminal.raw(false);
+    terminal.pause();
+  }
 }
 
 export const defaultDeps: RunDeps = {
@@ -62,6 +167,7 @@ export const defaultWardenDeps: WardenDeps = {
   },
   isTTY: () => Boolean(process.stdin.isTTY),
   prompt: async (question) => globalThis.prompt(question) ?? "",
+  selectManagers,
 };
 
 export interface CommandFlag {
@@ -77,6 +183,7 @@ export interface CommandDefinition {
   positional?: { kind: string; values?: readonly string[] };
   exitCodes: string;
   example: string;
+  hidden?: boolean;
   run: (argv: string[], deps: WardenDeps) => number | Promise<number>;
 }
 
@@ -988,10 +1095,10 @@ async function runWardenFix(argv: string[], deps: WardenDeps): Promise<number> {
 }
 
 function renderWardenHelp(): string {
-  const width = Math.max(...COMMAND_REGISTRY.map((command) => command.name.length));
-  const commands = COMMAND_REGISTRY.map(
-    (command) => `  ${command.name.padEnd(width)}  ${command.description}`,
-  ).join("\n");
+  const width = Math.max(...visibleCommands().map((command) => command.name.length));
+  const commands = visibleCommands()
+    .map((command) => `  ${command.name.padEnd(width)}  ${command.description}`)
+    .join("\n");
   return `warden: vets packages and enforces repo policy before code runs\n\nusage: warden <verb> [flags]\n\n${commands}\n\nexit codes: 0 allow · 10 warn · 20 block · 30 error\ndocs: https://github.com/pulkitxm/warden\n`;
 }
 
@@ -1015,14 +1122,18 @@ function renderCommandHelp(command: CommandDefinition): string {
 }
 
 function bashCompletions(): string {
-  const verbs = COMMAND_REGISTRY.map((command) => command.name).join(" ");
-  const cases = COMMAND_REGISTRY.map((command) => {
-    const flags = command.flags.map((flag) => flag.name).join(" ");
-    const values = command.positional?.values?.join(" ");
-    return values
-      ? `    ${command.name})\n      if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W '${values} ${flags}' -- "$cur") ); else COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ); fi\n      ;;`
-      : `    ${command.name}) COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ) ;;`;
-  }).join("\n");
+  const verbs = visibleCommands()
+    .map((command) => command.name)
+    .join(" ");
+  const cases = visibleCommands()
+    .map((command) => {
+      const flags = command.flags.map((flag) => flag.name).join(" ");
+      const values = command.positional?.values?.join(" ");
+      return values
+        ? `    ${command.name})\n      if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W '${values} ${flags}' -- "$cur") ); else COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ); fi\n      ;;`
+        : `    ${command.name}) COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ) ;;`;
+    })
+    .join("\n");
   return `_warden() {\n  local cur\n  COMPREPLY=()\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  if (( COMP_CWORD == 1 )); then\n    COMPREPLY=( $(compgen -W '${verbs}' -- "$cur") )\n    return\n  fi\n  case "\${COMP_WORDS[1]}" in\n${cases}\n  esac\n}\ncomplete -F _warden warden\n`;
 }
 
@@ -1031,18 +1142,20 @@ function zshQuote(value: string): string {
 }
 
 function zshCompletions(): string {
-  const verbs = COMMAND_REGISTRY.map(
-    (command) => `    ${zshQuote(`${command.name}:${command.description}`)}`,
-  ).join("\n");
-  const cases = COMMAND_REGISTRY.map((command) => {
-    const flags = command.flags
-      .map((flag) => zshQuote(`${flag.name}:${flag.description}`))
-      .join(" ");
-    const values = command.positional?.values?.map(zshQuote).join(" ");
-    return values
-      ? `    ${command.name})\n      if (( CURRENT == 3 )); then _values 'shell' ${values} ${flags}; else _values 'flag' ${flags}; fi\n      ;;`
-      : `    ${command.name}) _values 'flag' ${flags} ;;`;
-  }).join("\n");
+  const verbs = visibleCommands()
+    .map((command) => `    ${zshQuote(`${command.name}:${command.description}`)}`)
+    .join("\n");
+  const cases = visibleCommands()
+    .map((command) => {
+      const flags = command.flags
+        .map((flag) => zshQuote(`${flag.name}:${flag.description}`))
+        .join(" ");
+      const values = command.positional?.values?.map(zshQuote).join(" ");
+      return values
+        ? `    ${command.name})\n      if (( CURRENT == 3 )); then _values 'shell' ${values} ${flags}; else _values 'flag' ${flags}; fi\n      ;;`
+        : `    ${command.name}) _values 'flag' ${flags} ;;`;
+    })
+    .join("\n");
   return `_warden() {\n  local -a verbs\n  verbs=(\n${verbs}\n  )\n  if (( CURRENT == 2 )); then\n    _describe 'verb' verbs\n    return\n  fi\n  case "$words[2]" in\n${cases}\n  esac\n}\nif (( ! $+functions[compdef] )); then\n  autoload -Uz compinit\n  compinit -u\nfi\ncompdef _warden warden\n`;
 }
 
@@ -1051,11 +1164,11 @@ function fishQuote(value: string): string {
 }
 
 function fishCompletions(): string {
-  const verbs = COMMAND_REGISTRY.map(
+  const verbs = visibleCommands().map(
     (command) =>
       `complete -c warden -n 'test (count (commandline -opc)) -eq 1' -a ${fishQuote(command.name)} -d ${fishQuote(command.description)}`,
   );
-  const details = COMMAND_REGISTRY.flatMap((command) => {
+  const details = visibleCommands().flatMap((command) => {
     const flags = command.flags.map(
       (flag) =>
         `complete -c warden -n '__fish_seen_subcommand_from ${command.name}' -l ${fishQuote(flag.name.slice(2))} -d ${fishQuote(flag.description)}`,
@@ -1091,7 +1204,29 @@ function runWardenCompletions(argv: string[], deps: WardenDeps): number {
   );
 }
 
+async function runWardenSelectManagers(argv: string[], deps: WardenDeps): Promise<number> {
+  const { values } = parseArgs({
+    args: argv,
+    options: { detected: { type: "string" } },
+  });
+  const names = (values.detected ?? "").split(/\s+/).filter(Boolean);
+  if (!names.length || !deps.isTTY()) {
+    deps.stdout(`${names.join(" ")}\n`);
+    return EXIT.allow;
+  }
+  try {
+    const selected = await deps.selectManagers(names);
+    deps.stdout(`${selected.join(" ")}\n`);
+    return EXIT.allow;
+  } catch {
+    deps.stderr("warden: manager selection cancelled\n");
+    return EXIT.error;
+  }
+}
+
 const helpFlag = { name: "--help", description: "show this help" } as const;
+
+const visibleCommands = () => COMMAND_REGISTRY.filter((command) => !command.hidden);
 
 export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   {
@@ -1189,6 +1324,15 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden completions zsh",
     run: runWardenCompletions,
+  },
+  {
+    name: "select-managers",
+    description: "select detected package managers",
+    flags: [{ name: "--detected", valueHint: "<names>", description: "detected managers" }],
+    exitCodes: "0 success · 30 error",
+    example: 'warden select-managers --detected "npm bun pnpm"',
+    hidden: true,
+    run: runWardenSelectManagers,
   },
 ];
 

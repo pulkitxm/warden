@@ -31,8 +31,13 @@ test("registry verbs drive root help and every completion script", async () => {
   const help = err.join("");
   const scripts = await Promise.all([generated("bash"), generated("zsh"), generated("fish")]);
   for (const command of COMMAND_REGISTRY) {
-    expect(help).toContain(command.name);
-    for (const script of scripts) expect(script).toContain(command.name);
+    if (command.hidden) {
+      expect(help).not.toContain(command.name);
+      for (const script of scripts) expect(script).not.toContain(command.name);
+    } else {
+      expect(help).toContain(command.name);
+      for (const script of scripts) expect(script).toContain(command.name);
+    }
   }
 });
 

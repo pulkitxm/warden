@@ -32,6 +32,14 @@ downloading warden 0.3.0 (darwin-arm64)
   ######################################################################## 100% 24.1 MB
   sha256 verified
 
+Which detected package managers should warden intercept?
+> [x] npm
+  [x] pnpm
+  [x] bun
+  [x] npx
+  [x] bunx
+Up/down move, space toggles, enter confirms
+
   installed  ~/.warden/bin/warden, wnpm, wnpx
   shims      ~/.warden/shims/{npm,pnpm,bun,npx,bunx}  (yarn skipped, not installed)
   PATH       added ~/.warden/shims and ~/.warden/bin to ~/.zshrc
@@ -48,7 +56,7 @@ Which coding agent do you use? (for "fix with agent" handoffs)
   4) Copilot CLI        8) none / ask every time
 choice [1]: 1
 
-  config     ~/.warden/config.json  (mode: brief, intercept: install+exec, agent: claude)
+  config     ~/.warden/config.json  (mode: brief, managers: npm+pnpm+bun+npx+bunx, intercept: install+exec, agent: claude)
 
 done in 4.2s; warden is ready in this shell (linked into /usr/local/bin)
 package-manager interception starts in new shells
@@ -84,7 +92,7 @@ package managers restored to direct execution
 
 Notes the transcripts encode:
 
-- Shims are only written for managers actually present on the machine, so a shim never shadows a command that does not exist.
+- The fresh-install picker starts with every detected manager selected. Shims are only written for selected commands that are present, so a shim never shadows a missing command.
 - Upgrades never touch config or shims; the installer is idempotent.
 - Binaries are symlinked into /usr/local/bin (or ~/.local/bin) when that directory is writable and already on PATH, so `warden` works in the current shell with no restart; the rc line exists for the shims, which need PATH precedence over the real package managers and therefore only activate in new shells.
 - Every download is checksum-verified before anything is placed on PATH.
