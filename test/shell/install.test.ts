@@ -18,6 +18,10 @@ import { join } from "node:path";
 const installScript = join(import.meta.dir, "../../install.sh");
 const shimScript = join(import.meta.dir, "../../scripts/shim.sh");
 const pathLine = 'export PATH="$HOME/.warden/shims:$HOME/.warden/bin:$PATH"';
+const completionLines = {
+  zsh: 'eval "$(warden completions zsh)"',
+  bash: 'eval "$(warden completions bash)"',
+};
 const managerNames = ["npm", "bun", "npx", "bunx", "pnpm", "yarn"];
 const toolNames = [
   "awk",
@@ -240,16 +244,19 @@ test("prompt maps empty and garbage to brief, 2 to log, and EOF to brief", () =>
   }
 });
 
-test("shell selection writes zsh, bash, and unset-shell rc files", () => {
-  for (const [shell, rc] of [
-    ["/bin/zsh", ".zshrc"],
-    ["/bin/bash", ".bashrc"],
-    [undefined, ".profile"],
+test("shell selection writes PATH and matching completion lines", () => {
+  for (const [shell, rc, completion] of [
+    ["/bin/zsh", ".zshrc", completionLines.zsh],
+    ["/bin/bash", ".bashrc", completionLines.bash],
+    ["/bin/fish", ".profile", undefined],
   ] as const) {
     inSandbox([], (sandbox) => {
       const result = run(sandbox, [], { env: { SHELL: shell } });
       expect(result.exitCode).toBe(0);
-      expect(readFileSync(join(sandbox.home, rc), "utf8")).toContain(pathLine);
+      const contents = readFileSync(join(sandbox.home, rc), "utf8");
+      expect(contents).toContain(pathLine);
+      if (completion) expect(contents).toContain(completion);
+      else expect(contents).not.toContain("warden completions");
     });
   }
 });
@@ -268,6 +275,7 @@ test("second install upgrades without duplicating or replacing config and shims"
     expect(readFileSync(shimPath, "utf8")).toBe("kept-shim\n");
     const rc = readFileSync(join(sandbox.home, ".bashrc"), "utf8");
     expect(rc.split(pathLine).length - 1).toBe(1);
+    expect(rc.split(completionLines.bash).length - 1).toBe(1);
   }));
 
 test("upgrade uses installed fallback when the old version probe fails", () =>
@@ -285,7 +293,9 @@ test("fresh install recognizes an already configured rc file", () =>
     const result = run(sandbox, [], { env: { SHELL: "/bin/bash" } });
     expect(result.exitCode).toBe(0);
     expect(output(result)).toContain("PATH       already configured");
-    expect(readFileSync(join(sandbox.home, ".bashrc"), "utf8")).toBe(`${pathLine}\n`);
+    expect(readFileSync(join(sandbox.home, ".bashrc"), "utf8")).toBe(
+      `${pathLine}\n${completionLines.bash}\n`,
+    );
   }));
 
 test("uninstall removes owned links, root, and PATH line but preserves user entries", () =>
@@ -300,7 +310,10 @@ test("uninstall removes owned links, root, and PATH line but preserves user entr
     writeFileSync(join(localBin, "warden"), "user-owned\n");
     rmSync(join(localBin, "wnpm"));
     symlinkSync(join(sandbox.home, "other-wnpm"), join(localBin, "wnpm"));
-    writeFileSync(join(sandbox.home, ".zshrc"), `before\n${pathLine}\nafter\n`);
+    writeFileSync(
+      join(sandbox.home, ".zshrc"),
+      `before\n${pathLine}\n${completionLines.zsh}\nafter\n`,
+    );
     const result = run(sandbox, ["--uninstall"], {
       env: { SHELL: "/bin/zsh" },
       path: safePath,

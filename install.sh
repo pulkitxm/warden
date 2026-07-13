@@ -12,14 +12,30 @@ shell_name=${shell_name##*/}
 case "$shell_name" in
   zsh)
     shell_rc=$HOME/.zshrc
+    completion_line='eval "$(warden completions zsh)"'
     ;;
   bash)
     shell_rc=$HOME/.bashrc
+    completion_line='eval "$(warden completions bash)"'
     ;;
   *)
     shell_rc=$HOME/.profile
+    completion_line=
     ;;
 esac
+
+configure_shell() {
+  touch "$shell_rc"
+  if ! grep -F "$path_line" "$shell_rc" >/dev/null 2>&1; then
+    printf '%s\n' "$path_line" >>"$shell_rc"
+    path_status="added ~/.warden/shims and ~/.warden/bin to $shell_rc"
+  else
+    path_status='already configured'
+  fi
+  if [ -n "$completion_line" ] && ! grep -F "$completion_line" "$shell_rc" >/dev/null 2>&1; then
+    printf '%s\n' "$completion_line" >>"$shell_rc"
+  fi
+}
 
 if [ "${1:-}" = "--uninstall" ]; then
   for link_dir in /usr/local/bin "$HOME/.local/bin"; do
@@ -31,9 +47,9 @@ if [ "${1:-}" = "--uninstall" ]; then
     done
   done
   rm -rf "$root"
-  if [ -f "$shell_rc" ] && grep -F "$path_line" "$shell_rc" >/dev/null 2>&1; then
+  if [ -f "$shell_rc" ]; then
     clean_rc=$shell_rc.warden.tmp
-    grep -Fv "$path_line" "$shell_rc" >"$clean_rc" || true
+    awk -v path="$path_line" -v completion="$completion_line" '$0 != path && (completion == "" || $0 != completion)' "$shell_rc" >"$clean_rc"
     mv "$clean_rc" "$shell_rc"
   fi
   printf 'removed ~/.warden (binaries, shims, cache, config)\n'
@@ -150,6 +166,7 @@ fi
 chmod 755 "$root/install.sh"
 
 if [ "$existing" = true ]; then
+  configure_shell
   printf '\nupgrading %s -> %s\n' "$old_version" "$version"
   printf '  binaries replaced; shims already present; PATH already configured\n'
   printf '  config kept (~/.warden/config.json untouched)\n\n'
@@ -172,17 +189,6 @@ for manager in npm pnpm yarn bun npx bunx; do
   fi
 done
 
-touch "$shell_rc"
-if ! grep -F "$path_line" "$shell_rc" >/dev/null 2>&1; then
-  printf '%s\n' "$path_line" >>"$shell_rc"
-  path_status="added ~/.warden/shims and ~/.warden/bin to $shell_rc"
-else
-  path_status='already configured'
-fi
-
-printf '\n  installed  ~/.warden/bin/warden, wnpm, wnpx\n'
-printf '  shims     %s\n' "${installed_shims:- none}"
-printf '  PATH       %s\n\n' "$path_status"
 printf 'When warden finds a risky package:\n'
 printf '  1) protect  stop the install and show why  (recommended)\n'
 printf '  2) observe  never stop anything, just keep a record\n'
@@ -203,6 +209,12 @@ cat >"$root/config.json" <<EOF
   "intercept": { "install": true, "exec": true }
 }
 EOF
+
+configure_shell
+
+printf '\n  installed  ~/.warden/bin/warden, wnpm, wnpx\n'
+printf '  shims     %s\n' "${installed_shims:- none}"
+printf '  PATH       %s\n' "$path_status"
 
 link_dir=
 for candidate in /usr/local/bin "$HOME/.local/bin"; do

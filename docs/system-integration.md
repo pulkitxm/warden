@@ -11,6 +11,7 @@ Goal: users keep their existing package manager (npm, pnpm, yarn, Bun) and their
 | [Distribution](distribution.md) | Release workflow, install.sh transcripts (fresh, upgrade, uninstall), Docker dev setup |
 | [Detection and init](detection-and-init.md) | `warden detect` evidence-based classification, `warden init` onboarding |
 | [Config](config.md) | `warden.config.json` cascade, user-level config, cache semantics, CLAUDE.md integration |
+| [Shell autocomplete](autocomplete.md) | Registry-driven help and generated bash, zsh, and fish completions |
 
 ## Product shape
 

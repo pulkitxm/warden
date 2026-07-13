@@ -64,113 +64,21 @@ export const defaultWardenDeps: WardenDeps = {
   prompt: async (question) => globalThis.prompt(question) ?? "",
 };
 
-const WARDEN_HELP = `warden: vets packages and enforces repo policy before code runs
+export interface CommandFlag {
+  name: `--${string}`;
+  description: string;
+  valueHint?: string;
+}
 
-usage: warden <verb> [flags]
-
-  check    vet packages, the lockfile, scripts, or registry config
-  ci       run all checks against the merge-base diff
-  detect   classify the workspace (framework, role, tooling per package)
-  init     onboard a repo: config, workflow, hooks, agent context
-  fix      hand the last failing check to your coding agent
-  config   read or set user-level settings (mode, intercept, agent)
-  log      render recorded verdicts from ~/.warden/log.jsonl
-  schema   print the JSON schema for a verb's output
-
-exit codes: 0 allow · 10 warn · 20 block · 30 error
-docs: https://github.com/pulkitxm/warden
-`;
-
-const CHECK_HELP = `warden check: vet one or more packages before code runs
-
-usage: warden check <pkg[@version]...> [--json] [--allow-risky]
-
-  --json         write verdict JSON to stdout
-  --allow-risky  permit blocked packages and exit 10
-  --help         show this help
-
-exit codes: 0 allow · 10 warn · 20 block · 30 error
-example: warden check express@5 left-pad --json
-`;
-
-const CONFIG_HELP = `warden config: read or set user-level settings
-
-usage: warden config [--json]
-       warden config mode <verbose|brief|block|log>
-       warden config intercept [install|exec] <on|off>
-
-  --json  write config JSON to stdout
-  --help  show this help
-
-exit codes: 0 success · 30 error
-example: warden config intercept off
-`;
-
-const SCHEMA_HELP = `warden schema: print the JSON schema for structured output
-
-usage: warden schema [check|ci]
-
-exit codes: 0 success
-example: warden schema ci
-`;
-
-const LOG_HELP = `warden log: render recorded verdicts from ~/.warden/log.jsonl
-
-usage: warden log [--tail N] [--json]
-
-  --tail N  show only the last N entries
-  --json    write raw JSON objects to stdout
-  --help    show this help
-
-exit codes: 0 success · 30 error
-example: warden log --tail 20
-`;
-
-const DETECT_HELP = `warden detect: classify workspace topology, packages, and tooling
-
-usage: warden detect [--json]
-
-  --json  write the detection manifest to stdout
-  --help  show this help
-
-exit codes: 0 success · 30 error
-example: warden detect --json
-`;
-
-const INIT_HELP = `warden init: detect and onboard the current repository
-
-usage: warden init [--yes] [--json]
-
-  --yes   accept every offered file change
-  --json  write typed errors to stdout
-  --help  show this help
-
-exit codes: 0 success · 30 error
-example: warden init --yes
-`;
-
-const CI_HELP = `warden ci: vet dependency changes against a merge base
-
-usage: warden ci [--reporter summary|json|github|agent] [--base <ref>]
-
-  --reporter  select human, JSON, workflow, or agent output
-  --base      compare against this git ref
-  --help      show this help
-
-exit codes: 0 clean · 10 warn · 20 block · 30 error
-example: warden ci --reporter github --base origin/main
-`;
-
-const FIX_HELP = `warden fix: prepare the last failing CI finding for the configured agent
-
-usage: warden fix [--json]
-
-  --json  write typed errors to stdout
-  --help  show this help
-
-exit codes: 0 success · 30 error
-example: warden fix
-`;
+export interface CommandDefinition {
+  name: string;
+  description: string;
+  flags: readonly CommandFlag[];
+  positional?: { kind: string; values?: readonly string[] };
+  exitCodes: string;
+  example: string;
+  run: (argv: string[], deps: WardenDeps) => number | Promise<number>;
+}
 
 interface UserConfig {
   mode: "verbose" | "brief" | "block" | "log";
@@ -279,11 +187,11 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     );
 
     if (values.json) {
-      deps.stdout(JSON.stringify(verdicts) + "\n");
+      deps.stdout(`${JSON.stringify(verdicts)}\n`);
     } else {
       for (const level of ["block", "warn", "allow"] as const) {
         for (const v of verdicts.filter((x) => x.verdict === level))
-          deps.stderr(renderLine(v) + "\n");
+          deps.stderr(`${renderLine(v)}\n`);
       }
     }
 
@@ -318,7 +226,7 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
   });
 
   if (values.schema) {
-    deps.stdout(JSON.stringify(VERDICT_JSON_SCHEMA, null, 2) + "\n");
+    deps.stdout(`${JSON.stringify(VERDICT_JSON_SCHEMA, null, 2)}\n`);
     return 0;
   }
 
@@ -332,7 +240,7 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
     const verdict = await deps.check(spec);
 
     if (values.json) {
-      deps.stdout(JSON.stringify(verdict) + "\n");
+      deps.stdout(`${JSON.stringify(verdict)}\n`);
       return exitCodeFor(verdict.verdict);
     }
 
@@ -350,10 +258,6 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
 
 async function runWardenCheck(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(CHECK_HELP);
-    return EXIT.allow;
-  }
   try {
     const { values, positionals } = parseArgs({
       args: argv,
@@ -398,10 +302,6 @@ async function runWardenCheck(argv: string[], deps: WardenDeps): Promise<number>
 
 function runWardenConfig(argv: string[], deps: WardenDeps): number {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(CONFIG_HELP);
-    return EXIT.allow;
-  }
   try {
     const args = argv.filter((arg) => arg !== "--json");
     const config = readConfig(deps);
@@ -506,7 +406,7 @@ function workspacePatterns(rootPackage: PackageJson, deps: WardenDeps, root: str
     return deps
       .readFile(pnpmPath)
       .split("\n")
-      .map((line) => line.match(/^\s*-\s*['\"]?([^'\"#]+?)['\"]?\s*$/)?.[1]?.trim())
+      .map((line) => line.match(/^\s*-\s*['"]?([^'"#]+?)['"]?\s*$/)?.[1]?.trim())
       .filter((value): value is string => Boolean(value));
   }
   const lernaPath = join(root, "lerna.json");
@@ -695,10 +595,6 @@ function renderDetection(manifest: DetectionManifest): string {
 }
 
 function runWardenSchema(argv: string[], deps: WardenDeps): number {
-  if (argv.includes("--help")) {
-    deps.stderr(SCHEMA_HELP);
-    return EXIT.allow;
-  }
   const verb = argv[0] ?? "check";
   if (verb === "check" || verb === "ci") {
     deps.stdout(
@@ -718,10 +614,6 @@ function runWardenSchema(argv: string[], deps: WardenDeps): number {
 
 function runWardenLog(argv: string[], deps: WardenDeps): number {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(LOG_HELP);
-    return EXIT.allow;
-  }
   try {
     const { values } = parseArgs({
       args: argv,
@@ -778,10 +670,6 @@ function runWardenLog(argv: string[], deps: WardenDeps): number {
 
 function runWardenDetect(argv: string[], deps: WardenDeps): number {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(DETECT_HELP);
-    return EXIT.allow;
-  }
   try {
     parseArgs({ args: argv, options: { json: { type: "boolean" } } });
     const manifest = detectWorkspace(deps);
@@ -808,10 +696,6 @@ async function accepted(deps: WardenDeps, yes: boolean, question: string): Promi
 
 async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(INIT_HELP);
-    return EXIT.allow;
-  }
   try {
     const { values } = parseArgs({
       args: argv,
@@ -934,10 +818,6 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
       arg === "--reporter=json" ||
       arg === "--reporter=agent",
   );
-  if (argv.includes("--help")) {
-    deps.stderr(CI_HELP);
-    return EXIT.allow;
-  }
   try {
     const { values } = parseArgs({
       args: argv,
@@ -1035,10 +915,6 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
 
 async function runWardenFix(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
-  if (argv.includes("--help")) {
-    deps.stderr(FIX_HELP);
-    return EXIT.allow;
-  }
   try {
     parseArgs({ args: argv, options: { json: { type: "boolean" } } });
     const root = deps.cwd();
@@ -1111,22 +987,227 @@ async function runWardenFix(argv: string[], deps: WardenDeps): Promise<number> {
   }
 }
 
+function renderWardenHelp(): string {
+  const width = Math.max(...COMMAND_REGISTRY.map((command) => command.name.length));
+  const commands = COMMAND_REGISTRY.map(
+    (command) => `  ${command.name.padEnd(width)}  ${command.description}`,
+  ).join("\n");
+  return `warden: vets packages and enforces repo policy before code runs\n\nusage: warden <verb> [flags]\n\n${commands}\n\nexit codes: 0 allow · 10 warn · 20 block · 30 error\ndocs: https://github.com/pulkitxm/warden\n`;
+}
+
+function renderCommandHelp(command: CommandDefinition): string {
+  const usageFlags = command.flags
+    .map((flag) => `[${flag.name}${flag.valueHint ? ` ${flag.valueHint}` : ""}]`)
+    .join(" ");
+  const usage = ["usage: warden", command.name, command.positional?.kind, usageFlags]
+    .filter(Boolean)
+    .join(" ");
+  const width = Math.max(
+    ...command.flags.map((flag) => flag.name.length + (flag.valueHint?.length ?? -1) + 1),
+  );
+  const flags = command.flags
+    .map((flag) => {
+      const label = `${flag.name}${flag.valueHint ? ` ${flag.valueHint}` : ""}`;
+      return `  ${label.padEnd(width)}  ${flag.description}`;
+    })
+    .join("\n");
+  return `warden ${command.name}: ${command.description}\n\n${usage}\n\n${flags}\n\nexit codes: ${command.exitCodes}\nexample: ${command.example}\n`;
+}
+
+function bashCompletions(): string {
+  const verbs = COMMAND_REGISTRY.map((command) => command.name).join(" ");
+  const cases = COMMAND_REGISTRY.map((command) => {
+    const flags = command.flags.map((flag) => flag.name).join(" ");
+    const values = command.positional?.values?.join(" ");
+    return values
+      ? `    ${command.name})\n      if (( COMP_CWORD == 2 )); then COMPREPLY=( $(compgen -W '${values} ${flags}' -- "$cur") ); else COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ); fi\n      ;;`
+      : `    ${command.name}) COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ) ;;`;
+  }).join("\n");
+  return `_warden() {\n  local cur\n  COMPREPLY=()\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  if (( COMP_CWORD == 1 )); then\n    COMPREPLY=( $(compgen -W '${verbs}' -- "$cur") )\n    return\n  fi\n  case "\${COMP_WORDS[1]}" in\n${cases}\n  esac\n}\ncomplete -F _warden warden\n`;
+}
+
+function zshQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function zshCompletions(): string {
+  const verbs = COMMAND_REGISTRY.map(
+    (command) => `    ${zshQuote(`${command.name}:${command.description}`)}`,
+  ).join("\n");
+  const cases = COMMAND_REGISTRY.map((command) => {
+    const flags = command.flags
+      .map((flag) => zshQuote(`${flag.name}:${flag.description}`))
+      .join(" ");
+    const values = command.positional?.values?.map(zshQuote).join(" ");
+    return values
+      ? `    ${command.name})\n      if (( CURRENT == 3 )); then _values 'shell' ${values} ${flags}; else _values 'flag' ${flags}; fi\n      ;;`
+      : `    ${command.name}) _values 'flag' ${flags} ;;`;
+  }).join("\n");
+  return `_warden() {\n  local -a verbs\n  verbs=(\n${verbs}\n  )\n  if (( CURRENT == 2 )); then\n    _describe 'verb' verbs\n    return\n  fi\n  case "$words[2]" in\n${cases}\n  esac\n}\nif (( ! $+functions[compdef] )); then\n  autoload -Uz compinit\n  compinit -u\nfi\ncompdef _warden warden\n`;
+}
+
+function fishQuote(value: string): string {
+  return `'${value.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
+}
+
+function fishCompletions(): string {
+  const verbs = COMMAND_REGISTRY.map(
+    (command) =>
+      `complete -c warden -n 'test (count (commandline -opc)) -eq 1' -a ${fishQuote(command.name)} -d ${fishQuote(command.description)}`,
+  );
+  const details = COMMAND_REGISTRY.flatMap((command) => {
+    const flags = command.flags.map(
+      (flag) =>
+        `complete -c warden -n '__fish_seen_subcommand_from ${command.name}' -l ${fishQuote(flag.name.slice(2))} -d ${fishQuote(flag.description)}`,
+    );
+    const values = command.positional?.values;
+    if (values)
+      flags.push(
+        `complete -c warden -n '__fish_seen_subcommand_from ${command.name}; and test (count (commandline -opc)) -eq 2' -a ${fishQuote(values.join(" "))}`,
+      );
+    return flags;
+  });
+  return `${[`complete -c warden -f`, ...verbs, ...details].join("\n")}\n`;
+}
+
+function runWardenCompletions(argv: string[], deps: WardenDeps): number {
+  const shell = argv[0];
+  const generators: Record<string, () => string> = {
+    bash: bashCompletions,
+    zsh: zshCompletions,
+    fish: fishCompletions,
+  };
+  if (shell && generators[shell]) {
+    deps.stdout(generators[shell]());
+    return EXIT.allow;
+  }
+  return wardenFailure(
+    deps,
+    true,
+    "usage",
+    "WARDEN_UNKNOWN_SHELL",
+    `unknown completion shell "${shell ?? ""}"`,
+    "run warden completions --help",
+  );
+}
+
+const helpFlag = { name: "--help", description: "show this help" } as const;
+
+export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
+  {
+    name: "check",
+    description: "vet packages, the lockfile, scripts, or registry config",
+    positional: { kind: "<pkg[@version]...>" },
+    flags: [
+      { name: "--json", description: "write verdict JSON to stdout" },
+      { name: "--allow-risky", description: "permit blocked packages and exit 10" },
+      helpFlag,
+    ],
+    exitCodes: "0 allow · 10 warn · 20 block · 30 error",
+    example: "warden check express@5 left-pad --json",
+    run: runWardenCheck,
+  },
+  {
+    name: "ci",
+    description: "run all checks against the merge-base diff",
+    flags: [
+      {
+        name: "--reporter",
+        valueHint: "<summary|json|github|agent>",
+        description: "select human, JSON, workflow, or agent output",
+      },
+      { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
+      helpFlag,
+    ],
+    exitCodes: "0 clean · 10 warn · 20 block · 30 error",
+    example: "warden ci --reporter github --base origin/main",
+    run: runWardenCi,
+  },
+  {
+    name: "detect",
+    description: "classify the workspace (framework, role, tooling per package)",
+    flags: [{ name: "--json", description: "write the detection manifest to stdout" }, helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden detect --json",
+    run: runWardenDetect,
+  },
+  {
+    name: "init",
+    description: "onboard a repo: config, workflow, hooks, agent context",
+    flags: [
+      { name: "--yes", description: "accept every offered file change" },
+      { name: "--json", description: "write typed errors to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden init --yes",
+    run: runWardenInit,
+  },
+  {
+    name: "fix",
+    description: "hand the last failing check to your coding agent",
+    flags: [{ name: "--json", description: "write typed errors to stdout" }, helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden fix",
+    run: runWardenFix,
+  },
+  {
+    name: "config",
+    description: "read or set user-level settings (mode, intercept, agent)",
+    positional: { kind: "[mode|intercept] [value...]" },
+    flags: [{ name: "--json", description: "write config JSON to stdout" }, helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden config intercept off",
+    run: runWardenConfig,
+  },
+  {
+    name: "log",
+    description: "render recorded verdicts from ~/.warden/log.jsonl",
+    flags: [
+      { name: "--tail", valueHint: "N", description: "show only the last N entries" },
+      { name: "--json", description: "write raw JSON objects to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden log --tail 20",
+    run: runWardenLog,
+  },
+  {
+    name: "schema",
+    description: "print the JSON schema for structured output",
+    positional: { kind: "[check|ci]" },
+    flags: [helpFlag],
+    exitCodes: "0 success",
+    example: "warden schema ci",
+    run: runWardenSchema,
+  },
+  {
+    name: "completions",
+    description: "print a shell completion script",
+    positional: { kind: "<bash|zsh|fish>", values: ["bash", "zsh", "fish"] },
+    flags: [helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden completions zsh",
+    run: runWardenCompletions,
+  },
+];
+
 export async function runWarden(
   argv: string[],
   deps: WardenDeps = defaultWardenDeps,
 ): Promise<number> {
   if (!argv.length || argv[0] === "--help" || argv[0] === "help") {
-    deps.stderr(WARDEN_HELP);
+    deps.stderr(renderWardenHelp());
     return EXIT.allow;
   }
-  if (argv[0] === "check") return runWardenCheck(argv.slice(1), deps);
-  if (argv[0] === "config") return runWardenConfig(argv.slice(1), deps);
-  if (argv[0] === "schema") return runWardenSchema(argv.slice(1), deps);
-  if (argv[0] === "log") return runWardenLog(argv.slice(1), deps);
-  if (argv[0] === "detect") return runWardenDetect(argv.slice(1), deps);
-  if (argv[0] === "init") return runWardenInit(argv.slice(1), deps);
-  if (argv[0] === "ci") return runWardenCi(argv.slice(1), deps);
-  if (argv[0] === "fix") return runWardenFix(argv.slice(1), deps);
+  const command = COMMAND_REGISTRY.find((candidate) => candidate.name === argv[0]);
+  if (command) {
+    if (argv.includes("--help")) {
+      deps.stderr(renderCommandHelp(command));
+      return EXIT.allow;
+    }
+    return command.run(argv.slice(1), deps);
+  }
   return wardenFailure(
     deps,
     argv.includes("--json"),
