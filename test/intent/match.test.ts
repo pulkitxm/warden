@@ -76,9 +76,11 @@ test("keywordScore weights symbol hits double and counts them", () => {
   const scored = keywordScore(rateClaim, rateHunk);
   expect(scored.symbolHits).toBe(2);
   expect(scored.score).toBe(4);
+  expect(scored.coverage).toBeCloseTo(2 / 3);
   const textOnly = keywordScore(claim("c2", "client changes"), hunk("h2", { symbols: [] }));
   expect(textOnly.symbolHits).toBe(0);
   expect(textOnly.score).toBe(1);
+  expect(keywordScore(claim("c3", "of it"), hunk("h3")).coverage).toBe(0);
 });
 
 test("keywordPass proposes matches and leaves preservation claims alone", () => {
@@ -94,7 +96,6 @@ test("keywordPass proposes matches and leaves preservation claims alone", () => 
   const proposals = keywordPass(claims, hunks);
   expect(proposals).toEqual([
     { claimId: "c1", hunkIds: ["h1"], status: "delivered", origin: "keyword" },
-    { claimId: "c3", hunkIds: ["h1"], status: "delivered", origin: "keyword" },
   ]);
 });
 

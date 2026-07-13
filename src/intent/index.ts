@@ -4,8 +4,16 @@ import { gitResult, resolveMergeBase, type WardenDeps, wardenFailure } from "../
 import { EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
 import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
 import { extractClaims } from "./extract.ts";
+import { decide, keywordPass, llmPass } from "./match.ts";
+import { renderIntentReport } from "./report.ts";
 import { findHallucinations } from "./symbols.ts";
-import type { ClassifiedHunk, FileDiff, HallucinationFinding, IntentLedger } from "./types.ts";
+import type {
+  ClassifiedHunk,
+  FileDiff,
+  HallucinationFinding,
+  IntentLedger,
+  IntentReport,
+} from "./types.ts";
 
 export interface IntentFlags {
   verb: string;
@@ -42,22 +50,35 @@ function renderLedger(ledger: IntentLedger): string {
   return `intent claims (${ledger.claims.length}):\n${rows.join("\n")}\n`;
 }
 
+function writeWarden(deps: WardenDeps, root: string, name: string, value: unknown): void {
+  deps.mkdir(join(root, ".warden"));
+  deps.writeFile(join(root, ".warden", name), `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function promptFromFile(deps: WardenDeps, root: string): string | undefined {
+  try {
+    return deps.readFile(join(root, ".warden", "prompt.txt")).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function missingPrompt(deps: WardenDeps, json: boolean): number {
+  return wardenFailure(
+    deps,
+    json,
+    "usage",
+    "WARDEN_INTENT_ERROR",
+    "no prompt provided",
+    'pass --prompt "<text>" or write .warden/prompt.txt',
+  );
+}
+
 async function runIntentExtract(flags: IntentFlags, deps: WardenDeps): Promise<number> {
   const prompt = flags.prompt?.trim();
-  if (!prompt) {
-    return wardenFailure(
-      deps,
-      flags.json,
-      "usage",
-      "WARDEN_INTENT_ERROR",
-      "no prompt provided",
-      'pass --prompt "<text>"',
-    );
-  }
+  if (!prompt) return missingPrompt(deps, flags.json);
   const ledger = await extractClaims(prompt);
-  const root = deps.cwd();
-  deps.mkdir(join(root, ".warden"));
-  deps.writeFile(join(root, ".warden", "claims.json"), `${JSON.stringify(ledger, null, 2)}\n`);
+  writeWarden(deps, deps.cwd(), "claims.json", ledger);
   deps.stderr(renderLedger(ledger));
   if (flags.json) deps.stdout(`${JSON.stringify(ledger)}\n`);
   return EXIT.allow;
@@ -117,6 +138,57 @@ function runIntentSymbols(flags: IntentFlags, deps: WardenDeps): number {
   return findings.length ? EXIT.block : EXIT.allow;
 }
 
+export interface IntentRun {
+  ledger: IntentLedger;
+  report: IntentReport;
+}
+
+export async function runIntentPipeline(
+  deps: WardenDeps,
+  root: string,
+  mergeBase: string,
+  prompt: string,
+): Promise<IntentRun> {
+  const diffText = gitResult(deps, root, ["diff", mergeBase]);
+  const diffs = parseUnifiedDiff(diffText);
+  const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
+  const context: DiffContext = { root, mergeBase, diffs, hunks };
+  const ledger = await extractClaims(prompt);
+  const hallucinations = scanHallucinations(context, deps);
+  const keyword = keywordPass(ledger.claims, hunks);
+  const matchedClaims = new Set(keyword.map((proposal) => proposal.claimId));
+  const leftovers = ledger.claims.filter(
+    (claim) => claim.kind !== "preservation" && !matchedClaims.has(claim.id),
+  );
+  const llm = await llmPass(leftovers, hunks);
+  const report = decide({
+    prompt,
+    base: mergeBase,
+    claims: ledger.claims,
+    hunks,
+    proposals: [...keyword, ...llm.proposals],
+    hallucinations,
+    llmMatchFailed: llm.failed,
+    llmCalls: { extract_calls: 1, match_calls: leftovers.length ? 1 : 0 },
+  });
+  return { ledger, report };
+}
+
+async function runIntentCheck(flags: IntentFlags, deps: WardenDeps): Promise<number> {
+  const root = deps.cwd();
+  const prompt = flags.prompt?.trim() || promptFromFile(deps, root);
+  if (!prompt) return missingPrompt(deps, flags.json);
+  gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
+  const mergeBase = resolveMergeBase(deps, root, flags.base);
+  const { ledger, report } = await runIntentPipeline(deps, root, mergeBase, prompt);
+  deps.stderr(renderLedger(ledger));
+  writeWarden(deps, root, "claims.json", ledger);
+  writeWarden(deps, root, "intent-report.json", report);
+  if (flags.json) deps.stdout(`${JSON.stringify(report)}\n`);
+  deps.stderr(renderIntentReport(report));
+  return report.exit;
+}
+
 const INTENT_VERBS: Record<
   string,
   (flags: IntentFlags, deps: WardenDeps) => number | Promise<number>
@@ -125,6 +197,7 @@ const INTENT_VERBS: Record<
   extract: runIntentExtract,
   diff: runIntentDiff,
   symbols: runIntentSymbols,
+  check: runIntentCheck,
 };
 
 export async function runWardenIntent(argv: string[], deps: WardenDeps): Promise<number> {

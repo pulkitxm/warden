@@ -58,6 +58,7 @@ export function tokenize(text: string): string[] {
 export interface KeywordScore {
   score: number;
   symbolHits: number;
+  coverage: number;
 }
 
 export function keywordScore(claim: IntentClaim, hunk: ClassifiedHunk): KeywordScore {
@@ -69,18 +70,23 @@ export function keywordScore(claim: IntentClaim, hunk: ClassifiedHunk): KeywordS
   const textTokens = new Set(tokenize(`${hunk.summary} ${hunk.file}`));
   let score = 0;
   let symbolHits = 0;
+  let hits = 0;
   for (const token of claimTokens) {
     if (symbolTokens.has(token)) {
       score += 2;
       symbolHits++;
-    } else if (textTokens.has(token)) score += 1;
+      hits++;
+    } else if (textTokens.has(token)) {
+      score += 1;
+      hits++;
+    }
   }
-  return { score, symbolHits };
+  return { score, symbolHits, coverage: claimTokens.size ? hits / claimTokens.size : 0 };
 }
 
 function keywordMatches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
-  const { score, symbolHits } = keywordScore(claim, hunk);
-  return score >= 3 && symbolHits >= 1;
+  const { score, symbolHits, coverage } = keywordScore(claim, hunk);
+  return score >= 3 && symbolHits >= 1 && coverage >= 0.6;
 }
 
 function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
