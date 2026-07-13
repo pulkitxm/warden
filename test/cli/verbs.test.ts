@@ -5,6 +5,24 @@ import { dirname, join } from "node:path";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
 import { SCHEMA_VERSION, type Verdict } from "../../src/schema.ts";
 
+const gitCleanEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+);
+
+function spawnGit(args: string[], cwd: string) {
+  const result = Bun.spawnSync(["git", ...args], {
+    cwd,
+    env: gitCleanEnv,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  return {
+    exitCode: result.exitCode,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+  };
+}
+
 function write(root: string, path: string, data = "") {
   const target = join(root, path);
   mkdirSync(dirname(target), { recursive: true });
@@ -40,6 +58,7 @@ function makeDeps(root: string, over: Partial<WardenDeps> = {}) {
   const prompts: string[] = [];
   const deps: WardenDeps = {
     ...defaultWardenDeps,
+    git: spawnGit,
     home: join(root, "home"),
     cwd: () => root,
     stdout: (value) => out.push(value),
@@ -291,9 +310,9 @@ test("init --yes writes defaults while non-TTY mode accepts no offers", async ()
 });
 
 function git(root: string, args: string[]) {
-  const result = Bun.spawnSync(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
+  const result = spawnGit(args, root);
   expect(result.exitCode).toBe(0);
-  return result.stdout.toString().trim();
+  return result.stdout.trim();
 }
 
 function gitRepo(root: string, initial: object) {
