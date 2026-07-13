@@ -1,0 +1,13 @@
+{
+  "name": "doctor-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node -e \"require('acme-json');require('acme-http');require('left-pad')\""
+  },
+  "dependencies": {
+    "acme-http": "^1.0.0",
+    "acme-json": "^2.1.0",
+    "left-pad": "^1.3.0"
+  }
+}

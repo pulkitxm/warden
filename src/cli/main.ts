@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
+import { type DoctorOptions, type DoctorReport, runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import {
   type CiFinding,
@@ -12,7 +13,7 @@ import {
   VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../schema.ts";
-import { bold, dim, renderLine, renderVerdict } from "./ui.ts";
+import { bold, dim, renderDoctorReport, renderLine, renderVerdict } from "./ui.ts";
 
 export interface RunDeps {
   check: (spec: string) => Promise<Verdict>;
@@ -21,6 +22,7 @@ export interface RunDeps {
   which: (cmd: string) => string | null;
   spawn: (cmd: string[]) => number;
   readFile: (path: string) => string;
+  doctor?: (dir: string, opts: DoctorOptions) => Promise<DoctorReport>;
 }
 
 export interface WardenDeps extends RunDeps {
@@ -147,6 +149,7 @@ export const defaultDeps: RunDeps = {
   which: Bun.which,
   spawn: (cmd) => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
   readFile: (path) => readFileSync(path, "utf8"),
+  doctor: runDoctor,
 };
 
 export const defaultWardenDeps: WardenDeps = {
@@ -259,14 +262,38 @@ function directDeps(deps: RunDeps): string[] {
   }
 }
 
+async function runDoctorCommand(
+  values: { json?: boolean; apply?: boolean; "no-verify"?: boolean; dir?: string },
+  deps: RunDeps,
+): Promise<number> {
+  return guarded("wnpm doctor", deps, async () => {
+    const doctor = deps.doctor ?? runDoctor;
+    const report = await doctor(values.dir ?? ".", {
+      verify: !values["no-verify"],
+      apply: Boolean(values.apply),
+    });
+    if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
+    else deps.stderr(renderDoctorReport(report));
+    if (!report.issues.length || report.applied) return 0;
+    return EXIT.warn;
+  });
+}
+
 export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
-    options: { json: { type: "boolean" }, "allow-risky": { type: "boolean" } },
+    options: {
+      json: { type: "boolean" },
+      "allow-risky": { type: "boolean" },
+      apply: { type: "boolean" },
+      "no-verify": { type: "boolean" },
+      dir: { type: "string" },
+    },
     allowPositionals: true,
   });
 
   const verb = positionals[0];
+  if (verb === "doctor") return runDoctorCommand(values, deps);
   if (verb && !["install", "add", "i"].includes(verb)) {
     deps.stderr(`wnpm: unknown command "${verb}"\n`);
     return 2;
