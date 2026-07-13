@@ -1,43 +1,34 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { create } from "tar";
-import { extractTarball } from "../src/diff.js";
+import { test, expect } from "bun:test";
+import { diffVersions } from "../src/diff.ts";
+import type { TarEntry } from "../src/tar.ts";
 
-describe("extractTarball", () => {
-  let dir: string;
-  let tarball: Buffer;
+const file = (path: string, text: string): TarEntry => ({ path, bytes: new TextEncoder().encode(text) });
 
-  beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), "warden-tar-"));
-    await mkdir(join(dir, "package", "lib"), { recursive: true });
-    await writeFile(
-      join(dir, "package", "package.json"),
-      JSON.stringify({ name: "demo", version: "1.0.0", scripts: { postinstall: "node x.js" } }),
-    );
-    await writeFile(join(dir, "package", "index.js"), "module.exports = 1;");
-    await writeFile(join(dir, "package", "lib", "big.js"), "x".repeat(3000));
+test("new package: everything is added, all scripts added", () => {
+  const cur = [file("package.json", JSON.stringify({ scripts: { postinstall: "node s.js" } })), file("index.js", "x")];
+  const d = diffVersions(cur, undefined);
+  expect(d.isNewPackage).toBe(true);
+  expect(d.addedScripts).toEqual({ postinstall: "node s.js" });
+  expect(d.scanFiles.map((f) => f.path).sort()).toEqual(["index.js", "package.json"]);
+});
 
-    const tmpTar = join(dir, "out.tgz");
-    await create({ gzip: true, cwd: dir, file: tmpTar }, ["package"]);
-    tarball = await readFile(tmpTar);
-  });
+test("identical files are skipped; only changed files scanned", () => {
+  const prev = [file("a.js", "same"), file("b.js", "old")];
+  const cur = [file("a.js", "same"), file("b.js", "new")];
+  const d = diffVersions(cur, prev);
+  expect(d.scanFiles.map((f) => f.path)).toEqual(["b.js"]); // a.js identical -> skipped
+});
 
-  afterAll(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
+test("malformed package.json is tolerated (no scripts parsed)", () => {
+  const d = diffVersions([file("package.json", "{not json"), file("index.js", "x")], undefined);
+  expect(d.isNewPackage).toBe(true);
+  expect(d.addedScripts).toEqual({});
+});
 
-  it("extracts files with package/ prefix stripped and text content attached", async () => {
-    const files = await extractTarball(tarball);
-    const paths = files.map((f) => f.path).sort();
-    expect(paths).toEqual(["index.js", "lib/big.js", "package.json"]);
-
-    const pkg = files.find((f) => f.path === "package.json");
-    expect(pkg?.content).toContain('"postinstall"');
-
-    const big = files.find((f) => f.path === "lib/big.js");
-    expect(big?.size).toBe(3000);
-    expect(big?.content).toBeDefined();
-  });
+test("detects a newly added postinstall (axios-style scripts diff)", () => {
+  const prev = [file("package.json", JSON.stringify({ scripts: { build: "tsc" } }))];
+  const cur = [file("package.json", JSON.stringify({ scripts: { build: "tsc", postinstall: "node evil.js" } }))];
+  const d = diffVersions(cur, prev);
+  expect(d.addedScripts).toEqual({ postinstall: "node evil.js" });
+  expect(d.changedScripts).toEqual({});
 });

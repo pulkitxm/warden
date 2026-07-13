@@ -1,7 +1,10 @@
 [test]
-root = "test"
 coverage = true
 coverageThreshold = 1.0
 coverageSkipTestFiles = true
-coverageReporter = ["text"]
-coveragePathIgnorePatterns = ["test/helpers/**"]
+coveragePathIgnorePatterns = [
+  "scripts/**",
+  "demo/**",
+  "src/bin/wnpm.ts",
+  "src/bin/wnpx.ts",
+]

@@ -1,262 +1,169 @@
-import { spawnSync } from "node:child_process";
+/**
+ * Testable CLI cores for wnpm and wnpx. The bin entries (wnpm.ts / wnpx.ts) are
+ * shims that do `process.exit(await runX(Bun.argv.slice(2)))`; all logic lives
+ * here so tests can inject effects (no real installs, no process.exit).
+ */
+
+import { parseArgs } from "node:util";
 import { readFileSync } from "node:fs";
-import { parseCommand } from "../adapters/parseCommand.js";
-import { checkPackage } from "../engine.js";
-import type { Verdict } from "../types.js";
-import { llmStats } from "../verdict/index.js";
-import { bold, dim, renderVerdict, renderVerdictLine } from "./render.js";
+import { checkPackage } from "../engine.ts";
+import { renderVerdict, renderLine, bold, dim } from "./ui.ts";
+import { exitCodeFor, VERDICT_JSON_SCHEMA, EXIT, type Verdict } from "../schema.ts";
 
-export class UsageError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UsageError";
-  }
+/** Injectable effects. Tests replace these; the shims use the defaults. */
+export interface RunDeps {
+  check: (spec: string) => Promise<Verdict>;
+  stdout: (s: string) => unknown;
+  stderr: (s: string) => unknown;
+  which: (cmd: string) => string | null;
+  /** Run a command inheriting stdio; returns its exit code. */
+  spawn: (cmd: string[]) => number;
+  readFile: (path: string) => string;
 }
 
-export interface MainDeps {
-  spawn?: typeof spawnSync;
-  readInput?: () => Promise<string>;
-  readPackageJson?: () => string;
-}
+export const defaultDeps: RunDeps = {
+  check: checkPackage,
+  stdout: process.stdout.write.bind(process.stdout),
+  stderr: process.stderr.write.bind(process.stderr),
+  which: Bun.which,
+  spawn: (cmd) => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+  readFile: (path) => readFileSync(path, "utf8"),
+};
 
-export interface ParsedArgs {
-  positional: string[];
-  flags: Set<string>;
-  passthrough: string[];
-}
-
-export function parseArgs(argv: string[]): ParsedArgs {
-  const positional: string[] = [];
-  const flags = new Set<string>();
-  const passthrough: string[] = [];
-  let afterSep = false;
-  for (const a of argv) {
-    if (afterSep) passthrough.push(a);
-    else if (a === "--") afterSep = true;
-    else if (a.startsWith("--")) flags.add(a.slice(2));
-    else positional.push(a);
-  }
-  return { positional, flags, passthrough };
-}
-
-function directDependencies(readPackageJson: () => string): string[] {
+/** Shared analysis wrapper: map any engine error to EXIT.error (fail open, loudly). */
+async function guarded(tool: string, deps: RunDeps, fn: () => Promise<number>): Promise<number> {
   try {
-    const pkg = JSON.parse(readPackageJson()) as {
+    return await fn();
+  } catch (e) {
+    deps.stderr(`${tool}: analysis error: ${(e as Error).message}\n`);
+    return EXIT.error;
+  }
+}
+
+function directDeps(deps: RunDeps): string[] {
+  try {
+    const p = JSON.parse(deps.readFile("package.json")) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    return [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})];
+    return [...Object.keys(p.dependencies ?? {}), ...Object.keys(p.devDependencies ?? {})];
   } catch {
     return [];
   }
 }
 
-async function cmdCheck(args: ParsedArgs): Promise<number> {
-  const specs = args.positional;
-  if (!specs.length) throw new UsageError("usage: warden check <pkg[@version]> [--json]");
-  const json = args.flags.has("json");
-  const verdicts: Verdict[] = [];
-  for (const spec of specs) {
-    verdicts.push(await checkPackage(spec, { skipEnrichment: args.flags.has("no-enrich") }));
-  }
-  if (json) {
-    process.stdout.write(
-      `${JSON.stringify(verdicts.length === 1 ? verdicts[0] : verdicts, null, 2)}\n`,
-    );
-  } else {
-    for (const v of verdicts) process.stdout.write(renderVerdict(v));
-  }
-  const blocked = verdicts.some((v) => v.level === "HIGH");
-  return blocked && !args.flags.has("allow-risky") ? 1 : 0;
-}
+/**
+ * `wnpm install [pkgs...] [--allow-risky] [--json]`
+ *
+ * Vets every target before install. Blocks if any package is BLOCK unless
+ * --allow-risky. On clearance, installs with lifecycle scripts disabled (Bun /
+ * npm already move this way). Human output to stderr; --json emits the verdict
+ * array on stdout.
+ *
+ * Exit: 0 allow · 10 warn · 20 block · 30 error.
+ */
+export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: { json: { type: "boolean" }, "allow-risky": { type: "boolean" } },
+    allowPositionals: true,
+  });
 
-async function cmdNpx(args: ParsedArgs): Promise<number> {
-  const spec = args.positional[0];
-  if (!spec) throw new UsageError("usage: warden npx <pkg[@version]> [--json]");
-  const verdict = await checkPackage(spec);
-
-  if (args.flags.has("json")) {
-    process.stdout.write(
-      `${JSON.stringify(
-        {
-          package: verdict.package,
-          risk_score: verdict.risk_score,
-          level: verdict.level,
-          flags: verdict.flags,
-          recommendation: verdict.recommendation,
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    return verdict.level === "HIGH" ? 1 : 0;
+  // positionals[0] is the verb ("install"/"add"/"i"); the rest are packages.
+  const verb = positionals[0];
+  if (verb && !["install", "add", "i"].includes(verb)) {
+    deps.stderr(`wnpm: unknown command "${verb}"\n`);
+    return 2;
   }
+  const explicit = positionals.slice(1);
 
-  process.stdout.write(renderVerdict(verdict));
-  if (verdict.level === "HIGH" && !args.flags.has("allow-risky")) {
-    process.stdout.write(
-      dim("Refusing to run a HIGH-risk package. Re-run with --allow-risky to override.\n"),
-    );
-    return 1;
-  }
-  process.stdout.write(dim(`(would execute: npx ${spec})\n`));
-  return 0;
-}
-
-async function cmdInstall(args: ParsedArgs, deps: MainDeps): Promise<number> {
-  const spawn = deps.spawn ?? spawnSync;
-  const readPackageJson = deps.readPackageJson ?? (() => readFileSync("package.json", "utf8"));
-  const explicit = args.positional;
-  const targets = explicit.length ? explicit : directDependencies(readPackageJson);
+  const targets = explicit.length ? explicit : directDeps(deps);
   if (!targets.length) {
-    throw new UsageError("nothing to install (no packages given and no package.json deps found)");
+    deps.stderr("wnpm: nothing to install (no packages given, no package.json deps)\n");
+    return 2;
   }
 
-  process.stdout.write(bold(`\nWarden — vetting ${targets.length} package(s) before install\n`));
-  const verdicts: Verdict[] = [];
-  for (const t of targets) {
-    try {
-      verdicts.push(await checkPackage(t));
-    } catch (e) {
-      process.stdout.write(dim(`  ?      ${t}  (could not resolve: ${(e as Error).message})\n`));
+  return guarded("wnpm", deps, async () => {
+    deps.stderr(bold(`\nWarden — vetting ${targets.length} package(s) before install\n`));
+    // Vet targets concurrently (bounded) — a real dependency list shouldn't be
+    // checked one-at-a-time (issue I7). The integrity cache dedups repeats.
+    const LIMIT = 8;
+    const verdicts: Verdict[] = new Array(targets.length);
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(LIMIT, targets.length) }, async () => {
+        while (next < targets.length) {
+          const idx = next++;
+          verdicts[idx] = await deps.check(targets[idx]!);
+        }
+      }),
+    );
+
+    if (values.json) {
+      deps.stdout(JSON.stringify(verdicts) + "\n");
+    } else {
+      for (const level of ["block", "warn", "allow"] as const) {
+        for (const v of verdicts.filter((x) => x.verdict === level)) deps.stderr(renderLine(v) + "\n");
+      }
     }
-  }
 
-  for (const level of ["HIGH", "MEDIUM", "LOW"] as const) {
-    const group = verdicts.filter((v) => v.level === level);
-    for (const v of group) process.stdout.write(`${renderVerdictLine(v)}\n`);
-  }
+    const blocked = verdicts.filter((v) => v.verdict === "block");
+    if (blocked.length && !values["allow-risky"]) {
+      if (!values.json) deps.stderr(renderVerdict(blocked[0]!));
+      deps.stderr(dim(`\ninstall blocked: ${blocked.length} package(s) failed the trust check. Override with --allow-risky.\n`));
+      return EXIT.block;
+    }
 
-  const allowRisky = args.flags.has("allow-risky");
-  const high = verdicts.filter((v) => v.level === "HIGH");
-  const firstHigh = high[0];
-  if (firstHigh && !allowRisky) {
-    process.stdout.write(
-      `\n${renderVerdict(firstHigh)}${dim(
-        `Install blocked: ${high.length} HIGH-risk package(s). Override with --allow-risky.\n`,
-      )}`,
-    );
-    return 1;
-  }
-
-  process.stdout.write(dim("\nRunning pnpm install --ignore-scripts ...\n"));
-  const installArgs = ["install", "--ignore-scripts", ...explicit, ...args.passthrough];
-  const res = spawn("pnpm", installArgs, { stdio: "inherit" });
-  if (res.status !== 0) return res.status ?? 2;
-
-  const cleared = verdicts
-    .filter((v) => v.level !== "HIGH" || allowRisky)
-    .map((v) => v.package.slice(0, v.package.lastIndexOf("@")));
-  if (cleared.length) {
-    process.stdout.write(
-      dim(`Re-enabling lifecycle scripts for the ${cleared.length} vetted package(s) only ...\n`),
-    );
-    spawn("pnpm", ["rebuild", ...cleared], { stdio: "inherit" });
-  } else {
-    process.stdout.write(dim("No vetted packages to rebuild; lifecycle scripts stay disabled.\n"));
-  }
-  return 0;
-}
-
-interface StdinLike {
-  isTTY?: boolean;
-  setEncoding(enc: "utf8"): unknown;
-  on(event: string, cb: (arg?: unknown) => void): unknown;
-}
-
-export function readStdin(stream: StdinLike = process.stdin): Promise<string> {
-  return new Promise((resolve) => {
-    let data = "";
-    stream.setEncoding("utf8");
-    stream.on("data", (c) => {
-      data += String(c);
-    });
-    stream.on("end", () => resolve(data));
-    if (stream.isTTY) resolve("");
+    // Cleared: install with scripts disabled (block path never reaches here),
+    // wrapping the project's package manager (prefer pnpm/bun, then npm — I8).
+    const pm = ["pnpm", "bun", "npm"].find((p) => deps.which(p)) ?? "npm";
+    const installArgs = pm === "bun" ? ["install", ...explicit] : ["install", "--ignore-scripts", ...explicit];
+    deps.stderr(dim(`\nvetted; installing via ${pm} with lifecycle scripts disabled...\n`));
+    return deps.spawn([pm, ...installArgs]);
   });
 }
 
-async function cmdHook(deps: MainDeps): Promise<number> {
-  const readInput = deps.readInput ?? readStdin;
-  let command = "";
-  try {
-    const input = await readInput();
-    const event = JSON.parse(input) as { tool_input?: { command?: string } };
-    command = event.tool_input?.command ?? "";
-  } catch {
+/**
+ * `wnpx <pkg[@version]> [--json] [--allow-risky]`
+ *
+ * Agent-safe mode: with --json, writes EXACTLY ONE JSON object (the Verdict) to
+ * stdout and nothing else — human output goes to stderr. A coding agent runs
+ * this before executing an npx command and gates on `verdict`.
+ *
+ * Exit: 0 allow · 10 warn · 20 block · 30 analysis error.
+ */
+export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: { json: { type: "boolean" }, "allow-risky": { type: "boolean" }, schema: { type: "boolean" } },
+    allowPositionals: true,
+  });
+
+  if (values.schema) {
+    deps.stdout(JSON.stringify(VERDICT_JSON_SCHEMA, null, 2) + "\n");
     return 0;
   }
 
-  const parsed = command ? parseCommand(command) : null;
-  if (!parsed || parsed.packages.length === 0) return 0;
-
-  const blockers: Verdict[] = [];
-  for (const spec of parsed.packages) {
-    try {
-      const v = await checkPackage(spec);
-      if (v.level === "HIGH") blockers.push(v);
-    } catch {}
+  const spec = positionals[0];
+  if (!spec) {
+    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+    return 2;
   }
 
-  if (blockers.length === 0) return 0;
+  return guarded("wnpx", deps, async () => {
+    const verdict = await deps.check(spec);
 
-  const reason = blockers
-    .map((v) => `${v.package} — ${v.explanation} [flags: ${v.flags.join(", ")}]`)
-    .join("\n");
-  const decision = {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: `Warden blocked a HIGH-risk package:\n${reason}\nDo not retry the same package or attempt to bypass this hook. Pick a safe alternative (the evidence names any impersonated package) or ask the user how to proceed; only a human can override, by installing outside the agent or removing the Warden hook.`,
-    },
-  };
-  process.stdout.write(`${JSON.stringify(decision)}\n`);
-  return 0;
-}
+    if (values.json) {
+      deps.stdout(JSON.stringify(verdict) + "\n");
+      return exitCodeFor(verdict.verdict);
+    }
 
-export const HELP = `warden — a trust layer for npm that thinks before it executes
-
-usage:
-  warden check <pkg[@version]>... [--json] [--no-enrich] [--allow-risky]
-  warden npx   <pkg[@version]>    [--json] [--allow-risky]
-  warden install [pkgs...]        [--allow-risky] [-- <pnpm args>]
-  warden hook                     PreToolUse adapter (reads event JSON on stdin)
-
-flags:
-  --json         machine-readable output (for agents)
-  --allow-risky  override a HIGH-risk block
-  --no-enrich    skip OSV/deps.dev network enrichment
-`;
-
-export async function run(argv: string[], deps: MainDeps = {}): Promise<number> {
-  const [cmd, ...rest] = argv;
-  const args = parseArgs(rest);
-  let code = 0;
-  switch (cmd) {
-    case "check":
-      code = await cmdCheck(args);
-      break;
-    case "npx":
-      code = await cmdNpx(args);
-      break;
-    case "install":
-    case "i":
-    case "add":
-      code = await cmdInstall(args, deps);
-      break;
-    case "hook":
-      code = await cmdHook(deps);
-      break;
-    case "help":
-    case undefined:
-    case "--help":
-      process.stdout.write(HELP);
-      break;
-    default:
-      throw new UsageError(`unknown command "${cmd}". Run "warden help".`);
-  }
-  if (process.env.WARDEN_DEBUG) {
-    process.stderr.write(dim(`\n[warden] llm calls this run: ${llmStats.calls}\n`));
-  }
-  return code;
+    deps.stderr(renderVerdict(verdict));
+    if (verdict.verdict === "block" && !values["allow-risky"]) {
+      deps.stderr(dim("refusing to run a blocked package; re-run with --allow-risky to override\n"));
+      return EXIT.block;
+    }
+    deps.stderr(dim(`(would execute: npx ${spec})\n`));
+    return exitCodeFor(verdict.verdict === "block" ? "warn" : verdict.verdict);
+  });
 }

