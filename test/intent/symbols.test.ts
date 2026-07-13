@@ -43,7 +43,7 @@ test("bindingsFromAst collects every import and require shape", () => {
       'import local from "./local.ts";',
       'const express = require("express");',
       'const { throttle: slow, debounce } = require("lodash");',
-      'const dyn = require(name);',
+      "const dyn = require(name);",
       "const plain = create();",
     ].join("\n"),
   );
@@ -179,7 +179,7 @@ test("collectExports reads cjs export shapes", () => {
   const dynamic = exportsOf("module.exports = buildApi();");
   expect(dynamic.closed).toBe(false);
 
-  const members = exportsOf('module.exports.alpha = 1;\nexports.beta = 2;\nother.gamma = 3;');
+  const members = exportsOf("module.exports.alpha = 1;\nexports.beta = 2;\nother.gamma = 3;");
   expect([...members.root].sort()).toEqual(["alpha", "beta"]);
 
   expect(exportsOf("Object.assign(module.exports, extra);").closed).toBe(false);
@@ -341,16 +341,19 @@ test("findHallucinations resolves uncurated packages from node_modules and dedup
 
 test("findHallucinations never flags open surfaces", () => {
   const io = fakePackage('{"main":"entry.js"}', {
-    [`${PKG}/entry.js`]: 'module.exports = { alpha: 1 };\nObject.assign(module.exports, extra);',
+    [`${PKG}/entry.js`]: "module.exports = { alpha: 1 };\nObject.assign(module.exports, extra);",
   });
   const code = ['const lib = require("fake-lib");', "lib.gamma();"].join("\n");
   expect(scan(code, [2], io)).toHaveLength(0);
 });
 
 test("findHallucinations falls back to text bindings when nothing parses", () => {
-  const code = ['import axios from "axios";', "const client = axios.create({});", "let let = ;", "client.throttle(1);"].join(
-    "\n",
-  );
+  const code = [
+    'import axios from "axios";',
+    "const client = axios.create({});",
+    "let let = ;",
+    "client.throttle(1);",
+  ].join("\n");
   const findings = scan(code, [4]);
   expect(findings).toHaveLength(1);
   expect(findings[0]!.symbol).toBe("axios.instance.throttle");

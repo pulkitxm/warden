@@ -8,7 +8,7 @@ test("toParseable passes javascript through untouched", () => {
 });
 
 test("toParseable strips typescript types via the bun transpiler", () => {
-  const code = 'interface C { n: number }\nconst a: C = { n: 1 };\nexport { a };\n';
+  const code = "interface C { n: number }\nconst a: C = { n: 1 };\nexport { a };\n";
   const result = toParseable(code, "x.ts");
   expect(result.code).not.toContain("interface");
   expect(result.code).toContain("const a");

@@ -144,8 +144,7 @@ export function propagateInstances(
     if (!binding || binding.instanceOf) continue;
     const surface = surfaceOf(binding.pkg);
     if (!surface) continue;
-    const factory =
-      method ?? (binding.kind === "named" ? (binding.imported ?? base!) : "(call)");
+    const factory = method ?? (binding.kind === "named" ? (binding.imported ?? base!) : "(call)");
     const key = Object.keys(surface.instances).find((candidate) =>
       surface.instances[candidate]!.via.includes(factory),
     );
@@ -412,7 +411,7 @@ export function findHallucinations(
       const binding = bindings[access.name];
       if (!binding || PROTOTYPE_SKIP.has(access.member)) continue;
       const resolved = lookup(binding.pkg);
-      if (!resolved || !resolved.surface.closed) continue;
+      if (!resolved?.surface.closed) continue;
       const members = membersFor(binding, access.name, resolved.surface);
       if (!members || members.includes(access.member)) continue;
       const key = `${binding.pkg}:${access.member}:${file}:${access.line}`;
