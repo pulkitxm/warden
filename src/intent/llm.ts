@@ -1,6 +1,6 @@
 export const intentLlmStats = { calls: 0 };
 
-export type ProviderName = "openai" | "groq" | "ollama";
+export type ProviderName = "openai" | "groq" | "ollama" | "claude";
 
 export interface Provider {
   name: ProviderName;
@@ -16,30 +16,40 @@ export interface LlmJsonRequest {
   schema: Record<string, unknown>;
 }
 
-const PROVIDER_ORDER: ProviderName[] = ["openai", "groq", "ollama"];
+type HttpProviderName = Exclude<ProviderName, "claude">;
 
-const PROVIDER_KEYS: Record<ProviderName, string> = {
+const PROVIDER_ORDER: HttpProviderName[] = ["openai", "groq", "ollama"];
+
+const PROVIDER_KEYS: Record<HttpProviderName, string> = {
   openai: "OPENAI_API_KEY",
   groq: "GROQ_API_KEY",
   ollama: "OLLAMA_API_KEY",
 };
 
-const PROVIDER_URLS: Record<ProviderName, string> = {
+const PROVIDER_URLS: Record<HttpProviderName, string> = {
   openai: "https://api.openai.com/v1/chat/completions",
   groq: "https://api.groq.com/openai/v1/chat/completions",
   ollama: "https://ollama.com/api/chat",
 };
 
-const DEFAULT_MODELS: Record<ProviderName, string> = {
+const DEFAULT_MODELS: Record<HttpProviderName, string> = {
   openai: "gpt-4o-mini",
   groq: "openai/gpt-oss-20b",
   ollama: "gpt-oss:20b",
 };
 
 export function resolveProvider(env: Record<string, string | undefined>): Provider {
-  let name: ProviderName;
+  let name: HttpProviderName;
   if (env.WNPM_LLM_PROVIDER !== undefined) {
-    const forced = env.WNPM_LLM_PROVIDER as ProviderName;
+    const forced = env.WNPM_LLM_PROVIDER as HttpProviderName;
+    if (env.WNPM_LLM_PROVIDER === "claude") {
+      return {
+        name: "claude",
+        key: "",
+        url: env.WNPM_CLAUDE_BIN ?? "claude",
+        model: env.WNPM_LLM_MODEL ?? "haiku",
+      };
+    }
     if (!PROVIDER_ORDER.includes(forced)) {
       throw new Error(`unknown llm provider "${env.WNPM_LLM_PROVIDER}"`);
     }
@@ -48,7 +58,7 @@ export function resolveProvider(env: Record<string, string | undefined>): Provid
     const found = PROVIDER_ORDER.find((candidate) => env[PROVIDER_KEYS[candidate]]);
     if (!found) {
       throw new Error(
-        "no llm api key configured (set GROQ_API_KEY, OLLAMA_API_KEY, or OPENAI_API_KEY)",
+        "no llm api key configured (set GROQ_API_KEY, OLLAMA_API_KEY, or OPENAI_API_KEY, or WNPM_LLM_PROVIDER=claude to use the claude cli)",
       );
     }
     name = found;
@@ -115,12 +125,7 @@ export function extractJson(text: string): string | null {
   return null;
 }
 
-export async function completeJson<T>(
-  request: LlmJsonRequest,
-  parse: (value: unknown) => T | null,
-): Promise<T> {
-  const provider = resolveProvider(process.env);
-  intentLlmStats.calls += 1;
+async function httpText(provider: Provider, request: LlmJsonRequest): Promise<string> {
   const res = await fetch(provider.url, {
     method: "POST",
     headers: { authorization: `Bearer ${provider.key}`, "content-type": "application/json" },
@@ -128,8 +133,38 @@ export async function completeJson<T>(
     body: JSON.stringify(requestBody(provider, request)),
   });
   if (!res.ok) throw new Error(`${provider.name} ${res.status}`);
-  const data = (await res.json()) as unknown;
-  const json = extractJson(contentOf(provider, data));
+  return contentOf(provider, (await res.json()) as unknown);
+}
+
+async function claudeText(provider: Provider, request: LlmJsonRequest): Promise<string> {
+  const prompt = [
+    request.system,
+    request.user,
+    `Respond with ONLY a JSON object matching this schema: ${JSON.stringify(request.schema)}`,
+  ].join("\n\n");
+  const proc = Bun.spawn([provider.url, "-p", "--model", provider.model], {
+    stdin: new TextEncoder().encode(prompt),
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env },
+    timeout: 120_000,
+  });
+  const [text, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+  if (exitCode !== 0) throw new Error(`claude ${exitCode}`);
+  return text;
+}
+
+export async function completeJson<T>(
+  request: LlmJsonRequest,
+  parse: (value: unknown) => T | null,
+): Promise<T> {
+  const provider = resolveProvider(process.env);
+  intentLlmStats.calls += 1;
+  const text =
+    provider.name === "claude"
+      ? await claudeText(provider, request)
+      : await httpText(provider, request);
+  const json = extractJson(text);
   if (!json) throw new Error("no json in llm response");
   const parsed = parse(JSON.parse(json) as unknown);
   if (parsed === null) throw new Error("invalid llm payload");

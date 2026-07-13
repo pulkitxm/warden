@@ -24,8 +24,10 @@ Requirements:
 
 - `warden` on PATH (or set `WARDEN_BIN=/path/to/warden` in your environment)
 - `bun` on PATH (runs the hook scripts)
-- an LLM key: `GROQ_API_KEY`, `OLLAMA_API_KEY`, or `OPENAI_API_KEY` — a project-local
-  gitignored `.env` works, bun auto-loads it
+- an LLM: with no API key configured, the hook automatically uses the `claude` CLI itself
+  (`WNPM_LLM_PROVIDER=claude`, haiku by default) — your Claude subscription pays, no key
+  needed. To use an HTTP provider instead, set `GROQ_API_KEY`, `OLLAMA_API_KEY`, or
+  `OPENAI_API_KEY` in a project-local gitignored `.env`; bun auto-loads it
 
 Restart Claude Code (or run `/hooks`) after editing settings so the hooks register.
 
@@ -52,3 +54,6 @@ hook  > warden intent check → all ✅ → silence
   state — question-and-answer turns cost zero LLM calls.
 - **Prompt ledger**: the whole session's prompts accumulate as one spec, matching the diff
   against the merge base. Edit `.warden/prompt.txt` if a stale requirement lingers.
+- **Provider trade-off**: HTTP providers run at temperature 0 for reproducible verdicts;
+  the `claude` CLI provider has no temperature control, so borderline claims can
+  occasionally flip between partial and delivered across runs.

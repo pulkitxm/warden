@@ -60,11 +60,16 @@ if (current === verified) process.exit(0);
 const bin = process.env.WARDEN_BIN ?? Bun.which("warden");
 if (!bin) process.exit(0);
 
+const env: Record<string, string | undefined> = { ...process.env, NO_COLOR: "1" };
+const configured =
+  env.WNPM_LLM_PROVIDER ?? env.OPENAI_API_KEY ?? env.GROQ_API_KEY ?? env.OLLAMA_API_KEY;
+if (configured === undefined && Bun.which("claude") !== null) env.WNPM_LLM_PROVIDER = "claude";
+
 const run = Bun.spawnSync([bin, "intent", "check"], {
   cwd: root,
   stdout: "pipe",
   stderr: "pipe",
-  env: { ...process.env, NO_COLOR: "1" },
+  env,
 });
 try {
   writeFileSync(markFile, `${current}\n`);

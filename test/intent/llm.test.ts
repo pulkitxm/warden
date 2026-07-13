@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
+import { join } from "node:path";
 import {
   completeJson,
   contentOf,
@@ -14,6 +15,9 @@ const ENV_KEYS = [
   "OLLAMA_API_KEY",
   "WNPM_LLM_PROVIDER",
   "WNPM_LLM_MODEL",
+  "WNPM_CLAUDE_BIN",
+  "CLAUDE_STUB_OUTPUT",
+  "CLAUDE_STUB_EXIT",
 ];
 const saved = new Map<string, string | undefined>();
 const realFetch = globalThis.fetch;
@@ -66,6 +70,22 @@ test("WNPM_LLM_PROVIDER forces a provider and requires its key", () => {
 
 test("WNPM_LLM_MODEL overrides the provider default", () => {
   expect(resolveProvider({ OLLAMA_API_KEY: "k", WNPM_LLM_MODEL: "qwen3" }).model).toBe("qwen3");
+});
+
+test("WNPM_LLM_PROVIDER=claude uses the claude cli without any key", () => {
+  expect(resolveProvider({ WNPM_LLM_PROVIDER: "claude" })).toEqual({
+    name: "claude",
+    key: "",
+    url: "claude",
+    model: "haiku",
+  });
+  const custom = resolveProvider({
+    WNPM_LLM_PROVIDER: "claude",
+    WNPM_CLAUDE_BIN: "/opt/claude",
+    WNPM_LLM_MODEL: "sonnet",
+  });
+  expect(custom.url).toBe("/opt/claude");
+  expect(custom.model).toBe("sonnet");
 });
 
 const REQUEST = {
@@ -160,6 +180,23 @@ test("completeJson surfaces http, missing-json, and invalid-payload failures", a
       status: 200,
     })) as unknown as typeof fetch;
   expect(completeJson(REQUEST, () => null)).rejects.toThrow("invalid llm payload");
+});
+
+test("completeJson shells out to the claude cli and parses fenced json", async () => {
+  process.env.WNPM_LLM_PROVIDER = "claude";
+  process.env.WNPM_CLAUDE_BIN = join(import.meta.dir, "../../fixtures/claude-stub.sh");
+  process.env.CLAUDE_STUB_OUTPUT = '```json\n{"ok":true}\n```';
+  const before = intentLlmStats.calls;
+  const result = await completeJson(REQUEST, (value) => value as { ok: boolean });
+  expect(result).toEqual({ ok: true });
+  expect(intentLlmStats.calls).toBe(before + 1);
+});
+
+test("completeJson surfaces a nonzero claude exit code", async () => {
+  process.env.WNPM_LLM_PROVIDER = "claude";
+  process.env.WNPM_CLAUDE_BIN = join(import.meta.dir, "../../fixtures/claude-stub.sh");
+  process.env.CLAUDE_STUB_EXIT = "3";
+  expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("claude 3");
 });
 
 test("completeJson throws before fetching when no key is set", async () => {

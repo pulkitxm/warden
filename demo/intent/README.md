@@ -13,6 +13,7 @@ A three-minute demo of `warden intent` — verifying that an agent's diff actual
 sh demo/intent/setup.sh
 cd /tmp/warden-intent-demo
 export GROQ_API_KEY=...        # or OLLAMA_API_KEY / OPENAI_API_KEY
+                               # or, with zero keys: export WNPM_LLM_PROVIDER=claude
 
 warden intent check            # prompt read from .warden/prompt.txt
 ```
@@ -54,4 +55,4 @@ The prompt is picked up from `.warden/prompt.txt` (or pass `--intent-prompt "<te
 ## Notes
 
 - The hallucination check is deterministic: curated signature db first, then static export extraction from `node_modules` (never executes the package). Ask for any installed package — it answers.
-- Claim extraction and leftover matching are the only LLM calls (2 per run, summaries only, never the raw diff). Providers: `OPENAI_API_KEY`, `GROQ_API_KEY`, or `OLLAMA_API_KEY`; model override via `WNPM_LLM_MODEL`.
+- Claim extraction and leftover matching are the only LLM calls (2 per run, summaries only, never the raw diff). Providers: `OPENAI_API_KEY`, `GROQ_API_KEY`, or `OLLAMA_API_KEY`; with no key, `WNPM_LLM_PROVIDER=claude` shells out to the `claude` CLI on your subscription (haiku by default). Model override via `WNPM_LLM_MODEL`.
