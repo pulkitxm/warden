@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
 import { defaultDeps, type RunDeps, runWnpm } from "../../src/cli/main.ts";
 import { renderDoctorReport } from "../../src/cli/ui.ts";
-import type { DoctorOptions, DoctorReport } from "../../src/doctor/index.ts";
+import { runDoctor, type DoctorOptions, type DoctorReport } from "../../src/doctor/index.ts";
 
 const doctorProject = fileURLToPath(new URL("../../fixtures/doctor-project", import.meta.url));
 
@@ -124,8 +124,8 @@ test("wnpm doctor passes flags through and exits 10 when issues remain", async (
       return Promise.resolve(richReport());
     },
   });
-  expect(await runWnpm(["doctor", "--dir", "/proj", "--no-verify", "--json"], deps)).toBe(10);
-  expect(seen).toEqual([{ dir: "/proj", opts: { verify: false, apply: false } }]);
+  expect(await runWnpm(["doctor", "--dir", "/proj", "--json"], deps)).toBe(10);
+  expect(seen).toEqual([{ dir: "/proj", opts: { apply: true } }]);
   const report = JSON.parse(out.join("")) as DoctorReport;
   expect(report.recommended).toBe("minimal");
 });
@@ -139,16 +139,56 @@ test("wnpm doctor defaults to the current directory with verification on", async
     },
   });
   expect(await runWnpm(["doctor"], deps)).toBe(0);
-  expect(seen).toEqual([{ dir: ".", opts: { verify: true, apply: false } }]);
+  expect(seen).toEqual([{ dir: ".", opts: { apply: true } }]);
 });
 
-test("wnpm doctor exits 0 after a successful --apply", async () => {
+test("wnpm doctor exits 0 when the applied plan covers every issue", async () => {
+  const full = richReport();
   const { deps, err } = makeDeps({
     doctor: (_dir, opts) =>
-      Promise.resolve(cleanReport({ issues: richReport().issues, applied: opts.apply })),
+      Promise.resolve(
+        cleanReport({
+          issues: [
+            {
+              name: "acme-json",
+              group: "prod",
+              installed: "2.1.0",
+              kind: "vulnerability",
+              id: "GHSA-2",
+              severity: "high",
+              summary: "prototype pollution",
+              fixedIn: "2.1.4",
+            },
+          ],
+          plans: full.plans,
+          recommended: "minimal",
+          applied: opts.apply,
+        }),
+      ),
   });
-  expect(await runWnpm(["doctor", "--apply"], deps)).toBe(0);
+  expect(await runWnpm(["doctor"], deps)).toBe(0);
   expect(err.join("")).toContain("recommended plan applied");
+});
+
+test("wnpm doctor still exits 10 when apply leaves an unfixable issue behind", async () => {
+  const { deps, err } = makeDeps({
+    doctor: (_dir, opts) =>
+      Promise.resolve(cleanReport({ ...richReport(), applied: opts.apply })),
+  });
+  expect(await runWnpm(["doctor"], deps)).toBe(10);
+  expect(err.join("")).toContain("recommended plan applied");
+  expect(err.join("")).toContain("UNFIXABLE");
+});
+
+test("wnpm doctor --no-apply skips apply and exits 10 when issues remain", async () => {
+  const { deps, err } = makeDeps({
+    doctor: (_dir, opts) =>
+      Promise.resolve(
+        cleanReport({ issues: richReport().issues, applied: opts.apply, recommended: "minimal" }),
+      ),
+  });
+  expect(await runWnpm(["doctor", "--no-apply"], deps)).toBe(10);
+  expect(err.join("")).toContain("run wnpm doctor without --no-apply");
 });
 
 test("wnpm doctor renders the human report on stderr", async () => {
@@ -170,7 +210,7 @@ test("wnpm doctor renders the human report on stderr", async () => {
   expect(text).toContain("install ok 120ms · test ok 300ms — passed");
   expect(text).toContain("install fail 90ms — failed");
   expect(text).toContain("note: left-pad: advisory lookup failed");
-  expect(text).toContain("apply the recommended plan with: wnpm doctor --apply");
+  expect(text).toContain("run wnpm doctor without --no-apply to apply the recommended plan");
 });
 
 test("wnpm doctor analysis errors exit 30", async () => {
@@ -233,8 +273,8 @@ test("renderDoctorReport covers clean and deprecated shapes", () => {
 
 test("wnpm doctor runs end-to-end through the real doctor pipeline", async () => {
   const { deps, out } = makeDeps();
-  delete deps.doctor;
-  const code = await runWnpm(["doctor", "--dir", doctorProject, "--no-verify", "--json"], deps);
+  deps.doctor = (dir, opts) => runDoctor(dir, { ...opts, verify: false, apply: false });
+  const code = await runWnpm(["doctor", "--dir", doctorProject, "--json"], deps);
   expect(code).toBe(10);
   const report = JSON.parse(out.join("")) as DoctorReport;
   expect(report.project).toBe("doctor-demo");

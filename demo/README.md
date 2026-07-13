@@ -10,12 +10,9 @@ bun install
 bun run build          # produces ./dist/wnpm and ./dist/wnpx
 
 # Terminal A: start the mini npm registry (fixtures)
-bun fixtures/registry/server.ts        # listens on :4873
+bun fixtures/registry/server.ts        # prints its URL to stderr
 
-# Terminal B: point WNPM at it
-export WNPM_REGISTRY=http://localhost:4873
-export WNPM_DOWNLOADS=http://localhost:4873/downloads/point/last-week
-export WNPM_OSV=http://localhost:4873               # offline OSV advisories
+# Terminal B: copy the export lines printed by the server, then:
 export WNPM_CACHE=/tmp/wnpm-demo.sqlite   # so beat 5 shows a cache hit
 
 # For the doctor beat: a demo project with pinned vulnerable deps
@@ -85,7 +82,7 @@ run live in throwaway workspaces):
   hijacked release. Dependabot would have opened that PR.
 
 ```sh
-wnpm doctor --apply      # pins acme-json to the exact verified 2.1.4
+wnpm doctor              # pins acme-json to the exact verified 2.1.4
 ```
 
 ## Beat 6 — close (20s)

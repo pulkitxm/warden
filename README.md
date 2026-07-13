@@ -12,8 +12,8 @@ wnpm install left-pad
 wnpx some-cli@latest
 wnpx some-cli@latest --json
 
-wnpm doctor
-wnpm doctor --apply
+wnpm doctor              # audits, verifies, and applies the fix
+wnpm doctor --no-apply   # report only
 warden uninstall
 ```
 
