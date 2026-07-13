@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { Blocklist, defaultBlocklist, defaultHallucinated } from "../src/intel/index.ts";
 
 test("curated hallucinated names are recognized", () => {
@@ -8,7 +8,7 @@ test("curated hallucinated names are recognized", () => {
 
 test("matches a known compromised version, not a clean one", () => {
   expect(defaultBlocklist.match("chalk", "5.6.1")?.id).toBe("MAL-CHALK-2025");
-  expect(defaultBlocklist.match("chalk", "5.3.0")).toBeNull(); // clean version
+  expect(defaultBlocklist.match("chalk", "5.3.0")).toBeNull();
   expect(defaultBlocklist.match("axios", "1.14.1")?.id).toBe("MAL-AXIOS-2026");
 });
 

@@ -1,13 +1,3 @@
-/**
- * Malicious-package blocklist lookup.
- *
- * Overlays the free OSV `MAL-` advisories + OpenSSF malicious-packages feed. A
- * hit is a hard block before any analysis runs. An entry with no `versions`
- * blocks the whole package (OSV `introduced: "0"`). The bundled data is a seed
- * of verified real incidents; scripts/fetch-intel.ts refreshes it from the OSV
- * bulk zip + the OpenSSF repo.
- */
-
 import blocklistData from "./data/blocklist.json" with { type: "json" };
 import hallucinatedData from "./data/hallucinated.json" with { type: "json" };
 
@@ -33,11 +23,9 @@ export class Blocklist {
     }
   }
 
-  /** Match `name@version` against the blocklist. Whole-package entries (no
-   * `versions`) match any version. */
   match(name: string, version?: string): BlocklistEntry | null {
     for (const e of this.byName.get(name) ?? []) {
-      if (!e.versions || e.versions.length === 0) return e; // whole package
+      if (!e.versions || e.versions.length === 0) return e;
       if (version && e.versions.includes(version)) return e;
     }
     return null;
@@ -52,7 +40,6 @@ export class Blocklist {
 
 export const defaultBlocklist = new Blocklist();
 
-/** Known LLM-hallucinated (slopsquat) names — blocked even if since registered. */
 export class HallucinatedNames {
   private set: Set<string>;
   constructor(names: string[] = (hallucinatedData as { names: string[] }).names) {

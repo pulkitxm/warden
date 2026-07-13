@@ -1,11 +1,7 @@
-/** CLI cores (runWnpm / runWnpx) with injected deps — no real package-manager
- * execution, no live registry. The mini-registry + env are a safety net so any
- * accidentally-unstubbed check still can't reach the network. */
-
-import { test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
-import { startMiniRegistry, type MiniRegistry } from "../../fixtures/registry/server.ts";
-import { runWnpm, runWnpx, defaultDeps, type RunDeps } from "../../src/cli/main.ts";
+import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
+import { defaultDeps, type RunDeps, runWnpm, runWnpx } from "../../src/cli/main.ts";
 import { SCHEMA_VERSION, type Verdict } from "../../src/schema.ts";
 
 let reg: MiniRegistry;
@@ -18,7 +14,8 @@ beforeAll(() => {
 });
 afterAll(() => reg.stop());
 
-const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+const strip = (s: string) =>
+  s.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), "");
 
 const verdict = (over: Partial<Verdict> = {}): Verdict => ({
   schema_version: SCHEMA_VERSION,
@@ -35,7 +32,6 @@ const verdict = (over: Partial<Verdict> = {}): Verdict => ({
   ...over,
 });
 
-/** Deps harness: collects stdout/stderr; everything else must be stubbed per test. */
 function makeDeps(over: Partial<RunDeps> = {}) {
   const out: string[] = [];
   const err: string[] = [];
@@ -57,8 +53,6 @@ function makeDeps(over: Partial<RunDeps> = {}) {
   return { deps, out, err, spawns };
 }
 
-// ---- wnpx ------------------------------------------------------------------
-
 test("wnpx --schema prints the JSON schema on stdout and exits 0", async () => {
   const { deps, out, err } = makeDeps();
   expect(await runWnpx(["--schema"], deps)).toBe(0);
@@ -79,7 +73,7 @@ test("wnpx --json emits EXACTLY one JSON object on stdout (allow -> 0)", async (
   expect(await runWnpx(["left-pad", "--json"], deps)).toBe(0);
   expect(out).toHaveLength(1);
   expect((JSON.parse(out[0]!) as Verdict).package).toBe("left-pad");
-  expect(err).toEqual([]); // stdout purity: nothing else anywhere
+  expect(err).toEqual([]);
 });
 
 test("wnpx --json block exits 20", async () => {
@@ -97,12 +91,16 @@ test("wnpx human allow renders the report and exits 0", async () => {
 });
 
 test("wnpx human warn exits 10", async () => {
-  const { deps } = makeDeps({ check: () => Promise.resolve(verdict({ verdict: "warn", risk_score: 40 })) });
+  const { deps } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "warn", risk_score: 40 })),
+  });
   expect(await runWnpx(["shady"], deps)).toBe(10);
 });
 
 test("wnpx human block refuses and exits 20", async () => {
-  const { deps, err } = makeDeps({ check: () => Promise.resolve(verdict({ verdict: "block", risk_score: 95 })) });
+  const { deps, err } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block", risk_score: 95 })),
+  });
   expect(await runWnpx(["evil"], deps)).toBe(20);
   expect(err.join("")).toContain("refusing to run a blocked package");
 });
@@ -119,8 +117,6 @@ test("wnpx analysis error exits 30", async () => {
   expect(err.join("")).toContain("wnpx: analysis error: registry down");
 });
 
-// ---- wnpm ------------------------------------------------------------------
-
 test("wnpm rejects unknown verbs with exit 2", async () => {
   const { deps, err } = makeDeps();
   expect(await runWnpm(["remove", "left-pad"], deps)).toBe(2);
@@ -128,23 +124,23 @@ test("wnpm rejects unknown verbs with exit 2", async () => {
 });
 
 test("wnpm with nothing to install exits 2 (missing or empty package.json)", async () => {
-  const missing = makeDeps(); // readFile throws -> directDeps catch
+  const missing = makeDeps();
   expect(await runWnpm(["install"], missing.deps)).toBe(2);
   expect(missing.err.join("")).toContain("nothing to install");
 
   const empty = makeDeps({ readFile: () => "{}" });
-  expect(await runWnpm([], empty.deps)).toBe(2); // no verb at all
+  expect(await runWnpm([], empty.deps)).toBe(2);
 });
 
 test("wnpm falls back to package.json direct deps and installs via pnpm", async () => {
   const { deps, err, spawns } = makeDeps({
-    readFile: () => JSON.stringify({ dependencies: { "left-pad": "^1.3.0" }, devDependencies: { chalk: "^5" } }),
+    readFile: () =>
+      JSON.stringify({ dependencies: { "left-pad": "^1.3.0" }, devDependencies: { chalk: "^5" } }),
     which: (p) => (p === "pnpm" ? "/usr/bin/pnpm" : null),
   });
   expect(await runWnpm(["install"], deps)).toBe(0);
   expect(err.join("")).toContain("vetting 2 package(s)");
   expect(err.join("")).toContain("installing via pnpm");
-  // No explicit targets -> plain install of the lockfile, scripts disabled.
   expect(spawns).toEqual([["pnpm", "install", "--ignore-scripts"]]);
 });
 
@@ -162,7 +158,7 @@ test("wnpm falls back to npm when no manager is on PATH, propagating its exit co
 });
 
 test("wnpm --json emits the verdict array on stdout, in input order (bounded pool)", async () => {
-  const targets = Array.from({ length: 10 }, (_, i) => `pkg-${i}`); // > pool limit of 8
+  const targets = Array.from({ length: 10 }, (_, i) => `pkg-${i}`);
   const { deps, out } = makeDeps();
   expect(await runWnpm(["install", ...targets, "--json"], deps)).toBe(0);
   expect(out).toHaveLength(1);
@@ -175,7 +171,7 @@ test("wnpm groups the human report block > warn > allow", async () => {
   const { deps, err } = makeDeps({
     check: (spec) => Promise.resolve(verdict({ package: spec, verdict: levels[spec]! })),
   });
-  expect(await runWnpm(["install", "a", "b", "c"], deps)).toBe(20); // b blocks
+  expect(await runWnpm(["install", "a", "b", "c"], deps)).toBe(20);
   const text = err.join("");
   expect(text.indexOf("BLOCK")).toBeLessThan(text.indexOf("WARN"));
   expect(text.indexOf("WARN")).toBeLessThan(text.indexOf("ALLOW"));
@@ -183,15 +179,19 @@ test("wnpm groups the human report block > warn > allow", async () => {
 });
 
 test("wnpm --json block skips the human report but still exits 20", async () => {
-  const { deps, out, err } = makeDeps({ check: () => Promise.resolve(verdict({ verdict: "block", summary: "bad news" })) });
+  const { deps, out, err } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block", summary: "bad news" })),
+  });
   expect(await runWnpm(["install", "evil", "--json"], deps)).toBe(20);
   expect((JSON.parse(out[0]!) as Verdict[])[0]!.verdict).toBe("block");
-  expect(err.join("")).not.toContain("bad news"); // no renderVerdict in json mode
+  expect(err.join("")).not.toContain("bad news");
   expect(err.join("")).toContain("install blocked");
 });
 
 test("wnpm --allow-risky overrides a block and installs anyway", async () => {
-  const { deps, spawns } = makeDeps({ check: () => Promise.resolve(verdict({ verdict: "block" })) });
+  const { deps, spawns } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block" })),
+  });
   expect(await runWnpm(["install", "evil", "--allow-risky"], deps)).toBe(0);
   expect(spawns).toHaveLength(1);
 });
@@ -202,10 +202,10 @@ test("wnpm analysis error exits 30", async () => {
   expect(err.join("")).toContain("wnpm: analysis error: boom");
 });
 
-// ---- default deps (the shims' real effects) ---------------------------------
-
 test("defaultDeps: spawn returns the command's exit code, readFile reads files", () => {
   expect(defaultDeps.spawn(["sh", "-c", "exit 7"])).toBe(7);
-  expect(defaultDeps.readFile(fileURLToPath(new URL("../../package.json", import.meta.url)))).toContain('"name": "wnpm"');
+  expect(
+    defaultDeps.readFile(fileURLToPath(new URL("../../package.json", import.meta.url))),
+  ).toContain('"name": "wnpm"');
   expect(typeof defaultDeps.which("sh")).toBe("string");
 });

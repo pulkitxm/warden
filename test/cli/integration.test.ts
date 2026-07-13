@@ -1,7 +1,7 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { startMiniRegistry, type MiniRegistry } from "../../fixtures/registry/server.ts";
-import { checkPackage } from "../../src/engine.ts";
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
 import { VerdictCache } from "../../src/cache.ts";
+import { checkPackage } from "../../src/engine.ts";
 import { Blocklist } from "../../src/intel/index.ts";
 
 let reg: MiniRegistry;
@@ -56,13 +56,24 @@ test("integrity-keyed cache: second check is a cache hit", async () => {
 });
 
 test("missing exact version does not fall back to latest (errors instead)", async () => {
-  // left-pad exists but @9.9.9 does not; must NOT silently analyze latest.
   await expect(checkPackage("left-pad@9.9.9", { cache: cache() })).rejects.toThrow(/not found/);
 });
 
 test("verdict validates the schema shape (agent contract)", async () => {
   const v = await checkPackage("lodahs", { cache: cache(), blocklist: new Blocklist([]) });
-  for (const key of ["schema_version", "package", "version", "integrity", "verdict", "risk_score", "categories", "summary", "evidence", "analyzer_version", "source"]) {
+  for (const key of [
+    "schema_version",
+    "package",
+    "version",
+    "integrity",
+    "verdict",
+    "risk_score",
+    "categories",
+    "summary",
+    "evidence",
+    "analyzer_version",
+    "source",
+  ]) {
     expect(v).toHaveProperty(key);
   }
 });

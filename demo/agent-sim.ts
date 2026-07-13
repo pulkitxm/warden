@@ -1,22 +1,10 @@
 #!/usr/bin/env bun
-/**
- * Agent gating simulator — the money shot, runnable without a live model.
- *
- * Reads a skill file, finds the npx command it instructs the agent to run, calls
- * `wnpx <pkg> --json` exactly as a Codex agent following the repo policy would,
- * and gates on the verdict: refusing to execute a `block`, explaining why.
- *
- * Usage:
- *   WNPM_REGISTRY=<mini> WNPM_DOWNLOADS=<mini>/downloads/point/last-week \
- *     bun demo/agent-sim.ts demo/skill-file/AGENTS.md
- */
 
 import { readFileSync } from "node:fs";
 
 const skillPath = Bun.argv[2] ?? "demo/skill-file/AGENTS.md";
 const skill = readFileSync(skillPath, "utf8");
 
-// The agent reads the skill file and finds the command it was told to run.
 const m = skill.match(/npx\s+([^\s`]+)/);
 if (!m) {
   console.log("agent: no npx command found in skill file; nothing to run.");

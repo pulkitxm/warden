@@ -1,15 +1,12 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import {
-  VERDICT_JSON_SCHEMA,
   CATEGORIES,
-  SCHEMA_VERSION,
   exitCodeFor,
+  SCHEMA_VERSION,
+  VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../src/schema.ts";
 
-// Drift guard: a representative Verdict object must have exactly the keys the
-// JSON Schema requires — no more, no fewer. If someone adds a field to the type
-// without updating the schema (or vice versa), this fails.
 test("Verdict type keys match JSON Schema required keys", () => {
   const sample: Verdict = {
     schema_version: SCHEMA_VERSION,
@@ -27,7 +24,6 @@ test("Verdict type keys match JSON Schema required keys", () => {
   const typeKeys = Object.keys(sample).sort();
   const schemaKeys = [...VERDICT_JSON_SCHEMA.required].sort();
   expect(typeKeys).toEqual(schemaKeys);
-  // Every declared property is also a required key (no optional top-level fields).
   expect(Object.keys(VERDICT_JSON_SCHEMA.properties).sort()).toEqual(schemaKeys);
 });
 

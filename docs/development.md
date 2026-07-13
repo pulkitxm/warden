@@ -10,6 +10,8 @@ make build
 make ci          # the complete local/GitHub/pre-push workflow
 ```
 
+`make ci` rejects disallowed code comments and any Biome formatting or lint error. Run `bun run strip-comments` and `bun run format` to repair those checks locally. Functional directives such as `@ts-expect-error` and `biome-ignore` are preserved.
+
 Tests run offline except the manual pressure-test scripts. The test suite enforces 100% line and function coverage for loaded source files.
 
 The repository has one implementation:

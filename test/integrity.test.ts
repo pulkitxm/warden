@@ -1,6 +1,12 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { computeIntegrity, verifyIntegrity, parseIntegrity, assertIntegrity, IntegrityError } from "../src/integrity.ts";
+import {
+  assertIntegrity,
+  computeIntegrity,
+  IntegrityError,
+  parseIntegrity,
+  verifyIntegrity,
+} from "../src/integrity.ts";
 
 const data = new TextEncoder().encode("hello wnpm");
 

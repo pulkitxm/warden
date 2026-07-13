@@ -1,8 +1,5 @@
-/** Mini-registry branches the engine tests never hit: 404s without proxy,
- * proxy passthrough (upstream fetch stubbed — no live npm), and standalone main. */
-
-import { test, expect } from "bun:test";
-import { startMiniRegistry, main } from "../server.ts";
+import { expect, test } from "bun:test";
+import { main, startMiniRegistry } from "../server.ts";
 
 const realFetch = globalThis.fetch.bind(globalThis);
 
@@ -17,8 +14,6 @@ test("non-proxy mode 404s unknown downloads and packuments", async () => {
 });
 
 test("proxy mode forwards unknown names upstream; upstream failure -> 502", async () => {
-  // Stub the global fetch the server uses for upstream calls; pass local
-  // requests through so the test can still reach the mini-registry itself.
   globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const url = String(input);
     if (url.startsWith("https://registry.npmjs.org/")) {
@@ -31,18 +26,20 @@ test("proxy mode forwards unknown names upstream; upstream failure -> 502", asyn
 
   const reg = startMiniRegistry(0, { proxy: true, only: true, fixtures: [] });
   try {
-    // Packument proxy — plain and scoped names exercise both encodeName arms.
-    const plain = (await (await realFetch(`${reg.url}/upstream-pkg`)).json()) as { name: string; fetched: string };
+    const plain = (await (await realFetch(`${reg.url}/upstream-pkg`)).json()) as {
+      name: string;
+      fetched: string;
+    };
     expect(plain.name).toBe("upstream-pkg");
     expect(plain.fetched).toBe("https://registry.npmjs.org/upstream-pkg");
     const scoped = (await (await realFetch(`${reg.url}/@scope/pkg`)).json()) as { fetched: string };
     expect(scoped.fetched).toBe(`https://registry.npmjs.org/@${encodeURIComponent("scope/pkg")}`);
 
-    // Downloads proxy.
-    const dl = (await (await realFetch(`${reg.url}/downloads/point/last-week/upstream-pkg`)).json()) as { downloads: number };
+    const dl = (await (
+      await realFetch(`${reg.url}/downloads/point/last-week/upstream-pkg`)
+    ).json()) as { downloads: number };
     expect(dl.downloads).toBe(123);
 
-    // Upstream error is contained as a 502, never thrown at the client.
     expect((await realFetch(`${reg.url}/exploding-pkg`)).status).toBe(502);
   } finally {
     globalThis.fetch = realFetch as typeof fetch;

@@ -1,4 +1,4 @@
-import { test, expect, afterEach } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import { explain, llmStats } from "../src/llm.ts";
 import type { Verdict } from "../src/schema.ts";
 
@@ -33,7 +33,20 @@ test("no API key -> template, no model call", async () => {
 test("valid structured response -> parsed summary, counted", async () => {
   process.env.OPENAI_API_KEY = "sk-test";
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: "This package exfiltrates environment variables." }) } }] }), { status: 200 })) as unknown as typeof fetch;
+    new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                summary: "This package exfiltrates environment variables.",
+              }),
+            },
+          },
+        ],
+      }),
+      { status: 200 },
+    )) as unknown as typeof fetch;
   const before = llmStats.calls;
   const r = await explain(V);
   expect(r.used).toBe(true);
@@ -43,7 +56,8 @@ test("valid structured response -> parsed summary, counted", async () => {
 
 test("malformed response -> falls back to template", async () => {
   process.env.OPENAI_API_KEY = "sk-test";
-  globalThis.fetch = (async () => new Response("not json at all", { status: 200 })) as unknown as typeof fetch;
+  globalThis.fetch = (async () =>
+    new Response("not json at all", { status: 200 })) as unknown as typeof fetch;
   const r = await explain(V);
   expect(r.used).toBe(false);
   expect(r.summary).toContain("evil-pkg");
@@ -52,7 +66,10 @@ test("malformed response -> falls back to template", async () => {
 test("unbalanced JSON braces in the model output -> template", async () => {
   process.env.OPENAI_API_KEY = "sk-test";
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ choices: [{ message: { content: '{"summary": "truncated' } }] }), { status: 200 })) as unknown as typeof fetch;
+    new Response(
+      JSON.stringify({ choices: [{ message: { content: '{"summary": "truncated' } }] }),
+      { status: 200 },
+    )) as unknown as typeof fetch;
   const r = await explain(V);
   expect(r.used).toBe(false);
   expect(r.summary).toContain("evil-pkg");

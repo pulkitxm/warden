@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { VerdictCache } from "../src/cache.ts";
 import type { Verdict } from "../src/schema.ts";
 
@@ -29,6 +29,6 @@ test("get miss, set, get hit marks source=cache", () => {
 test("stale analyzer version invalidates the entry", () => {
   const c = new VerdictCache(":memory:");
   c.set("sha512-abc", verdict, 1);
-  expect(c.get("sha512-abc", "0.2.0")).toBeNull(); // analyzer bumped -> miss
+  expect(c.get("sha512-abc", "0.2.0")).toBeNull();
   expect(c.get("sha512-abc", "0.1.0")).not.toBeNull();
 });

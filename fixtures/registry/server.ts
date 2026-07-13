@@ -1,14 +1,4 @@
-/**
- * Mini npm registry over Bun.serve — serves fixture packuments, tarballs, and
- * download points so the whole install path runs offline (no Docker, no network,
- * no live-malicious packages). Unknown package names 404, which the engine reads
- * as "does not exist" = slopsquat.
- *
- * Point the CLI at it with:
- *   WNPM_REGISTRY=<url> WNPM_DOWNLOADS=<url>/downloads
- */
-
-import { materialize, FIXTURES, type FixturePackage } from "./fixtures.ts";
+import { FIXTURES, type FixturePackage, materialize } from "./fixtures.ts";
 
 export interface MiniRegistry {
   url: string;
@@ -17,13 +7,8 @@ export interface MiniRegistry {
 }
 
 export interface MiniRegistryOptions {
-  /** Extra fixture packages to serve (in addition to the demo FIXTURES). */
   fixtures?: FixturePackage[];
-  /** When true, serve ONLY `fixtures` (skip the demo FIXTURES). Prevents demo
-   * packages (chalk/lodahs/...) from shadowing real ones when proxying. */
   only?: boolean;
-  /** When true, packages/downloads not in fixtures are proxied to real npm.
-   * Lets one run cover both crafted attacks and real packages. Test-only. */
   proxy?: boolean;
 }
 
@@ -39,20 +24,21 @@ export function startMiniRegistry(port = 0, opts: MiniRegistryOptions = {}): Min
       const { packuments, tarballs, downloads } = materialize(base, packages);
       const path = decodeURIComponent(new URL(req.url).pathname);
 
-      // Download point: /downloads/point/last-week/:name
       const dl = path.match(/^\/downloads\/point\/last-week\/(.+)$/);
       if (dl) {
         const name = dl[1]!;
-        if (downloads[name] !== undefined) return Response.json({ downloads: downloads[name], package: name });
+        if (downloads[name] !== undefined)
+          return Response.json({ downloads: downloads[name], package: name });
         if (opts.proxy) return proxyTo(`${REAL_DOWNLOADS}/${encodeName(name)}`);
         return new Response("{}", { status: 404 });
       }
 
       if (tarballs[path]) {
-        return new Response(tarballs[path], { headers: { "content-type": "application/octet-stream" } });
+        return new Response(tarballs[path], {
+          headers: { "content-type": "application/octet-stream" },
+        });
       }
 
-      // Packument: /:name
       const name = path.replace(/^\//, "");
       if (packuments[name]) return Response.json(packuments[name]);
       if (opts.proxy && name) return proxyTo(`${REAL_REGISTRY}/${encodeName(name)}`);
@@ -71,14 +57,19 @@ function encodeName(name: string): string {
 async function proxyTo(url: string): Promise<Response> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    return new Response(res.body, { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json" } });
+    return new Response(res.body, {
+      status: res.status,
+      headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+    });
   } catch {
     return new Response("{}", { status: 502 });
   }
 }
 
-/** Standalone entry (`bun fixtures/registry/server.ts`) for manual demo poking. */
-export function main(port = 4873, write: (s: string) => unknown = process.stderr.write.bind(process.stderr)): MiniRegistry {
+export function main(
+  port = 4873,
+  write: (s: string) => unknown = process.stderr.write.bind(process.stderr),
+): MiniRegistry {
   const reg = startMiniRegistry(port);
   write(`mini-registry on ${reg.url}\n`);
   write(`  WNPM_REGISTRY=${reg.url} WNPM_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);

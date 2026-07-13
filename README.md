@@ -36,4 +36,6 @@ make ci
 
 `make install` also activates the tracked pre-push hook, which runs the same command before every push.
 
+CI enforces comment-free source and strict Biome formatting. Use `bun run strip-comments` and `bun run format` before committing when either gate reports changes.
+
 See [CLI](docs/cli.md), [architecture](docs/architecture.md), [detection](docs/detection.md), [development](docs/development.md), and the [offline demo](demo/README.md).

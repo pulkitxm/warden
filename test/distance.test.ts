@@ -1,11 +1,11 @@
-import { test, expect } from "bun:test";
-import { damerau, normalize, findNearestPopular } from "../src/distance/index.ts";
+import { expect, test } from "bun:test";
+import { damerau, findNearestPopular, normalize } from "../src/distance/index.ts";
 
 test("damerau reference table", () => {
-  expect(damerau("lodash", "lodahs")).toBe(1); // transposition
-  expect(damerau("chalk", "chlak")).toBe(1); // transposition
+  expect(damerau("lodash", "lodahs")).toBe(1);
+  expect(damerau("chalk", "chlak")).toBe(1);
   expect(damerau("react", "react")).toBe(0);
-  expect(damerau("kitten", "sitting")).toBe(3); // classic
+  expect(damerau("kitten", "sitting")).toBe(3);
   expect(damerau("", "abc")).toBe(3);
 });
 
@@ -47,9 +47,6 @@ test("linear scan finds distance-2 matches a BK-tree over OSA missed", () => {
 });
 
 test("delimiter variant of a real package is detected but marked a collision", () => {
-  // class-names vs classnames: a genuine near-collision. The distance package
-  // surfaces it (normalizedCollision:true) but does NOT decide block — the
-  // scorer's two-signal rule keeps this an allow/warn. See score FP corpus.
   const m = findNearestPopular("class-names");
   expect(m?.target).toBe("classnames");
   expect(m?.normalizedCollision).toBe(true);

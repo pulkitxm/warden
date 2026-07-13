@@ -1,11 +1,17 @@
-import { test, expect } from "bun:test";
+import { expect, test } from "bun:test";
 import { diffVersions } from "../src/diff.ts";
 import type { TarEntry } from "../src/tar.ts";
 
-const file = (path: string, text: string): TarEntry => ({ path, bytes: new TextEncoder().encode(text) });
+const file = (path: string, text: string): TarEntry => ({
+  path,
+  bytes: new TextEncoder().encode(text),
+});
 
 test("new package: everything is added, all scripts added", () => {
-  const cur = [file("package.json", JSON.stringify({ scripts: { postinstall: "node s.js" } })), file("index.js", "x")];
+  const cur = [
+    file("package.json", JSON.stringify({ scripts: { postinstall: "node s.js" } })),
+    file("index.js", "x"),
+  ];
   const d = diffVersions(cur, undefined);
   expect(d.isNewPackage).toBe(true);
   expect(d.addedScripts).toEqual({ postinstall: "node s.js" });
@@ -16,7 +22,7 @@ test("identical files are skipped; only changed files scanned", () => {
   const prev = [file("a.js", "same"), file("b.js", "old")];
   const cur = [file("a.js", "same"), file("b.js", "new")];
   const d = diffVersions(cur, prev);
-  expect(d.scanFiles.map((f) => f.path)).toEqual(["b.js"]); // a.js identical -> skipped
+  expect(d.scanFiles.map((f) => f.path)).toEqual(["b.js"]);
 });
 
 test("malformed package.json is tolerated (no scripts parsed)", () => {
@@ -27,7 +33,12 @@ test("malformed package.json is tolerated (no scripts parsed)", () => {
 
 test("detects a newly added postinstall (axios-style scripts diff)", () => {
   const prev = [file("package.json", JSON.stringify({ scripts: { build: "tsc" } }))];
-  const cur = [file("package.json", JSON.stringify({ scripts: { build: "tsc", postinstall: "node evil.js" } }))];
+  const cur = [
+    file(
+      "package.json",
+      JSON.stringify({ scripts: { build: "tsc", postinstall: "node evil.js" } }),
+    ),
+  ];
   const d = diffVersions(cur, prev);
   expect(d.addedScripts).toEqual({ postinstall: "node evil.js" });
   expect(d.changedScripts).toEqual({});

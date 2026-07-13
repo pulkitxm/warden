@@ -1,9 +1,9 @@
-import { test, expect } from "bun:test";
-import { renderVerdict, renderLine, bold, dim } from "../../src/cli/ui.ts";
+import { expect, test } from "bun:test";
+import { bold, dim, renderLine, renderVerdict } from "../../src/cli/ui.ts";
 import { SCHEMA_VERSION, type Verdict } from "../../src/schema.ts";
 
-// Color depends on TTY/NO_COLOR at load time; strip ANSI so assertions hold either way.
-const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+const strip = (s: string) =>
+  s.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), "");
 
 const verdict = (over: Partial<Verdict> = {}): Verdict => ({
   schema_version: SCHEMA_VERSION,
@@ -46,13 +46,15 @@ test("renderVerdict: block report shows categories, evidence files, and override
   expect(out).toContain("categories: exfiltration, install_script");
   expect(out).toContain("POSTs process.env to a raw IP (setup.js)");
   expect(out).toContain("blocklist entry MAL-X");
-  expect(out).not.toContain("(-)"); // "-" placeholder files are not printed
+  expect(out).not.toContain("(-)");
   expect(out).toContain("verdict: steals env vars");
   expect(out).toContain("override with --allow-risky");
 });
 
 test("renderVerdict: warn report colors the badge, no override hint", () => {
-  const out = strip(renderVerdict(verdict({ verdict: "warn", risk_score: 40, categories: ["metadata_anomaly"] })));
+  const out = strip(
+    renderVerdict(verdict({ verdict: "warn", risk_score: 40, categories: ["metadata_anomaly"] })),
+  );
   expect(out).toContain("WARN");
   expect(out).not.toContain("--allow-risky");
 });
@@ -64,6 +66,8 @@ test("renderVerdict: allow report omits the categories line", () => {
 });
 
 test("renderLine: one-liner with categories, or 'clean' when none", () => {
-  expect(strip(renderLine(verdict({ verdict: "block", categories: ["typosquat"] })))).toContain("BLOCK demo-pkg@1.2.3  typosquat");
+  expect(strip(renderLine(verdict({ verdict: "block", categories: ["typosquat"] })))).toContain(
+    "BLOCK demo-pkg@1.2.3  typosquat",
+  );
   expect(strip(renderLine(verdict()))).toContain("ALLOW demo-pkg@1.2.3  clean");
 });

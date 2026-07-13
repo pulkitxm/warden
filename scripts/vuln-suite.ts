@@ -1,21 +1,7 @@
 #!/usr/bin/env bun
-/**
- * Vulnerability test suite + confusion matrix.
- *
- * Runs a labeled dataset of npm supply-chain cases through the WNPM engine and
- * scores it as a binary classifier (positive = "should block" = malicious).
- * Malicious cases are faithful fixtures (never real live malware); benign cases
- * are REAL popular packages fetched live via the proxying mini-registry.
- *
- * No LLM: OPENAI_API_KEY is cleared, so the engine runs pure heuristics — zero
- * model tokens. One process, bounded concurrency.
- *
- * Run: bun scripts/vuln-suite.ts
- * Prints a Markdown report to stdout.
- */
 
-import { startMiniRegistry } from "../fixtures/registry/server.ts";
 import { ATTACK_FIXTURES } from "../fixtures/registry/attack-fixtures.ts";
+import { startMiniRegistry } from "../fixtures/registry/server.ts";
 import { VerdictCache } from "../src/cache.ts";
 
 type Label = "malicious" | "benign";
@@ -25,7 +11,6 @@ interface Case {
   type: string;
 }
 
-// --- Malicious: crafted attack fixtures (one per technique) ------------------
 const MAL_FIXTURES: Case[] = [
   { spec: "mal-postinstall-env@1.0.1", label: "malicious", type: "postinstall-env-exfil" },
   { spec: "mal-preinstall-harvester@2.0.0", label: "malicious", type: "preinstall-cred-harvester" },
@@ -42,7 +27,6 @@ const MAL_FIXTURES: Case[] = [
   { spec: "mal-fake-native@1.0.0", label: "malicious", type: "fake-native-download" },
 ];
 
-// --- Malicious: real name attacks (proxied to real npm) ----------------------
 const MAL_NAMES: Case[] = [
   { spec: "lodahs", label: "malicious", type: "typosquat" },
   { spec: "expresss", label: "malicious", type: "typosquat" },
@@ -58,15 +42,55 @@ const MAL_NAMES: Case[] = [
   { spec: "plain-crypto-js", label: "malicious", type: "blocklist-known-malware" },
 ];
 
-// --- Benign: real popular packages (proxied to real npm) ---------------------
 const BENIGN: Case[] = [
-  "react", "react-dom", "vue", "svelte", "lodash", "express", "koa", "fastify",
-  "axios", "got", "node-fetch", "undici", "chalk", "commander", "yargs",
-  "typescript", "esbuild", "webpack", "rollup", "vite", "@babel/core",
-  "@types/node", "@typescript-eslint/parser", "eslint", "prettier", "jest",
-  "vitest", "sharp", "node-gyp", "bcrypt", "better-sqlite3", "dotenv",
-  "cross-env", "uuid", "semver", "glob", "rimraf", "ms", "qs", "ws", "debug",
-  "three", "d3", "moment", "zod", "next", "core-js", "chokidar",
+  "react",
+  "react-dom",
+  "vue",
+  "svelte",
+  "lodash",
+  "express",
+  "koa",
+  "fastify",
+  "axios",
+  "got",
+  "node-fetch",
+  "undici",
+  "chalk",
+  "commander",
+  "yargs",
+  "typescript",
+  "esbuild",
+  "webpack",
+  "rollup",
+  "vite",
+  "@babel/core",
+  "@types/node",
+  "@typescript-eslint/parser",
+  "eslint",
+  "prettier",
+  "jest",
+  "vitest",
+  "sharp",
+  "node-gyp",
+  "bcrypt",
+  "better-sqlite3",
+  "dotenv",
+  "cross-env",
+  "uuid",
+  "semver",
+  "glob",
+  "rimraf",
+  "ms",
+  "qs",
+  "ws",
+  "debug",
+  "three",
+  "d3",
+  "moment",
+  "zod",
+  "next",
+  "core-js",
+  "chokidar",
 ].map((spec) => ({ spec, label: "benign" as Label, type: "real-popular" }));
 
 const CASES: Case[] = [...MAL_FIXTURES, ...MAL_NAMES, ...BENIGN];
@@ -93,7 +117,7 @@ async function runPool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>
 }
 
 async function main() {
-  delete process.env.OPENAI_API_KEY; // no LLM — zero model tokens
+  delete process.env.OPENAI_API_KEY;
   const reg = startMiniRegistry(0, { proxy: true, only: true, fixtures: ATTACK_FIXTURES });
   process.env.WNPM_REGISTRY = reg.url;
   process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
@@ -105,32 +129,60 @@ async function main() {
   const results = await runPool<Case, Result>(CASES, 3, async (c) => {
     try {
       const v = await checkPackage(c.spec, { cache });
-      return { ...c, verdict: v.verdict, score: v.risk_score, categories: v.categories, source: v.source };
+      return {
+        ...c,
+        verdict: v.verdict,
+        score: v.risk_score,
+        categories: v.categories,
+        source: v.source,
+      };
     } catch (e) {
-      return { ...c, verdict: "error", score: 0, categories: [], source: "-", error: (e as Error).message };
+      return {
+        ...c,
+        verdict: "error",
+        score: 0,
+        categories: [],
+        source: "-",
+        error: (e as Error).message,
+      };
     }
   });
   reg.stop();
 
-  // --- Confusion matrix (strict: positive prediction = block) ----------------
-  let tp = 0, fp = 0, tn = 0, fn = 0;
-  let lenientTp = 0, lenientFn = 0; // lenient: block OR warn counts as flagged
+  let tp = 0,
+    fp = 0,
+    tn = 0,
+    fn = 0;
+  let lenientTp = 0,
+    lenientFn = 0;
   const failures: Result[] = [];
   const errors: Result[] = [];
 
   for (const r of results) {
     if (r.verdict === "error") {
       errors.push(r);
-      if (r.label === "malicious") { fn++; lenientFn++; failures.push(r); }
+      if (r.label === "malicious") {
+        fn++;
+        lenientFn++;
+        failures.push(r);
+      }
       continue;
     }
     const blocked = r.verdict === "block";
     const flagged = r.verdict === "block" || r.verdict === "warn";
     if (r.label === "malicious") {
-      if (blocked) tp++; else { fn++; failures.push(r); }
-      if (flagged) lenientTp++; else lenientFn++;
+      if (blocked) tp++;
+      else {
+        fn++;
+        failures.push(r);
+      }
+      if (flagged) lenientTp++;
+      else lenientFn++;
     } else {
-      if (blocked) { fp++; failures.push(r); } else tn++;
+      if (blocked) {
+        fp++;
+        failures.push(r);
+      } else tn++;
     }
   }
 
@@ -139,8 +191,10 @@ async function main() {
   const recall = tp + fn ? tp / (tp + fn) : 0;
   const f1 = precision + recall ? (2 * precision * recall) / (precision + recall) : 0;
 
-  // --- Per-type breakdown ----------------------------------------------------
-  const byType = new Map<string, { label: Label; block: number; warn: number; allow: number; error: number; total: number }>();
+  const byType = new Map<
+    string,
+    { label: Label; block: number; warn: number; allow: number; error: number; total: number }
+  >();
   for (const r of results) {
     const k = `${r.label}:${r.type}`;
     const e = byType.get(k) ?? { label: r.label, block: 0, warn: 0, allow: 0, error: 0, total: 0 };
@@ -149,10 +203,11 @@ async function main() {
     byType.set(k, e);
   }
 
-  // --- Write report ----------------------------------------------------------
   const L: string[] = [];
   L.push("# WNPM — Vulnerability Suite Results\n");
-  L.push(`Cases: ${CASES.length} (malicious ${MAL_FIXTURES.length + MAL_NAMES.length}, benign ${BENIGN.length}). No LLM (pure heuristics).\n`);
+  L.push(
+    `Cases: ${CASES.length} (malicious ${MAL_FIXTURES.length + MAL_NAMES.length}, benign ${BENIGN.length}). No LLM (pure heuristics).\n`,
+  );
   L.push("## Confusion matrix (positive = should block)\n");
   L.push("```");
   L.push("                 predicted BLOCK   predicted not-block");
@@ -170,12 +225,16 @@ async function main() {
   L.push("### False negatives — malicious NOT blocked (misses)");
   const fns = failures.filter((r) => r.label === "malicious");
   if (!fns.length) L.push("_(none)_");
-  for (const r of fns) L.push(`- **${r.type}** \`${r.spec}\` -> ${r.verdict.toUpperCase()} (score ${r.score}) [${r.categories.join(",")}]${r.error ? ` err=${r.error}` : ""}`);
+  for (const r of fns)
+    L.push(
+      `- **${r.type}** \`${r.spec}\` -> ${r.verdict.toUpperCase()} (score ${r.score}) [${r.categories.join(",")}]${r.error ? ` err=${r.error}` : ""}`,
+    );
   L.push("");
   L.push("### False positives — benign blocked (false alarms)");
   const fps = failures.filter((r) => r.label === "benign");
   if (!fps.length) L.push("_(none)_");
-  for (const r of fps) L.push(`- \`${r.spec}\` -> BLOCK (score ${r.score}) [${r.categories.join(",")}]`);
+  for (const r of fps)
+    L.push(`- \`${r.spec}\` -> BLOCK (score ${r.score}) [${r.categories.join(",")}]`);
   L.push("");
   if (errors.length) {
     L.push("### Errors");
@@ -192,14 +251,17 @@ async function main() {
   L.push("## All results\n");
   L.push("| spec | label | type | verdict | score | categories |");
   L.push("|---|---|---|---|---|---|");
-  for (const r of results.slice().sort((a, b) => a.label.localeCompare(b.label) || a.spec.localeCompare(b.spec))) {
-    L.push(`| ${r.spec} | ${r.label} | ${r.type} | ${r.verdict} | ${r.score} | ${r.categories.join(",")} |`);
+  for (const r of results
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label) || a.spec.localeCompare(b.spec))) {
+    L.push(
+      `| ${r.spec} | ${r.label} | ${r.type} | ${r.verdict} | ${r.score} | ${r.categories.join(",")} |`,
+    );
   }
   const md = L.join("\n") + "\n";
 
   process.stdout.write(md);
 
-  // Console summary
   process.stderr.write(
     `\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(strict)=${pct(tp, tp + fn)} recall(lenient)=${pct(lenientTp, lenientTp + lenientFn)} precision=${pct(tp, tp + fp)} specificity=${pct(tn, tn + fp)}\n` +
       `Misses(FN)=${fns.length} FalseAlarms(FP)=${fps.length} Errors=${errors.length}\n`,

@@ -1,18 +1,21 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, expect, test } from "bun:test";
 import { resolvePackage } from "../src/registry.ts";
 
-// Minimal packument served by a local mini-registry; no live network anywhere.
 const packument = {
   name: "demo-pkg",
   "dist-tags": { latest: "1.0.0" },
   time: { "1.0.0": "2026-01-01T00:00:00.000Z" },
-  versions: { "1.0.0": { version: "1.0.0", dist: { tarball: "http://localhost/demo-pkg-1.0.0.tgz", integrity: "sha512-x" } } },
+  versions: {
+    "1.0.0": {
+      version: "1.0.0",
+      dist: { tarball: "http://localhost/demo-pkg-1.0.0.tgz", integrity: "sha512-x" },
+    },
+  },
   maintainers: [{ name: "dev" }],
 };
 
 let server: ReturnType<typeof Bun.serve>;
 const saved = { registry: process.env.WNPM_REGISTRY, downloads: process.env.WNPM_DOWNLOADS };
-// Nothing listens here: connections are refused immediately (fetch error path).
 const DEAD = "http://127.0.0.1:1";
 
 beforeAll(() => {
