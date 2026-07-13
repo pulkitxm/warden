@@ -1,7 +1,7 @@
 /**
  * Attack fixtures for the vulnerability test suite. Faithful simulations of real
  * npm supply-chain attack mechanics (never real live malware). Written to model
- * the ATTACK honestly — NOT tuned to pass Warden. Whatever the current engine
+ * the ATTACK honestly — NOT tuned to pass WNPM. Whatever the current engine
  * misses is a real coverage gap to be logged and analyzed.
  *
  * Each covers a distinct technique seen in the wild (Shai-Hulud, axios, chalk/

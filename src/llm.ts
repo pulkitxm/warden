@@ -11,7 +11,7 @@
 
 import type { Verdict } from "./schema.ts";
 
-const MODEL = process.env.WARDEN_LLM_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.WNPM_LLM_MODEL ?? "gpt-4o-mini";
 
 /** Real LLM calls made this process — surfaced for the cache-hit demo metric. */
 export const llmStats = { calls: 0 };

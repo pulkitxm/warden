@@ -5,7 +5,7 @@
  * as "does not exist" = slopsquat.
  *
  * Point the CLI at it with:
- *   WARDEN_REGISTRY=<url> WARDEN_DOWNLOADS=<url>/downloads
+ *   WNPM_REGISTRY=<url> WNPM_DOWNLOADS=<url>/downloads
  */
 
 import { materialize, FIXTURES, type FixturePackage } from "./fixtures.ts";
@@ -81,7 +81,7 @@ async function proxyTo(url: string): Promise<Response> {
 export function main(port = 4873, write: (s: string) => unknown = process.stderr.write.bind(process.stderr)): MiniRegistry {
   const reg = startMiniRegistry(port);
   write(`mini-registry on ${reg.url}\n`);
-  write(`  WARDEN_REGISTRY=${reg.url} WARDEN_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);
+  write(`  WNPM_REGISTRY=${reg.url} WNPM_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);
   return reg;
 }
 

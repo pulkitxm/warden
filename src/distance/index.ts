@@ -12,7 +12,7 @@
  * decide "block". Delimiter/plural variants of real packages (class-names vs
  * classnames) are genuine near-collisions, so the scorer requires a second
  * signal (popularity gap, install script, ...) before blocking — see
- * @warden/score. That is why a match here carries the raw distance and the
+ * score. That is why a match here carries the raw distance and the
  * target's popularity, not a verdict.
  */
 

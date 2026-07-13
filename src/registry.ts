@@ -3,13 +3,13 @@
  *
  * Extracts everything the heuristics need, including the provenance/attestation
  * and publisher-email signals that catch account-takeover attacks (axios). No
- * auth required. `WARDEN_REGISTRY` overrides the base URL (used by the mini
+ * auth required. `WNPM_REGISTRY` overrides the base URL (used by the mini
  * registry in fixtures/).
  */
 
 // Read at call time (not module load) so tests can point at a mini-registry.
-const registryBase = () => process.env.WARDEN_REGISTRY ?? "https://registry.npmjs.org";
-const downloadsBase = () => process.env.WARDEN_DOWNLOADS ?? "https://api.npmjs.org/downloads/point/last-week";
+const registryBase = () => process.env.WNPM_REGISTRY ?? "https://registry.npmjs.org";
+const downloadsBase = () => process.env.WNPM_DOWNLOADS ?? "https://api.npmjs.org/downloads/point/last-week";
 
 export interface PackageMeta {
   name: string;

@@ -64,7 +64,7 @@ describe("false-positive corpus (must not block)", () => {
       changedScripts: {},
       scanFiles: [{ path: "index.js", text: "module.exports=function(){return '';};" }],
     },
-    // Real-world regressions (see task-tracker/issues.md): these all FALSE-BLOCKED
+    // Real-world regressions: these all false-blocked before calibration.
     // before recalibration because network/env capability was scored as exfil.
     "express-like (uses http + env, no raw IP)": {
       name: "express",

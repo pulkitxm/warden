@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { createHash } from "node:crypto";
 import { computeIntegrity, verifyIntegrity, parseIntegrity, assertIntegrity, IntegrityError } from "../src/integrity.ts";
 
-const data = new TextEncoder().encode("hello warden");
+const data = new TextEncoder().encode("hello wnpm");
 
 test("compute matches node:crypto reference (sha512)", () => {
   const ref = "sha512-" + createHash("sha512").update(data).digest("base64");

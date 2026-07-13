@@ -11,7 +11,7 @@ const packument = {
 };
 
 let server: ReturnType<typeof Bun.serve>;
-const saved = { registry: process.env.WARDEN_REGISTRY, downloads: process.env.WARDEN_DOWNLOADS };
+const saved = { registry: process.env.WNPM_REGISTRY, downloads: process.env.WNPM_DOWNLOADS };
 // Nothing listens here: connections are refused immediately (fetch error path).
 const DEAD = "http://127.0.0.1:1";
 
@@ -21,22 +21,22 @@ beforeAll(() => {
 
 afterAll(() => {
   server.stop(true);
-  if (saved.registry === undefined) delete process.env.WARDEN_REGISTRY;
-  else process.env.WARDEN_REGISTRY = saved.registry;
-  if (saved.downloads === undefined) delete process.env.WARDEN_DOWNLOADS;
-  else process.env.WARDEN_DOWNLOADS = saved.downloads;
+  if (saved.registry === undefined) delete process.env.WNPM_REGISTRY;
+  else process.env.WNPM_REGISTRY = saved.registry;
+  if (saved.downloads === undefined) delete process.env.WNPM_DOWNLOADS;
+  else process.env.WNPM_DOWNLOADS = saved.downloads;
 });
 
 test("an unreachable registry resolves to not-on-registry (fetch error path)", async () => {
-  process.env.WARDEN_REGISTRY = DEAD;
+  process.env.WNPM_REGISTRY = DEAD;
   const meta = await resolvePackage("anything");
   expect(meta.existsOnRegistry).toBe(false);
   expect(meta.versions).toEqual([]);
 });
 
 test("a downloads-API outage is reported as unknown, not zero", async () => {
-  process.env.WARDEN_REGISTRY = `http://localhost:${server.port}`;
-  process.env.WARDEN_DOWNLOADS = DEAD;
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  process.env.WNPM_DOWNLOADS = DEAD;
   const meta = await resolvePackage("demo-pkg");
   expect(meta.existsOnRegistry).toBe(true);
   expect(meta.weeklyDownloads).toBeUndefined();

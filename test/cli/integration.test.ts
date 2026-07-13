@@ -8,8 +8,8 @@ let reg: MiniRegistry;
 
 beforeAll(() => {
   reg = startMiniRegistry();
-  process.env.WARDEN_REGISTRY = reg.url;
-  process.env.WARDEN_DOWNLOADS = reg.downloadsUrl;
+  process.env.WNPM_REGISTRY = reg.url;
+  process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
 });
 afterAll(() => reg.stop());
 

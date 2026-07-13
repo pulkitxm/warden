@@ -56,7 +56,7 @@ test("standalone main() starts a registry and prints connection hints", () => {
   try {
     expect(reg.url).toStartWith("http://localhost:");
     expect(lines.join("")).toContain(`mini-registry on ${reg.url}`);
-    expect(lines.join("")).toContain("WARDEN_REGISTRY=");
+    expect(lines.join("")).toContain("WNPM_REGISTRY=");
   } finally {
     reg.stop();
   }

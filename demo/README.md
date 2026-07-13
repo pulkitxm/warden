@@ -1,4 +1,4 @@
-# Warden — Demo Runbook (3 minutes)
+# WNPM — Demo Runbook (3 minutes)
 
 Runs fully offline against the in-repo mini-registry. No network, no Docker, no
 live-malicious packages. Rehearse this, not the code.
@@ -12,10 +12,10 @@ bun run build          # produces ./dist/wnpm and ./dist/wnpx
 # Terminal A: start the mini npm registry (fixtures)
 bun fixtures/registry/server.ts        # listens on :4873
 
-# Terminal B: point Warden at it
-export WARDEN_REGISTRY=http://localhost:4873
-export WARDEN_DOWNLOADS=http://localhost:4873/downloads/point/last-week
-export WARDEN_CACHE=/tmp/warden-demo.sqlite   # so beat 5 shows a cache hit
+# Terminal B: point WNPM at it
+export WNPM_REGISTRY=http://localhost:4873
+export WNPM_DOWNLOADS=http://localhost:4873/downloads/point/last-week
+export WNPM_CACHE=/tmp/wnpm-demo.sqlite   # so beat 5 shows a cache hit
 ```
 
 ## Beat 1 — the problem (20s)
@@ -40,7 +40,7 @@ wnpm install acme-http@1.0.1
 ```
 
 The clean 1.0.0 had provenance and no scripts. 1.0.1 adds a `postinstall` that
-reads `process.env` and POSTs to a raw IP, published without provenance. Warden
+reads `process.env` and POSTs to a raw IP, published without provenance. WNPM
 shows the diff evidence and blocks — categories `provenance_downgrade`,
 `exfiltration`, `install_script`.
 

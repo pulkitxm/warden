@@ -48,8 +48,8 @@ let reg: MiniRegistry;
 
 beforeAll(() => {
   reg = startMiniRegistry(0, { only: true, fixtures: EDGE_FIXTURES });
-  process.env.WARDEN_REGISTRY = reg.url;
-  process.env.WARDEN_DOWNLOADS = reg.downloadsUrl;
+  process.env.WNPM_REGISTRY = reg.url;
+  process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
   delete process.env.OPENAI_API_KEY;
 });
 afterAll(() => reg.stop());

@@ -5,12 +5,12 @@
  * co-designed suite. Measures how the engine holds up on unseen techniques.
  *
  * No LLM. Run: bun scripts/generalization-suite.ts
- * Writes: task-tracker/generalization-results.md
+ * Prints a Markdown report to stdout.
  */
 
 import { startMiniRegistry } from "../fixtures/registry/server.ts";
 import { FRESH_ATTACKS } from "../fixtures/registry/fresh-attacks.ts";
-import { VerdictCache } from "@warden/cache";
+import { VerdictCache } from "../src/cache.ts";
 
 type Label = "malicious" | "benign";
 interface Case { spec: string; label: Label; type: string; expect?: "catch" | "miss?" }
@@ -52,9 +52,9 @@ async function runPool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>
 async function main() {
   delete process.env.OPENAI_API_KEY;
   const reg = startMiniRegistry(0, { proxy: true, only: true, fixtures: FRESH_ATTACKS });
-  process.env.WARDEN_REGISTRY = reg.url;
-  process.env.WARDEN_DOWNLOADS = reg.downloadsUrl;
-  const { checkPackage } = await import("../apps/cli/src/engine.ts");
+  process.env.WNPM_REGISTRY = reg.url;
+  process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
+  const { checkPackage } = await import("../src/engine.ts");
   const cache = new VerdictCache(":memory:");
   process.stderr.write(`Generalization: ${CASES.length} fresh cases (no LLM)...\n`);
 
@@ -78,7 +78,7 @@ async function main() {
   const pct = (n: number, d: number) => (d ? ((100 * n) / d).toFixed(0) + "%" : "n/a");
 
   const L: string[] = [];
-  L.push("# Warden — Generalization Pressure-Test (fresh, untuned batch)\n");
+  L.push("# WNPM — Generalization Pressure-Test (fresh, untuned batch)\n");
   L.push(`Fresh attacks: ${MAL.length} · fresh real benign: ${BENIGN.length}. No LLM.\n`);
   L.push("## Matrix (positive = should block)\n```");
   L.push(`malicious   TP=${tp}   FN=${fn}`);
@@ -95,8 +95,8 @@ async function main() {
   L.push("\n## All results\n| spec | label | type | expected | verdict | categories |");
   L.push("|---|---|---|---|---|---|");
   for (const r of results) L.push(`| ${r.spec} | ${r.label} | ${r.type} | ${(r as Case).expect ?? "-"} | ${r.verdict} | ${r.categories.join(",")} |`);
-  await Bun.write("task-tracker/generalization-results.md", L.join("\n") + "\n");
+  process.stdout.write(`${L.join("\n")}\n`);
 
-  process.stderr.write(`\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(unseen)=${pct(tp, tp + fn)} specificity=${pct(tn, tn + fp)} | misses=${misses.length} falseAlarms=${falseAlarms.length}\nReport: task-tracker/generalization-results.md\n`);
+  process.stderr.write(`\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(unseen)=${pct(tp, tp + fn)} specificity=${pct(tn, tn + fp)} | misses=${misses.length} falseAlarms=${falseAlarms.length}\n`);
 }
 main();

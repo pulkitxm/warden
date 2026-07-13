@@ -11,7 +11,7 @@ npx react-codeshift ./src --transform hooks
 ## Repository policy (safety)
 
 Before running ANY `npx`, `npm install`, `pnpm add`, or `bun add` command,
-first vet the package with Warden and gate on the result:
+first vet the package with WNPM and gate on the result:
 
 ```
 wnpx <package> --json

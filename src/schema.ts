@@ -80,7 +80,7 @@ export interface Verdict {
  * JSON Schema for {@link Verdict}. Hand-written and kept in lockstep with the
  * type by the drift test. This exact object is what we hand OpenAI Structured
  * Outputs (strict: true → every field required, additionalProperties:false) and
- * what `warden schema` prints for an agent to self-describe.
+ * what `wnpm schema` prints for an agent to self-describe.
  */
 export const VERDICT_JSON_SCHEMA = {
   type: "object",

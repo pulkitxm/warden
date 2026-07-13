@@ -2,7 +2,7 @@
 /**
  * Vulnerability test suite + confusion matrix.
  *
- * Runs a labeled dataset of npm supply-chain cases through the Warden engine and
+ * Runs a labeled dataset of npm supply-chain cases through the WNPM engine and
  * scores it as a binary classifier (positive = "should block" = malicious).
  * Malicious cases are faithful fixtures (never real live malware); benign cases
  * are REAL popular packages fetched live via the proxying mini-registry.
@@ -11,12 +11,12 @@
  * model tokens. One process, bounded concurrency.
  *
  * Run: bun scripts/vuln-suite.ts
- * Writes: task-tracker/vuln-test-results.md and .json
+ * Prints a Markdown report to stdout.
  */
 
 import { startMiniRegistry } from "../fixtures/registry/server.ts";
 import { ATTACK_FIXTURES } from "../fixtures/registry/attack-fixtures.ts";
-import { VerdictCache } from "@warden/cache";
+import { VerdictCache } from "../src/cache.ts";
 
 type Label = "malicious" | "benign";
 interface Case {
@@ -95,9 +95,9 @@ async function runPool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>
 async function main() {
   delete process.env.OPENAI_API_KEY; // no LLM — zero model tokens
   const reg = startMiniRegistry(0, { proxy: true, only: true, fixtures: ATTACK_FIXTURES });
-  process.env.WARDEN_REGISTRY = reg.url;
-  process.env.WARDEN_DOWNLOADS = reg.downloadsUrl;
-  const { checkPackage } = await import("../apps/cli/src/engine.ts");
+  process.env.WNPM_REGISTRY = reg.url;
+  process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
+  const { checkPackage } = await import("../src/engine.ts");
   const cache = new VerdictCache(":memory:");
 
   process.stderr.write(`Running ${CASES.length} cases (no LLM) against ${reg.url} ...\n`);
@@ -151,7 +151,7 @@ async function main() {
 
   // --- Write report ----------------------------------------------------------
   const L: string[] = [];
-  L.push("# Warden — Vulnerability Suite Results\n");
+  L.push("# WNPM — Vulnerability Suite Results\n");
   L.push(`Cases: ${CASES.length} (malicious ${MAL_FIXTURES.length + MAL_NAMES.length}, benign ${BENIGN.length}). No LLM (pure heuristics).\n`);
   L.push("## Confusion matrix (positive = should block)\n");
   L.push("```");
@@ -197,14 +197,12 @@ async function main() {
   }
   const md = L.join("\n") + "\n";
 
-  await Bun.write("task-tracker/vuln-test-results.md", md);
-  await Bun.write("task-tracker/vuln-test-results.json", JSON.stringify({ matrix: { tp, fp, tn, fn }, precision, recall, f1, results }, null, 2));
+  process.stdout.write(md);
 
   // Console summary
   process.stderr.write(
     `\nDONE. TP=${tp} FP=${fp} TN=${tn} FN=${fn} | recall(strict)=${pct(tp, tp + fn)} recall(lenient)=${pct(lenientTp, lenientTp + lenientFn)} precision=${pct(tp, tp + fp)} specificity=${pct(tn, tn + fp)}\n` +
-      `Misses(FN)=${fns.length} FalseAlarms(FP)=${fps.length} Errors=${errors.length}\n` +
-      `Report: task-tracker/vuln-test-results.md\n`,
+      `Misses(FN)=${fns.length} FalseAlarms(FP)=${fps.length} Errors=${errors.length}\n`,
   );
 }
 

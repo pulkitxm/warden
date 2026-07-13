@@ -1,121 +1,39 @@
-# Warden
+# WNPM
 
-**A trust layer for npm that thinks before it executes.**
+WNPM checks npm packages before they install or execute. It compares releases, verifies tarball integrity, applies deterministic supply-chain rules, and returns an allow, warn, or block verdict.
 
-Every `npm install` and `npx` run today is a blind leap of faith: no diff, no
-history, no signal, just a bare version number and a prayer. Warden diffs every
-new or changed package against its last trusted release, scores it with
-deterministic supply-chain heuristics plus an optional LLM explanation, and
-blocks anything high-risk before a single script runs — whether a human typed
-the command or a coding agent (Claude Code, Codex) did.
-
-> Hackathon MVP. Full documentation lives in [`docs/`](docs/):
-> [architecture](docs/architecture.md) · [CLI reference](docs/cli.md) ·
-> [heuristics & scoring](docs/heuristics.md) · [agent integration](docs/agents.md) ·
-> [configuration](docs/configuration.md) · [development](docs/development.md) ·
-> [product spec](docs/prd.md) · [demo runbook](docs/demo.md)
-
-## Why
-
-- Coding agents now run `npm install` / `npx` autonomously from skill files with
-  no human reviewing them first.
-- Supply-chain attacks escalated hard (454k+ malicious npm packages in 2025).
-  The dangerous cases are increasingly **hijacked legitimate packages** — which
-  scoring a package in isolation misses but a **diff against the prior version**
-  catches.
-- `npm audit` scores theoretical CVSS with no reachability, so most teams ignore
-  it. Warden scores *behavior* and produces a verdict an agent can read.
-
-## How it works
-
-```
-              ┌──────────────────────────────────────┐
- warden CLI ─▶│              Verdict Engine           │
- agent hook ─▶│  cache → registry → diff → heuristics │─▶ verdict JSON
- --json     ─▶│         → enrich → (LLM verdict)       │
-              └──────────────────────────────────────┘
-```
-
-- **Deterministic heuristics** do the detecting: added lifecycle scripts,
-  AST-scanned suspicious script content (curl-to-shell, eval, base64, raw IPs,
-  env exfiltration), typosquat edit-distance to popular packages, obfuscation,
-  maintainer changes, and writes to agent-config paths (`.claude/`, `.codex/`).
-- **Newness never raises risk on its own** — a brand-new, script-free package
-  scores LOW. Recency/low-installs only escalate alongside a real action signal.
-- **The LLM only writes the explanation**, only on escalation, from a compact
-  signal JSON (never raw files). Degrades to a templated explanation with no key.
-- **Verdicts cache per immutable `package@version`** — scored once, ever, for
-  everyone. Marginal cost per install ≈ zero.
-
-## Install
-
-> The npm name `warden` is taken by an unrelated package — install from this
-> repo, not from the registry.
+## Use
 
 ```sh
-bun install
+make install
 bun run build
-npm link          # puts `warden`, `bnpm`, `bnpx` on PATH
+
+wnpm install left-pad
+wnpx some-cli@latest
+wnpx some-cli@latest --json
 ```
 
-## Usage
+`wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself.
 
-```sh
-# Score one package (human report)
-warden check express
+Exit codes are `0` allow, `10` warn, `20` block, and `30` analysis error. Use `--allow-risky` to override a block deliberately.
 
-# Machine-readable verdict for an agent
-warden check some-cli@latest --json
+## What it detects
 
-# Gated install — blocks HIGH by default, runs pnpm under the hood
-bnpm install left-pad chalk
+- typosquats, homoglyphs, scoped impersonation, and known hallucinated names
+- known malicious package versions
+- newly added or changed install scripts
+- provenance downgrades and maintainer changes
+- credential access, environment exfiltration, raw-IP traffic, reverse shells, and destructive filesystem calls
+- obfuscation combined with execution or network capabilities
 
-# Rich pre-run prompt / agent verdict for npx
-bnpx some-cli@latest --json
-```
-
-Exit codes: `0` allowed/clean · `1` blocked (HIGH risk) · `2` usage error.
-
-### Coding-agent integration
-
-The [Claude Code adapter](adapters/claude-code/) ships a **PreToolUse hook**
-(deterministic enforcement, holds under prompt injection) plus a **skill**
-(teaches the agent to check first and act on verdicts). The hook blocks a
-HIGH-risk `npm install`/`npx` mid-loop with a plain-English reason the agent
-reads and self-corrects from.
-
-## Environment variables
-
-| Var | Purpose |
-|---|---|
-| `ANTHROPIC_API_KEY` | Enables the LLM explanation (Haiku). Optional — heuristics work without it. |
-| `WARDEN_CACHE_DIR` | Verdict cache location (default `~/.warden-cache`). |
-| `WARDEN_LLM_MODEL` | Override the model (default `claude-haiku-4-5`). |
-| `WARDEN_LLM_BASE` | Override the Anthropic API base URL. |
-| `WARDEN_REGISTRY` | Override the npm registry base URL. |
-| `WARDEN_DOWNLOADS` | Override the downloads-stats API base URL. |
-| `WARDEN_DEBUG` | Print LLM-call count per run (for the cache-hit metric). |
-
-See [`docs/configuration.md`](docs/configuration.md) for details.
+Newness and low downloads never block by themselves. Deterministic rules decide the verdict; an optional OpenAI explanation can only rewrite the summary.
 
 ## Develop
 
-Bun is the runtime and toolchain (tests, dev runner, lockfile); `tsc` builds
-the Node-compatible `dist/` and type-checks; Biome lints and formats. Code
-comments are disallowed and enforced in CI.
-
 ```sh
-bun test                  # offline engine + parser tests
-bun run test:coverage     # enforces the 100% coverage threshold
-bun run typecheck
-bun run lint              # biome ci
-bun run format
-bun run strip-comments    # remove any code comments (CI runs --check)
+make ci
 ```
 
-## Status & roadmap
+`make install` also activates the tracked pre-push hook, which runs the same command before every push.
 
-Core engine, CLI, and Claude Code hook are working (MVP). Not yet built:
-sandboxed script execution, the registry firehose worker for proactive scoring,
-reachability-aware `warden audit`, and the Codex execpolicy adapter. See
-[`docs/prd.md`](docs/prd.md) §8.
+See [CLI](docs/cli.md), [architecture](docs/architecture.md), [detection](docs/detection.md), [development](docs/development.md), and the [offline demo](demo/README.md).

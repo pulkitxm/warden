@@ -49,7 +49,7 @@ test("linear scan finds distance-2 matches a BK-tree over OSA missed", () => {
 test("delimiter variant of a real package is detected but marked a collision", () => {
   // class-names vs classnames: a genuine near-collision. The distance package
   // surfaces it (normalizedCollision:true) but does NOT decide block — the
-  // scorer's two-signal rule keeps this an allow/warn. See @warden/score FP corpus.
+  // scorer's two-signal rule keeps this an allow/warn. See score FP corpus.
   const m = findNearestPopular("class-names");
   expect(m?.target).toBe("classnames");
   expect(m?.normalizedCollision).toBe(true);

@@ -1,4 +1,4 @@
-# Warden — Verified Citations (deck / research)
+# WNPM — Verified Citations (deck / research)
 
 Every claim below was checked against a primary or vendor source on 2026-07-04.
 "Verified" = corroborated by the linked source. Use these exact numbers in the
@@ -79,7 +79,7 @@ deck; where a source refines the plan's figure, the refined number is noted.
   reporting that AI coding agents skip package verification.
   https://thehackernews.com/2026/07/new-hallusquatting-attack-could-trick.html
 
-## Ecosystem countermoves (position Warden above these, not as a duplicate)
+## Ecosystem countermoves (position WNPM above these, not as a duplicate)
 
 - **npm v12 (est. July 2026): install scripts OFF by default**, git/remote-URL
   deps require `--allow-git`/`--allow-remote`.
@@ -90,7 +90,7 @@ deck; where a source refines the plan's figure, the refined number is noted.
   also `trustPolicy`. Yarn `npmMinimalAgeGate`, Bun `minimumReleaseAge`.
   https://pnpm.io/supply-chain-security
   https://craigory.dev/blog/2026-05-29/package-manager-release-cooldown/
-- Framing: Warden is the **cross-package-manager, agent-aware, verdict-sharing**
+- Framing: WNPM is the **cross-package-manager, agent-aware, verdict-sharing**
   layer above these per-PM cooldowns, and it works on older versions that don't
   have them.
 

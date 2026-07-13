@@ -1,7 +1,7 @@
 /**
  * Minimal in-memory ustar + gzip writer, for building fixture tarballs without
  * shelling to `tar` or touching disk. Produces npm-style `package/`-prefixed
- * gzipped tarballs that @warden/tar reads back.
+ * gzipped tarballs that src/tar.ts reads back.
  */
 
 function octal(n: number, len: number): string {
