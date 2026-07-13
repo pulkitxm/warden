@@ -380,15 +380,15 @@ test("writable HOME local bin receives links and ready message", () =>
     );
   }));
 
-test("no writable on-PATH candidate prints export fallback", () =>
+test("no writable on-PATH candidate still prints the activation instruction", () =>
   inSandbox([], (sandbox) => {
     const missingCandidate = join(sandbox.home, ".local", "bin");
     const result = run(sandbox, [], {
       path: `${missingCandidate}:${sandbox.stubs}:${sandbox.tools}`,
     });
     expect(result.exitCode).toBe(0);
-    expect(output(result)).toContain("to use warden in this shell right now");
-    expect(output(result)).toContain(pathLine);
+    expect(output(result)).toContain("NOT active in this shell yet");
+    expect(output(result)).toContain("exec");
   }));
 
 test("download install verifies with sha256sum and extracts all binaries", () =>
