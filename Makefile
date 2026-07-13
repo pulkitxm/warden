@@ -36,9 +36,13 @@ ci:
 
 docker-build:
 	@docker build -t warden:dev . >/tmp/warden-docker-build.log 2>&1 & pid=$$!; \
-	while kill -0 $$pid 2>/dev/null; do \
-	  for c in '|' '/' '-' '\'; do printf '\rdocker: building warden:dev %s' "$$c"; sleep 0.1; done; \
-	done; \
+	if [ -t 1 ]; then \
+	  while kill -0 $$pid 2>/dev/null; do \
+	    for c in '|' '/' '-' '\'; do printf '\rdocker: building warden:dev %s' "$$c"; sleep 0.1; done; \
+	  done; \
+	else \
+	  printf 'docker: building warden:dev...'; \
+	fi; \
 	wait $$pid && printf '\rdocker: building warden:dev... done\n' \
 	  || { printf '\rdocker: building warden:dev... failed\n'; cat /tmp/warden-docker-build.log; exit 1; }
 
@@ -47,6 +51,6 @@ docker-run: docker-build
 	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash) -v "$$PWD:/work:ro" warden:dev $(ARGS)
 
 docker-install-demo: docker-build
-	@printf 'fresh container; run: sh /app/install.sh\n'
+	@printf 'fresh container; run: sh /app/install.sh   try installs in /play\n'
 	@printf '%s\n' '────────────────────────────────────────'
 	@docker run --rm -it --entrypoint /bin/bash -e WARDEN_INSTALL_SOURCE=/app -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin warden:dev
