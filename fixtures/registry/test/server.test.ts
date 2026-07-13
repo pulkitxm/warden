@@ -13,6 +13,21 @@ test("non-proxy mode 404s unknown downloads and packuments", async () => {
   }
 });
 
+test("OSV endpoint tolerates malformed bodies and unknown packages", async () => {
+  const reg = startMiniRegistry();
+  try {
+    const bad = await realFetch(`${reg.url}/v1/query`, { method: "POST", body: "not json" });
+    expect(await bad.json()).toEqual({});
+    const clean = await realFetch(`${reg.url}/v1/query`, {
+      method: "POST",
+      body: JSON.stringify({ package: { name: "left-pad" } }),
+    });
+    expect(await clean.json()).toEqual({});
+  } finally {
+    reg.stop();
+  }
+});
+
 test("proxy mode forwards unknown names upstream; upstream failure -> 502", async () => {
   globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const url = String(input);
