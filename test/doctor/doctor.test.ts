@@ -94,6 +94,9 @@ test("doctor finds advisories, gates candidate fixes, and verifies plans", async
 
   const gate = Object.fromEntries(report.gate.map((g) => [`${g.name}@${g.version}`, g.verdict]));
   expect(gate).toEqual({
+    "acme-http@1.0.0": "allow",
+    "acme-json@2.1.0": "allow",
+    "left-pad@1.3.0": "allow",
     "acme-http@1.0.1": "block",
     "acme-json@2.1.4": "allow",
     "acme-json@2.2.0": "allow",
@@ -195,7 +198,9 @@ test("doctor reports a clean project with no plans", async () => {
   const report = await runDoctor("/clean", {}, { fs, check: engineCheck });
   expect(report.issues).toEqual([]);
   expect(report.plans).toEqual([]);
-  expect(report.gate).toEqual([]);
+  expect(report.gate.map((g) => `${g.name}@${g.version}=${g.verdict}`)).toEqual([
+    "left-pad@1.3.0=allow",
+  ]);
   expect(report.recommended).toBeUndefined();
 });
 

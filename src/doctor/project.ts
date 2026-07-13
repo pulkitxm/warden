@@ -56,16 +56,13 @@ export function installedVersion(
   name: string,
   fs: ProjectFs = defaultProjectFs,
 ): string | undefined {
-  const fromLock = lockVersion(dir, name, fs);
-  if (fromLock) return fromLock;
   try {
     const pkg = JSON.parse(stripBom(fs.readFile(join(dir, "node_modules", name, "package.json")))) as {
       version?: string;
     };
-    return pkg.version;
-  } catch {
-    return undefined;
-  }
+    if (pkg.version) return pkg.version;
+  } catch {}
+  return lockVersion(dir, name, fs);
 }
 
 export function loadProject(dir: string, fs: ProjectFs = defaultProjectFs): Project {

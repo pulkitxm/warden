@@ -136,6 +136,7 @@ test("scoped package with two advisories: the fix must clear both", async () => 
     { name: "@acme/utils", from: "1.0.0", to: "1.0.2", inRange: true, level: "patch" },
   ]);
   expect(report.gate.map((g) => `${g.name}@${g.version}=${g.verdict}`)).toEqual([
+    "@acme/utils@1.0.0=allow",
     "@acme/utils@1.0.2=allow",
   ]);
   expect(report.recommended).toBe("minimal");
@@ -186,6 +187,25 @@ test("a blocklisted installed version is reported as compromised", async () => {
   const rendered = renderDoctorReport(report);
   expect(rendered).toContain("compromised");
   expect(rendered).toContain("chalk@5.6.1");
+});
+
+test("an installed version the gate blocks is reported compromised even with no advisory against it", async () => {
+  const report = await runDoctor(
+    "/p",
+    { verify: false },
+    { check, fs: project({ "acme-http": "^1.0.0" }, installedAs("acme-http", "1.0.1")) },
+  );
+  expect(report.issues).toHaveLength(1);
+  expect(report.issues[0]).toMatchObject({
+    name: "acme-http",
+    installed: "1.0.1",
+    kind: "compromised",
+    severity: "critical",
+  });
+  expect(report.issues[0]?.summary).toContain("failed the supply-chain gate");
+  expect(report.unfixable).toEqual([
+    { name: "acme-http", reason: "no published version fixes the reported issues" },
+  ]);
 });
 
 test("git, tag, workspace, and file ranges are skipped with notes, not crashes", async () => {

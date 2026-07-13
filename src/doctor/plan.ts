@@ -10,6 +10,7 @@ export interface DepAudit {
   vulns: OsvVuln[];
   deprecated: boolean;
   blocklistId?: string;
+  installedBlocked?: string;
   notes: string[];
 }
 
@@ -45,6 +46,15 @@ export function issuesOf(audit: DepAudit): Issue[] {
       id: audit.blocklistId,
       severity: "critical",
       summary: `installed version is on the known-malware blocklist (${audit.blocklistId})`,
+    });
+  } else if (audit.installedBlocked) {
+    out.push({
+      name: audit.name,
+      group: audit.group,
+      installed: audit.installed,
+      kind: "compromised",
+      severity: "critical",
+      summary: `installed version failed the supply-chain gate: ${audit.installedBlocked}`,
     });
   }
   if (audit.installed) {
