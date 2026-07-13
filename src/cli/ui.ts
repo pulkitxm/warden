@@ -104,7 +104,7 @@ export function renderDoctorReport(r: DoctorReport): string {
 
   if (r.applied) lines.push(c("32", "  recommended plan applied to package.json"), "");
   else if (r.recommended)
-    lines.push(dim("  apply the recommended plan with: wnpm doctor --apply"), "");
+    lines.push(dim("  run wnpm doctor without --no-apply to apply the recommended plan"), "");
 
   return lines.join("\n");
 }

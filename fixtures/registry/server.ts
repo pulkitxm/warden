@@ -83,13 +83,13 @@ async function proxyTo(url: string): Promise<Response> {
 }
 
 export function main(
-  port = 4873,
+  port = 0,
   write: (s: string) => unknown = process.stderr.write.bind(process.stderr),
 ): MiniRegistry {
   const reg = startMiniRegistry(port);
   write(`mini-registry on ${reg.url}\n`);
   write(
-    `  WNPM_REGISTRY=${reg.url} WNPM_DOWNLOADS=${reg.downloadsUrl} WNPM_OSV=${reg.url} wnpx lodahs --json\n`,
+    `  export WNPM_REGISTRY=${reg.url}\n  export WNPM_DOWNLOADS=${reg.downloadsUrl}\n  export WNPM_OSV=${reg.url}\n`,
   );
   return reg;
 }

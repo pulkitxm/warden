@@ -25,7 +25,7 @@ project manifest and lockfile
   -> verdict-engine gate on every candidate (src/engine.ts)
   -> minimal and latest plans
   -> isolated-workspace verification: install + project test/typecheck/build (src/doctor/verify.ts)
-  -> report, optional --apply with exact pinned versions
+  -> report, then applies exact pinned versions by default (--no-apply for report only)
 ```
 
 The gate is the connective tissue: an advisory may name a fixed version, but the fix is only recommended if that release also clears the supply-chain verdict. Applied fixes are pinned to the exact version that passed verification so the installed state cannot drift from the verified state.

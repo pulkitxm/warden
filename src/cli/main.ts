@@ -47,19 +47,20 @@ function directDeps(deps: RunDeps): string[] {
 }
 
 async function runDoctorCommand(
-  values: { json?: boolean; apply?: boolean; "no-verify"?: boolean; dir?: string },
+  values: { json?: boolean; "no-apply"?: boolean; dir?: string },
   deps: RunDeps,
 ): Promise<number> {
   return guarded("wnpm doctor", deps, async () => {
     const doctor = deps.doctor ?? runDoctor;
     const report = await doctor(values.dir ?? ".", {
-      verify: !values["no-verify"],
-      apply: Boolean(values.apply),
+      apply: !values["no-apply"],
     });
     if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
     else deps.stderr(renderDoctorReport(report));
-    if (!report.issues.length || report.applied) return 0;
-    return EXIT.warn;
+    if (!report.issues.length) return 0;
+    const plan = report.plans.find((p) => p.id === report.recommended);
+    const fixed = new Set(report.applied ? (plan?.changes ?? []).map((c) => c.name) : []);
+    return report.issues.every((i) => fixed.has(i.name)) ? 0 : EXIT.warn;
   });
 }
 
@@ -79,15 +80,14 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     options: {
       json: { type: "boolean" },
       "allow-risky": { type: "boolean" },
-      apply: { type: "boolean" },
-      "no-verify": { type: "boolean" },
+      "no-apply": { type: "boolean" },
       dir: { type: "string" },
     },
     allowPositionals: true,
   });
   if (!parsed) {
     deps.stderr(
-      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-verify] [--apply]\n",
+      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply]\n",
     );
     return 2;
   }
