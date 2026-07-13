@@ -16,6 +16,7 @@ import {
 import { loadProject, type ProjectDependency, type ProjectFs } from "./project.ts";
 import {
   applyPlan,
+  availablePm,
   defaultVerifyDeps,
   type StepResult,
   type VerifyDeps,
@@ -195,8 +196,12 @@ export async function runDoctor(
   }
 
   let recommended: string | undefined;
+  const pm = availablePm(project, verifier);
   if (plans.length) {
     if (opts.verify === false) {
+      recommended = plans[0]?.id;
+    } else if (!pm) {
+      notes.push("no package manager (bun or npm) found on PATH; verification skipped");
       recommended = plans[0]?.id;
     } else {
       for (const plan of plans) {
@@ -210,7 +215,12 @@ export async function runDoctor(
   let applied: boolean | undefined;
   const recommendedPlan = plans.find((p) => p.id === recommended);
   if (opts.apply && recommendedPlan) {
-    applied = applyPlan(project, recommendedPlan.changes, verifier).applied;
+    if (pm) {
+      applied = applyPlan(project, recommendedPlan.changes, verifier).applied;
+    } else {
+      applied = false;
+      notes.push("cannot apply: no package manager (bun or npm) found on PATH");
+    }
   }
 
   return {

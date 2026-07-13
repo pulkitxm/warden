@@ -11,6 +11,10 @@ export const defaultProjectFs: ProjectFs = {
   exists: (path) => existsSync(path),
 };
 
+export function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
 export interface ProjectDependency {
   name: string;
   range: string;
@@ -40,7 +44,7 @@ interface LockFile {
 
 function lockVersion(dir: string, name: string, fs: ProjectFs): string | undefined {
   try {
-    const lock = JSON.parse(fs.readFile(join(dir, "package-lock.json"))) as LockFile;
+    const lock = JSON.parse(stripBom(fs.readFile(join(dir, "package-lock.json")))) as LockFile;
     return lock.packages?.[`node_modules/${name}`]?.version ?? lock.dependencies?.[name]?.version;
   } catch {
     return undefined;
@@ -55,7 +59,7 @@ export function installedVersion(
   const fromLock = lockVersion(dir, name, fs);
   if (fromLock) return fromLock;
   try {
-    const pkg = JSON.parse(fs.readFile(join(dir, "node_modules", name, "package.json"))) as {
+    const pkg = JSON.parse(stripBom(fs.readFile(join(dir, "node_modules", name, "package.json")))) as {
       version?: string;
     };
     return pkg.version;
@@ -67,7 +71,7 @@ export function installedVersion(
 export function loadProject(dir: string, fs: ProjectFs = defaultProjectFs): Project {
   let pkg: PackageJson;
   try {
-    pkg = JSON.parse(fs.readFile(join(dir, "package.json"))) as PackageJson;
+    pkg = JSON.parse(stripBom(fs.readFile(join(dir, "package.json")))) as PackageJson;
   } catch (e) {
     throw new Error(`could not read package.json in "${dir}": ${(e as Error).message}`);
   }

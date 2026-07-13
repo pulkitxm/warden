@@ -35,7 +35,7 @@ interface FakeVerifier {
   written: Record<string, string>;
 }
 
-function fakeVerifier(pkgJson: string, exitCode = 0): FakeVerifier {
+function fakeVerifier(pkgJson: string, exitCode = 0, available: string[] = ["npm"]): FakeVerifier {
   const calls: Array<{ cmd: string[]; cwd: string }> = [];
   const written: Record<string, string> = {};
   let tick = 0;
@@ -52,7 +52,7 @@ function fakeVerifier(pkgJson: string, exitCode = 0): FakeVerifier {
       writeFile: (path, content) => {
         written[path] = content;
       },
-      which: () => null,
+      which: (cmd) => (available.includes(cmd) ? `/bin/${cmd}` : null),
       now: () => tick++,
     },
   };
@@ -139,6 +139,37 @@ test("doctor recommends nothing when every plan fails verification", async () =>
   expect(report.recommended).toBeUndefined();
   expect(report.applied).toBeUndefined();
   expect(report.plans.every((p) => p.verification?.passed === false)).toBe(true);
+});
+
+test("doctor degrades to an unverified report when no package manager exists", async () => {
+  const verifier = fakeVerifier(fixturePkgJson, 0, []);
+  const report = await runDoctor(
+    doctorProject,
+    {},
+    { check: engineCheck, verifier: verifier.deps },
+  );
+  expect(report.recommended).toBe("minimal");
+  expect(report.plans[0]?.verification).toBeUndefined();
+  expect(verifier.calls).toEqual([]);
+  expect(report.notes).toEqual([
+    "no package manager (bun or npm) found on PATH; verification skipped",
+  ]);
+});
+
+test("doctor --apply refuses and explains when no package manager exists", async () => {
+  const verifier = fakeVerifier(fixturePkgJson, 0, []);
+  const report = await runDoctor(
+    doctorProject,
+    { apply: true },
+    { check: engineCheck, verifier: verifier.deps },
+  );
+  expect(report.applied).toBe(false);
+  expect(verifier.calls).toEqual([]);
+  expect(verifier.written).toEqual({});
+  expect(report.notes).toEqual([
+    "no package manager (bun or npm) found on PATH; verification skipped",
+    "cannot apply: no package manager (bun or npm) found on PATH",
+  ]);
 });
 
 test("doctor --apply rewrites the project manifest after a verified plan", async () => {
