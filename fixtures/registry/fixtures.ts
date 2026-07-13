@@ -1,4 +1,5 @@
 import { computeIntegrity } from "../../src/integrity.ts";
+import type { OsvVuln } from "../../src/vuln.ts";
 import { type FixtureFile, makeTgz } from "./tarWriter.ts";
 
 export interface FixtureVersion {
@@ -72,6 +73,49 @@ export const FIXTURES: FixturePackage[] = [
     },
   },
   {
+    name: "acme-json",
+    downloads: 3_500_000,
+    latest: "2.2.0",
+    versions: {
+      "2.1.0": {
+        files: [
+          pkgJson("acme-json", "2.1.0"),
+          {
+            path: "index.js",
+            content: "module.exports={parse:JSON.parse,stringify:JSON.stringify};",
+          },
+        ],
+        maintainer: { name: "acme-json-team", email: "team@acme.dev" },
+        provenance: true,
+        ageHours: 4320,
+      },
+      "2.1.4": {
+        files: [
+          pkgJson("acme-json", "2.1.4"),
+          {
+            path: "index.js",
+            content: "module.exports={parse:JSON.parse,stringify:JSON.stringify};",
+          },
+        ],
+        maintainer: { name: "acme-json-team", email: "team@acme.dev" },
+        provenance: true,
+        ageHours: 720,
+      },
+      "2.2.0": {
+        files: [
+          pkgJson("acme-json", "2.2.0"),
+          {
+            path: "index.js",
+            content: "module.exports={parse:JSON.parse,stringify:JSON.stringify,safe:true};",
+          },
+        ],
+        maintainer: { name: "acme-json-team", email: "team@acme.dev" },
+        provenance: true,
+        ageHours: 240,
+      },
+    },
+  },
+  {
     name: "acme-http",
     downloads: 2_000_000,
     latest: "1.0.1",
@@ -103,6 +147,53 @@ export const FIXTURES: FixturePackage[] = [
     },
   },
 ];
+
+export interface FixtureVuln {
+  id: string;
+  package: string;
+  summary: string;
+  severity: string;
+  introduced: string;
+  fixed?: string;
+}
+
+export const VULN_FIXTURES: FixtureVuln[] = [
+  {
+    id: "GHSA-ACME-HTTP-0001",
+    package: "acme-http",
+    summary: "acme-http request smuggling via keep-alive header handling",
+    severity: "critical",
+    introduced: "0",
+    fixed: "1.0.1",
+  },
+  {
+    id: "GHSA-ACME-JSON-0001",
+    package: "acme-json",
+    summary: "acme-json prototype pollution through __proto__ keys",
+    severity: "high",
+    introduced: "2.0.0",
+    fixed: "2.1.4",
+  },
+];
+
+export function osvRecord(v: FixtureVuln): OsvVuln {
+  return {
+    id: v.id,
+    summary: v.summary,
+    database_specific: { severity: v.severity },
+    affected: [
+      {
+        package: { ecosystem: "npm", name: v.package },
+        ranges: [
+          {
+            type: "SEMVER",
+            events: [{ introduced: v.introduced }, ...(v.fixed ? [{ fixed: v.fixed }] : [])],
+          },
+        ],
+      },
+    ],
+  };
+}
 
 export interface Materialized {
   packuments: Record<string, unknown>;

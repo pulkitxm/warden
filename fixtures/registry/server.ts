@@ -1,4 +1,11 @@
-import { FIXTURES, type FixturePackage, materialize } from "./fixtures.ts";
+import {
+  FIXTURES,
+  type FixturePackage,
+  type FixtureVuln,
+  materialize,
+  osvRecord,
+  VULN_FIXTURES,
+} from "./fixtures.ts";
 
 export interface MiniRegistry {
   url: string;
@@ -8,6 +15,7 @@ export interface MiniRegistry {
 
 export interface MiniRegistryOptions {
   fixtures?: FixturePackage[];
+  vulns?: FixtureVuln[];
   only?: boolean;
   proxy?: boolean;
 }
@@ -17,12 +25,20 @@ const REAL_DOWNLOADS = "https://api.npmjs.org/downloads/point/last-week";
 
 export function startMiniRegistry(port = 0, opts: MiniRegistryOptions = {}): MiniRegistry {
   const packages = opts.only ? (opts.fixtures ?? []) : [...FIXTURES, ...(opts.fixtures ?? [])];
+  const vulns = opts.only ? (opts.vulns ?? []) : [...VULN_FIXTURES, ...(opts.vulns ?? [])];
   const server = Bun.serve({
     port,
     async fetch(req) {
       const base = `http://localhost:${server.port}`;
       const { packuments, tarballs, downloads } = materialize(base, packages);
       const path = decodeURIComponent(new URL(req.url).pathname);
+
+      if (req.method === "POST" && path === "/v1/query") {
+        const body = (await req.json().catch(() => ({}))) as { package?: { name?: string } };
+        const name = body.package?.name;
+        const hits = vulns.filter((v) => v.package === name).map(osvRecord);
+        return Response.json(hits.length ? { vulns: hits } : {});
+      }
 
       const dl = path.match(/^\/downloads\/point\/last-week\/(.+)$/);
       if (dl) {
@@ -72,7 +88,9 @@ export function main(
 ): MiniRegistry {
   const reg = startMiniRegistry(port);
   write(`mini-registry on ${reg.url}\n`);
-  write(`  WNPM_REGISTRY=${reg.url} WNPM_DOWNLOADS=${reg.downloadsUrl} wnpx lodahs --json\n`);
+  write(
+    `  WNPM_REGISTRY=${reg.url} WNPM_DOWNLOADS=${reg.downloadsUrl} WNPM_OSV=${reg.url} wnpx lodahs --json\n`,
+  );
   return reg;
 }
 
