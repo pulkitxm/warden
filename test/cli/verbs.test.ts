@@ -354,7 +354,12 @@ test("ci has a no-change fast path, honors failOn warn, and envelopes git errors
   await inTemp(async (root) => {
     gitRepo(root, { dependencies: { keep: "1.0.0" } });
     let checks = 0;
-    const state = makeDeps(root, { check: async (spec) => (checks++, verdict(spec)) });
+    const state = makeDeps(root, {
+      check: async (spec) => {
+        checks++;
+        return verdict(spec);
+      },
+    });
     expect(await runWarden(["ci", "--reporter", "json"], state.deps)).toBe(0);
     expect(JSON.parse(state.out[0]!)).toEqual([]);
     expect(checks).toBe(0);

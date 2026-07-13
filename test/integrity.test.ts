@@ -11,7 +11,7 @@ import {
 const data = new TextEncoder().encode("hello wnpm");
 
 test("compute matches node:crypto reference (sha512)", () => {
-  const ref = "sha512-" + createHash("sha512").update(data).digest("base64");
+  const ref = `sha512-${createHash("sha512").update(data).digest("base64")}`;
   expect(computeIntegrity(data)).toBe(ref);
 });
 

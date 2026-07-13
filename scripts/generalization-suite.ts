@@ -154,7 +154,7 @@ async function main() {
       } else tn++;
     }
   }
-  const pct = (n: number, d: number) => (d ? ((100 * n) / d).toFixed(0) + "%" : "n/a");
+  const pct = (n: number, d: number) => (d ? `${((100 * n) / d).toFixed(0)}%` : "n/a");
 
   const L: string[] = [];
   L.push("# WNPM — Generalization Pressure-Test (fresh, untuned batch)\n");

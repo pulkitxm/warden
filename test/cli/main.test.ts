@@ -300,7 +300,12 @@ test("wnpm via bun omits --ignore-scripts (bun disables scripts by default)", as
 
 test("wnpm falls back to npm when no manager is on PATH, propagating its exit code", async () => {
   const calls: string[][] = [];
-  const { deps } = makeDeps({ spawn: (cmd) => (calls.push(cmd), 7) });
+  const { deps } = makeDeps({
+    spawn: (cmd) => {
+      calls.push(cmd);
+      return 7;
+    },
+  });
   expect(await runWnpm(["i", "left-pad"], deps)).toBe(7);
   expect(calls).toEqual([["npm", "install", "--ignore-scripts", "left-pad"]]);
 });
