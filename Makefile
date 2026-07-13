@@ -44,6 +44,6 @@ docker-run: docker-build
 	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash -e SHELL=/bin/bash) -v "$$PWD:/work:ro" warden:dev $(if $(ARGS),$(ARGS),-c 'WARDEN_INSTALL_SOURCE=/app sh /app/install.sh </dev/null >/dev/null 2>&1 || { echo "warden setup failed; rerun: sh /app/install.sh"; }; exec bash')
 
 docker-install-demo: docker-build
-	@printf 'fresh container; run: sh /app/install.sh, then exec bash   try installs in /play\n'
+	@printf 'fresh container; run: sh /app/install.sh, then: source ~/.bashrc   try installs in /play\n'
 	@printf '%s\n' '────────────────────────────────────────'
 	@docker run --rm -it --entrypoint /bin/bash -e SHELL=/bin/bash -e WARDEN_INSTALL_SOURCE=/app -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin warden:dev
