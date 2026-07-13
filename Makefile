@@ -47,8 +47,9 @@ docker-build:
 	  || { printf '\rdocker: building warden:dev... failed\n'; cat /tmp/warden-docker-build.log; exit 1; }
 
 docker-run: docker-build
+	$(if $(ARGS),,@printf 'warden preinstalled: shims intercept npm/bun/npx, completions active   repo read-only at /work, try installs in /play\n')
 	@printf '%s\n' '────────────────────────────────────────'
-	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash) -v "$$PWD:/work:ro" warden:dev $(ARGS)
+	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash -e SHELL=/bin/bash) -v "$$PWD:/work:ro" warden:dev $(if $(ARGS),$(ARGS),-c 'WARDEN_INSTALL_SOURCE=/app sh /app/install.sh </dev/null >/dev/null 2>&1 || { echo "warden setup failed; rerun: sh /app/install.sh"; }; exec bash')
 
 docker-install-demo: docker-build
 	@printf 'fresh container; run: sh /app/install.sh   try installs in /play\n'
