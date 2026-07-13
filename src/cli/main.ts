@@ -872,11 +872,20 @@ async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> 
   }
 }
 
-function gitResult(deps: WardenDeps, root: string, args: string[]): string {
+export function gitResult(deps: WardenDeps, root: string, args: string[]): string {
   const result = deps.git(args, root);
   if (result.exitCode !== 0)
     throw new Error(result.stderr.trim() || `git ${args.join(" ")} failed`);
   return result.stdout.trim();
+}
+
+export function resolveMergeBase(deps: WardenDeps, root: string, base?: string): string {
+  if (base) return gitResult(deps, root, ["merge-base", "HEAD", base]);
+  for (const candidate of ["origin/main", "main"]) {
+    const result = deps.git(["merge-base", "HEAD", candidate], root);
+    if (result.exitCode === 0) return result.stdout.trim();
+  }
+  throw new Error("neither origin/main nor main is available");
 }
 
 function dependencyMap(pkg: PackageJson): Record<string, string> {
@@ -936,21 +945,7 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
       throw new Error(`invalid reporter "${values.reporter}"`);
     const root = deps.cwd();
     gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
-    let selectedBase = values.base;
-    let mergeBase = "";
-    if (selectedBase) {
-      mergeBase = gitResult(deps, root, ["merge-base", "HEAD", selectedBase]);
-    } else {
-      for (const candidate of ["origin/main", "main"]) {
-        const result = deps.git(["merge-base", "HEAD", candidate], root);
-        if (result.exitCode === 0) {
-          selectedBase = candidate;
-          mergeBase = result.stdout.trim();
-          break;
-        }
-      }
-      if (!mergeBase) throw new Error("neither origin/main nor main is available");
-    }
+    const mergeBase = resolveMergeBase(deps, root, values.base);
     const files = gitResult(deps, root, ["diff", "--name-only", mergeBase])
       .split("\n")
       .filter((file) => file === "package.json" || file.endsWith("/package.json"));

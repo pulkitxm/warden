@@ -1,9 +1,11 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { type WardenDeps, wardenFailure } from "../cli/main.ts";
+import { gitResult, resolveMergeBase, type WardenDeps, wardenFailure } from "../cli/main.ts";
 import { EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
+import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
 import { extractClaims } from "./extract.ts";
-import type { IntentLedger } from "./types.ts";
+import { findHallucinations } from "./symbols.ts";
+import type { ClassifiedHunk, FileDiff, HallucinationFinding, IntentLedger } from "./types.ts";
 
 export interface IntentFlags {
   verb: string;
@@ -61,12 +63,68 @@ async function runIntentExtract(flags: IntentFlags, deps: WardenDeps): Promise<n
   return EXIT.allow;
 }
 
+interface DiffContext {
+  root: string;
+  mergeBase: string;
+  diffs: FileDiff[];
+  hunks: ClassifiedHunk[];
+}
+
+function collectDiff(flags: IntentFlags, deps: WardenDeps): DiffContext {
+  const root = deps.cwd();
+  gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
+  const mergeBase = resolveMergeBase(deps, root, flags.base);
+  const diffText = gitResult(deps, root, ["diff", mergeBase]);
+  const diffs = parseUnifiedDiff(diffText);
+  const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
+  return { root, mergeBase, diffs, hunks };
+}
+
+function renderHunks(hunks: ClassifiedHunk[]): string {
+  if (!hunks.length) return "no hunks in the diff\n";
+  const rows = hunks.map(
+    (hunk) =>
+      `  ${hunk.id}  ${hunk.file}:${hunk.lineStart}-${hunk.lineEnd}  ${hunk.category}  ${hunk.symbols.join(", ")}`,
+  );
+  return `classified hunks (${hunks.length}):\n${rows.join("\n")}\n`;
+}
+
+function runIntentDiff(flags: IntentFlags, deps: WardenDeps): number {
+  const context = collectDiff(flags, deps);
+  if (flags.json) deps.stdout(`${JSON.stringify(context.hunks)}\n`);
+  deps.stderr(renderHunks(context.hunks));
+  return EXIT.allow;
+}
+
+function scanHallucinations(context: DiffContext, deps: WardenDeps): HallucinationFinding[] {
+  const files = symbolScanFiles(context.diffs, (path) => deps.readFile(join(context.root, path)));
+  return findHallucinations(files, context.root, { readFile: deps.readFile });
+}
+
+function renderFindings(findings: HallucinationFinding[]): string {
+  if (!findings.length) return "no hallucinated apis found\n";
+  const rows = findings.map(
+    (finding) => `  🚨 ${finding.file}:${finding.line}  ${finding.symbol}\n     ${finding.proof}`,
+  );
+  return `hallucinated apis (${findings.length}):\n${rows.join("\n")}\n`;
+}
+
+function runIntentSymbols(flags: IntentFlags, deps: WardenDeps): number {
+  const context = collectDiff(flags, deps);
+  const findings = scanHallucinations(context, deps);
+  if (flags.json) deps.stdout(`${JSON.stringify(findings)}\n`);
+  deps.stderr(renderFindings(findings));
+  return findings.length ? EXIT.block : EXIT.allow;
+}
+
 const INTENT_VERBS: Record<
   string,
   (flags: IntentFlags, deps: WardenDeps) => number | Promise<number>
 > = {
   schema: runIntentSchema,
   extract: runIntentExtract,
+  diff: runIntentDiff,
+  symbols: runIntentSymbols,
 };
 
 export async function runWardenIntent(argv: string[], deps: WardenDeps): Promise<number> {
