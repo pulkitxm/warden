@@ -69,11 +69,18 @@ export function requestBody(provider: Provider, request: LlmJsonRequest): Record
     { role: "user", content: request.user },
   ];
   if (provider.name === "ollama") {
-    return { model: provider.model, messages, stream: false, format: request.schema };
+    return {
+      model: provider.model,
+      messages,
+      stream: false,
+      format: request.schema,
+      options: { temperature: 0 },
+    };
   }
   return {
     model: provider.model,
     messages,
+    temperature: 0,
     response_format: {
       type: "json_schema",
       json_schema: { name: request.schemaName, strict: true, schema: request.schema },

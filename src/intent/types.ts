@@ -55,6 +55,7 @@ export interface ClassifiedHunk {
   symbols: string[];
   imports: string[];
   addedLines: number;
+  excerpt: string;
 }
 
 export interface ApiSurface {

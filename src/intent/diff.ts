@@ -278,6 +278,7 @@ export function classifyHunks(
         symbols,
         imports: importSpecs([...added, ...removed]),
         addedLines: added.length,
+        excerpt: added.join("\n").slice(0, 1500),
       });
     }
   }

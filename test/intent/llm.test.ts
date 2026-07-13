@@ -85,6 +85,7 @@ test("requestBody shapes ollama native and openai-compatible payloads", () => {
     ],
     stream: false,
     format: { type: "object" },
+    options: { temperature: 0 },
   });
   const groq = resolveProvider({ GROQ_API_KEY: "g" });
   const body = requestBody(groq, REQUEST) as {

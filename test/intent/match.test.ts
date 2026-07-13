@@ -52,6 +52,7 @@ function hunk(id: string, over: Partial<ClassifiedHunk> = {}): ClassifiedHunk {
     symbols: ["fetchPage"],
     imports: [],
     addedLines: 10,
+    excerpt: "function fetchPage(url) {",
     ...over,
   };
 }

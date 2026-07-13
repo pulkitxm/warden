@@ -165,7 +165,7 @@ const MATCH_SYSTEM = [
   "You match requirement claims to code-change hunks. For each claim decide delivered",
   "(the cited hunks implement it), partial (some evidence but incomplete), or dropped",
   "(no hunk implements it). Cite only hunk ids from the provided list. Judge only from",
-  "the summaries provided; never assume unlisted changes exist.",
+  "the summaries and excerpts provided; never assume unlisted changes exist.",
 ].join(" ");
 
 export async function llmPass(
@@ -175,7 +175,13 @@ export async function llmPass(
   if (!claims.length) return { proposals: [], failed: false };
   const user = JSON.stringify({
     claims: claims.map(({ id, claim }) => ({ id, claim })),
-    hunks: hunks.map(({ id, file, summary, symbols }) => ({ id, file, summary, symbols })),
+    hunks: hunks.map(({ id, file, summary, symbols, excerpt }) => ({
+      id,
+      file,
+      summary,
+      symbols,
+      excerpt,
+    })),
   });
   try {
     const proposals = await completeJson(
