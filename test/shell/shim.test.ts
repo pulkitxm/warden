@@ -39,7 +39,10 @@ exit 0
 `;
   const wardenStub = `#!/bin/sh
 for arg in "$@"; do printf '%s\n' "$arg" >> "$WARDEN_LOG"; done
-printf '{"verdict":"%s"}\n' "\${WARDEN_VERDICT:-allow}"
+case " $* " in
+  *" --json "*) printf '{"schema_version":"1.0.0","verdict":"%s"}\n' "\${WARDEN_VERDICT:-allow}" ;;
+  *) printf 'HUMAN VERDICT %s\n' "\${WARDEN_VERDICT:-allow}" >&2 ;;
+esac
 exit "\${WARDEN_EXIT:-0}"
 `;
   for (const manager of managers) {
@@ -120,7 +123,9 @@ test("npm install block exits 20 without invoking npm", () =>
       WARDEN_VERDICT: "block",
     });
     expect(result.exitCode).toBe(20);
-    expect(text(result.stderr)).toContain('"verdict":"block"');
+    expect(text(result.stderr)).toContain("HUMAN VERDICT block");
+    expect(text(result.stderr)).toContain("warden: blocked danger; override with --allow-risky");
+    expect(text(result.stderr)).not.toContain("schema_version");
     expect(log(sandbox.managerLog)).toBe("");
   }));
 
@@ -141,7 +146,8 @@ test("warn verdict prints the verdict and proceeds", () =>
       WARDEN_VERDICT: "warn",
     });
     expect(result.exitCode).toBe(0);
-    expect(text(result.stderr)).toContain('"verdict":"warn"');
+    expect(text(result.stderr)).toContain("HUMAN VERDICT warn");
+    expect(text(result.stderr)).not.toContain("schema_version");
     expect(log(sandbox.managerLog)).toBe("npm\tinstall\tuncertain\n");
   }));
 
@@ -303,7 +309,7 @@ exit "\${WARDEN_EXIT:-0}"
     expect(text(warning.stderr)).toBe("");
     const block = run(sandbox, "npm", ["install", "block"], { WARDEN_EXIT: "20" });
     expect(block.exitCode).toBe(20);
-    expect(text(block.stderr)).toBe("");
+    expect(text(block.stderr)).toContain("warden: blocked block; override with --allow-risky");
   }));
 
 test("log mode records every verdict and never blocks the manager", () =>
@@ -318,6 +324,8 @@ test("log mode records every verdict and never blocks the manager", () =>
     });
     expect(result.exitCode).toBe(0);
     expect(text(result.stderr)).toBe("");
-    expect(log(join(sandbox.home, ".warden", "log.jsonl"))).toBe('{"verdict":"block"}\n');
+    expect(log(join(sandbox.home, ".warden", "log.jsonl"))).toBe(
+      '{"schema_version":"1.0.0","verdict":"block"}\n',
+    );
     expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\n");
   }));

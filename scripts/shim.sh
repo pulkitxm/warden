@@ -61,11 +61,24 @@ vet_one() {
     return 0
   fi
   if [ "$status" -ge 20 ]; then
-    [ -n "$result" ] && printf '%s\n' "$result" >&2
+    if [ "$status" -eq 20 ]; then
+      if [ "$allow_risky" = true ]; then
+        "$warden" check "$spec" --allow-risky >/dev/null
+      else
+        "$warden" check "$spec" >/dev/null
+      fi
+      printf 'warden: blocked %s; override with --allow-risky\n' "$spec" >&2
+    else
+      [ -n "$result" ] && printf '%s\n' "$result" >&2
+    fi
     exit "$status"
   fi
   if [ "$status" -eq 10 ]; then
-    [ -n "$result" ] && printf '%s\n' "$result" >&2
+    if [ "$allow_risky" = true ]; then
+      "$warden" check "$spec" --allow-risky >/dev/null
+    else
+      "$warden" check "$spec" >/dev/null
+    fi
   fi
 }
 
