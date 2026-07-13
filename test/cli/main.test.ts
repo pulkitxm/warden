@@ -1,18 +1,18 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
-import { defaultDeps, type RunDeps, runWnpm, runWnpx } from "../../src/cli/main.ts";
+import {
+  defaultDeps,
+  defaultWardenDeps,
+  type RunDeps,
+  runWarden,
+  runWnpm,
+  runWnpx,
+  type WardenDeps,
+} from "../../src/cli/main.ts";
 import { SCHEMA_VERSION, type Verdict } from "../../src/schema.ts";
-
-let reg: MiniRegistry;
-
-beforeAll(() => {
-  reg = startMiniRegistry(0, { only: true, fixtures: [] });
-  process.env.WNPM_REGISTRY = reg.url;
-  process.env.WNPM_DOWNLOADS = reg.downloadsUrl;
-  delete process.env.OPENAI_API_KEY;
-});
-afterAll(() => reg.stop());
 
 const strip = (s: string) =>
   s.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), "");
@@ -52,6 +52,136 @@ function makeDeps(over: Partial<RunDeps> = {}) {
   };
   return { deps, out, err, spawns };
 }
+
+function makeWardenDeps(over: Partial<WardenDeps> = {}) {
+  const base = makeDeps();
+  const files = new Map<string, string>();
+  const deps: WardenDeps = {
+    ...base.deps,
+    home: "/home/test",
+    mkdir: () => undefined,
+    readFile: (path) => {
+      const value = files.get(path);
+      if (value === undefined) throw new Error("ENOENT");
+      return value;
+    },
+    writeFile: (path, data) => files.set(path, data),
+    ...over,
+  };
+  return { ...base, deps, files };
+}
+
+test("warden dispatches top-level and per-verb help", async () => {
+  const root = makeWardenDeps();
+  expect(await runWarden(["--help"], root.deps)).toBe(0);
+  expect(root.err.join("")).toContain("usage: warden <verb> [flags]");
+
+  const check = makeWardenDeps();
+  expect(await runWarden(["check", "--help"], check.deps)).toBe(0);
+  expect(check.err.join("")).toContain("exit codes: 0 allow · 10 warn · 20 block · 30 error");
+
+  const config = makeWardenDeps();
+  expect(await runWarden(["config", "--help"], config.deps)).toBe(0);
+  expect(config.err.join("")).toContain("usage: warden config");
+});
+
+test("warden check emits one object or an ordered array and stable exit codes", async () => {
+  const levels: Record<string, Verdict["verdict"]> = {
+    clean: "allow",
+    uncertain: "warn",
+    risky: "block",
+  };
+  const one = makeWardenDeps({
+    check: (spec) => Promise.resolve(verdict({ package: spec, verdict: levels[spec]! })),
+  });
+  expect(await runWarden(["check", "risky", "--json"], one.deps)).toBe(20);
+  expect((JSON.parse(one.out[0]!) as Verdict).package).toBe("risky");
+
+  const many = makeWardenDeps({
+    check: (spec) => Promise.resolve(verdict({ package: spec, verdict: levels[spec]! })),
+  });
+  expect(await runWarden(["check", "clean", "uncertain", "--json"], many.deps)).toBe(10);
+  expect((JSON.parse(many.out[0]!) as Verdict[]).map((item) => item.package)).toEqual([
+    "clean",
+    "uncertain",
+  ]);
+
+  const override = makeWardenDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block" })),
+  });
+  expect(await runWarden(["check", "risky", "--allow-risky"], override.deps)).toBe(10);
+
+  const human = makeWardenDeps();
+  expect(await runWarden(["check", "one", "two"], human.deps)).toBe(0);
+  expect(human.err.join("")).toContain("ALLOW one@1.0.0");
+});
+
+test("warden failures use typed JSON error envelopes and exit 30", async () => {
+  const unknown = makeWardenDeps();
+  expect(await runWarden(["missing", "--json"], unknown.deps)).toBe(30);
+  expect(JSON.parse(unknown.out[0]!)).toEqual({
+    error: {
+      kind: "usage",
+      code: "WARDEN_UNKNOWN_VERB",
+      reason: 'unknown verb "missing"',
+      hint: "run warden --help",
+    },
+  });
+
+  const failed = makeWardenDeps({ check: () => Promise.reject(new Error("registry down")) });
+  expect(await runWarden(["check", "demo", "--json"], failed.deps)).toBe(30);
+  expect(JSON.parse(failed.out[0]!).error.kind).toBe("analysis");
+
+  const missing = makeWardenDeps();
+  expect(await runWarden(["check", "--json"], missing.deps)).toBe(30);
+  expect(JSON.parse(missing.out[0]!).error.code).toBe("WARDEN_MISSING_PACKAGE");
+});
+
+test("warden config reads and writes through injected dependencies", async () => {
+  const state = makeWardenDeps();
+  expect(await runWarden(["config", "--json"], state.deps)).toBe(0);
+  expect(JSON.parse(state.out[0]!)).toEqual({
+    mode: "brief",
+    intercept: { install: true, exec: true },
+  });
+
+  expect(await runWarden(["config", "intercept", "off"], state.deps)).toBe(0);
+  expect(JSON.parse(state.files.get("/home/test/.warden/config.json")!)).toEqual({
+    mode: "brief",
+    intercept: { install: false, exec: false },
+  });
+
+  expect(await runWarden(["config", "intercept", "install", "on"], state.deps)).toBe(0);
+  expect(await runWarden(["config", "mode", "log"], state.deps)).toBe(0);
+  expect(JSON.parse(state.files.get("/home/test/.warden/config.json")!)).toEqual({
+    mode: "log",
+    intercept: { install: true, exec: false },
+  });
+
+  const human = makeWardenDeps();
+  expect(await runWarden(["config"], human.deps)).toBe(0);
+  expect(human.err.join("")).toContain('"mode": "brief"');
+});
+
+test("warden config rejects invalid files and settings", async () => {
+  const invalidFile = makeWardenDeps({ readFile: () => "{}" });
+  expect(await runWarden(["config", "--json"], invalidFile.deps)).toBe(30);
+  expect(JSON.parse(invalidFile.out[0]!).error.reason).toBe("invalid user config");
+
+  for (const args of [["mode", "nope"], ["intercept", "maybe"], ["unknown"]]) {
+    const state = makeWardenDeps();
+    expect(await runWarden(["config", ...args, "--json"], state.deps)).toBe(30);
+    expect(JSON.parse(state.out[0]!).error.kind).toBe("config");
+  }
+});
+
+test("default warden config dependencies create directories", () => {
+  const root = mkdtempSync(join(tmpdir(), "warden-config-"));
+  const nested = join(root, "nested");
+  defaultWardenDeps.mkdir(nested);
+  expect(existsSync(nested)).toBe(true);
+  rmSync(root, { recursive: true });
+});
 
 test("wnpx --schema prints the JSON schema on stdout and exits 0", async () => {
   const { deps, out, err } = makeDeps();
