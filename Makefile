@@ -1,4 +1,4 @@
-.PHONY: install build test typecheck ci ci-comments ci-format docker-build docker-run docker-install-demo
+.PHONY: install build test test-shell typecheck ci ci-comments ci-format docker-build docker-run docker-install-demo
 
 install:
 	bun install
@@ -9,6 +9,9 @@ build:
 
 test:
 	bun test
+
+test-shell:
+	bun test test/shell/
 
 typecheck:
 	bun run typecheck
