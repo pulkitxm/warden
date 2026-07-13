@@ -1,4 +1,4 @@
-# WNPM — Demo Runbook (3 minutes)
+# WNPM — Demo Runbook (4 minutes)
 
 Runs fully offline against the in-repo mini-registry. No network, no Docker, no
 live-malicious packages. Rehearse this, not the code.
@@ -15,7 +15,11 @@ bun fixtures/registry/server.ts        # listens on :4873
 # Terminal B: point WNPM at it
 export WNPM_REGISTRY=http://localhost:4873
 export WNPM_DOWNLOADS=http://localhost:4873/downloads/point/last-week
+export WNPM_OSV=http://localhost:4873               # offline OSV advisories
 export WNPM_CACHE=/tmp/wnpm-demo.sqlite   # so beat 5 shows a cache hit
+
+# For the doctor beat: a demo project with pinned vulnerable deps
+cp -r fixtures/doctor-project /tmp/doctor-demo
 ```
 
 ## Beat 1 — the problem (20s)
@@ -62,16 +66,38 @@ follows repo policy, calls `wnpx react-codeshift --json`, gets
 `{"verdict":"block","categories":["slopsquat"]}`, and refuses to run it —
 explaining why. That JSON is the exact contract a real Codex agent gates on.
 
-## Beat 5 — close (20s)
+## Beat 5 — the doctor (60s)
+
+```sh
+cd /tmp/doctor-demo
+wnpm doctor
+```
+
+Doctor finds two advisories (real npm installs and the project's own test suite
+run live in throwaway workspaces):
+
+- `acme-json@2.1.0` — prototype pollution, fixed in 2.1.4. Doctor generates a
+  minimal plan (2.1.4, patch, in range) and a latest plan (2.2.0), verifies both
+  with `npm install` + the project's tests, and recommends the smallest one.
+- `acme-http@1.0.0` — the advisory says the fix is 1.0.1. **The supply-chain
+  gate blocks 1.0.1** (new postinstall, env exfiltration to a raw IP, provenance
+  gone) and doctor reports it UNFIXABLE instead of "fixing" the project into a
+  hijacked release. Dependabot would have opened that PR.
+
+```sh
+wnpm doctor --apply      # pins acme-json to the exact verified 2.1.4
+```
+
+## Beat 6 — close (20s)
 
 ```sh
 wnpx left-pad --json     # allow: one clean JSON object on stdout
 wnpm install acme-http@1.0.1   # run twice: second is a cache hit (source: cache)
 ```
 
-"Same verdict a human reads, an agent gates on. One binary, three dependencies,
-and a false-positive corpus (`bun test`) that says it won't cry wolf on your
-build tools."
+"Same verdict a human reads, an agent gates on, and a doctor that repairs with.
+One binary, three dependencies, and a false-positive corpus (`bun test`) that
+says it won't cry wolf on your build tools."
 
 ## The test story (judges click)
 

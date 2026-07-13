@@ -32,4 +32,5 @@ Configuration:
 | `WNPM_CACHE` | SQLite verdict cache path |
 | `WNPM_REGISTRY` | npm registry base URL |
 | `WNPM_DOWNLOADS` | npm downloads API base URL |
+| `WNPM_OSV` | OSV advisory API base URL; defaults to `https://api.osv.dev` |
 | `NO_COLOR` | Disable ANSI colors |
