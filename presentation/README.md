@@ -21,5 +21,6 @@ Open `http://localhost:4173`. Use one arrow-key or space-bar press per slide. Ea
 - `index.html`: slide content and citations
 - `styles.css`: layout, charts, animation, and print styling
 - `deck.js`: Reveal.js setup and terminal playback
+- `presentation-context.md`: problem narrative, incident context, competitive gap, agent support, and speaker notes
 
 The deck uses Reveal.js 5.2.1 from jsDelivr, bundled Bricolage Grotesque, and the native macOS terminal font stack.

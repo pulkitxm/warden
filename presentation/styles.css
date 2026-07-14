@@ -80,6 +80,7 @@ body { margin: 0; background: var(--night); }
 .threat-node span { color: #64718e; font-size: 10px; }
 .node-cve { left: 72px; top: 58px; }
 .node-third { right: 62px; top: 54px; }
+.node-exploit { left: 92px; bottom: 5px; }
 .node-agent { right: 92px; bottom: 5px; }
 .threat-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .threat-lines path { fill: none; stroke: #cbd3e6; stroke-width: 1.2; stroke-dasharray: 5 7; }
