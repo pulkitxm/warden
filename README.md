@@ -13,12 +13,13 @@ bun run build
 ./dist/wnpx some-cli@latest --json
 ./dist/wnpm doctor              # audits, verifies, and applies the fix
 ./dist/wnpm doctor --no-apply   # report only
+./dist/warden intent check --prompt "add rate limiting to the api client"
 ./dist/warden uninstall
 ```
 
 Prefer a real install over running from `dist/`? Use `sh install.sh` — it puts `warden`, `wnpm`, and `wnpx` on your `PATH`.
 
-`wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself. `wnpm doctor` finds vulnerable and deprecated dependencies, then proposes the smallest verified fix — a candidate fix that fails the supply-chain check is rejected with evidence, even when an advisory names it as the official fix.
+`wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself. `wnpm doctor` finds vulnerable and deprecated dependencies, then proposes the smallest verified fix — a candidate fix that fails the supply-chain check is rejected with evidence, even when an advisory names it as the official fix. `warden intent check` reads the diff against the merge base and checks it against a prompt you supply, flagging dropped requirements, unrequested scope creep, and calls to APIs that don't exist on the package they're called on.
 
 Exit codes are `0` allow, `10` warn, `20` block, and `30` analysis error. Use `--allow-risky` to override a block deliberately.
 
@@ -31,6 +32,7 @@ Exit codes are `0` allow, `10` warn, `20` block, and `30` analysis error. Use `-
 - credential access, environment exfiltration, raw-IP traffic, reverse shells, and destructive filesystem calls
 - obfuscation combined with execution or network capabilities
 - known-vulnerable, blocklisted, and deprecated dependencies already installed in a project (`wnpm doctor`)
+- diffs that drop a requested change, add unrequested scope, or call an API a package does not export (`warden intent check`)
 
 Newness and low downloads never block by themselves. Deterministic rules decide the verdict; an optional OpenAI explanation can only rewrite the summary.
 

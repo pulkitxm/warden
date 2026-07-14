@@ -13,5 +13,6 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "test", "fixtures", "demo", "scripts"]
+  "include": ["src", "test", "fixtures", "demo", "scripts"],
+  "exclude": ["demo/intent"]
 }

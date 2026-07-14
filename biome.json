@@ -34,7 +34,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/heuristics/scan.ts"],
+      "includes": ["src/heuristics/scan.ts", "src/intent/symbols.ts", "src/intent/diff.ts"],
       "linter": {
         "rules": {
           "suspicious": {

@@ -4,7 +4,11 @@ import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import { type DoctorOptions, type DoctorReport, runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
+import { runIntentPipeline, runWardenIntent } from "../intent/index.ts";
+import { intentSummaryLine } from "../intent/report.ts";
+import type { IntentReport } from "../intent/types.ts";
 import {
+  ANALYZER_VERSION,
   type CiFinding,
   EXIT,
   exitCodeFor,
@@ -200,7 +204,7 @@ const initialConfig = (): UserConfig => ({
   intercept: { install: true, exec: true },
 });
 
-function wardenFailure(
+export function wardenFailure(
   deps: WardenDeps,
   json: boolean,
   kind: "usage" | "analysis" | "config",
@@ -932,15 +936,25 @@ async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> 
           `append Warden guidance to ${context}`,
         ]);
     }
+    const gitignorePath = join(root, ".gitignore");
+    changes.push([
+      ".gitignore",
+      deps.exists(gitignorePath)
+        ? `${deps.readFile(gitignorePath).trimEnd()}\n.warden/\n`
+        : ".warden/\n",
+      "ignore .warden/ in .gitignore",
+    ]);
+    const idempotentMarker: Record<string, string> = {
+      "CLAUDE.md": "## Warden",
+      "AGENTS.md": "## Warden",
+      ".gitignore": ".warden/",
+    };
     const written: string[] = [];
     const skipped: string[] = [];
     for (const [file, content, question] of changes) {
       const path = join(root, file);
-      if (
-        deps.exists(path) &&
-        ((file !== "CLAUDE.md" && file !== "AGENTS.md") ||
-          deps.readFile(path).includes("## Warden"))
-      ) {
+      const marker = idempotentMarker[file];
+      if (deps.exists(path) && (marker === undefined || deps.readFile(path).includes(marker))) {
         skipped.push(file);
         continue;
       }
@@ -968,11 +982,20 @@ async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> 
   }
 }
 
-function gitResult(deps: WardenDeps, root: string, args: string[]): string {
+export function gitResult(deps: WardenDeps, root: string, args: string[]): string {
   const result = deps.git(args, root);
   if (result.exitCode !== 0)
     throw new Error(result.stderr.trim() || `git ${args.join(" ")} failed`);
   return result.stdout.trim();
+}
+
+export function resolveMergeBase(deps: WardenDeps, root: string, base?: string): string {
+  if (base) return gitResult(deps, root, ["merge-base", "HEAD", base]);
+  for (const candidate of ["origin/main", "main"]) {
+    const result = deps.git(["merge-base", "HEAD", candidate], root);
+    if (result.exitCode === 0) return result.stdout.trim();
+  }
+  throw new Error("neither origin/main nor main is available");
 }
 
 function dependencyMap(pkg: PackageJson): Record<string, string> {
@@ -1026,30 +1049,21 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   try {
     const { values } = parseArgs({
       args: argv,
-      options: { reporter: { type: "string", default: "summary" }, base: { type: "string" } },
+      options: {
+        reporter: { type: "string", default: "summary" },
+        base: { type: "string" },
+        "intent-prompt": { type: "string" },
+      },
     });
     if (!values.reporter || !["summary", "json", "github", "agent"].includes(values.reporter))
       throw new Error(`invalid reporter "${values.reporter}"`);
     const root = deps.cwd();
     gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
-    let selectedBase = values.base;
-    let mergeBase = "";
-    if (selectedBase) {
-      mergeBase = gitResult(deps, root, ["merge-base", "HEAD", selectedBase]);
-    } else {
-      for (const candidate of ["origin/main", "main"]) {
-        const result = deps.git(["merge-base", "HEAD", candidate], root);
-        if (result.exitCode === 0) {
-          selectedBase = candidate;
-          mergeBase = result.stdout.trim();
-          break;
-        }
-      }
-      if (!mergeBase) throw new Error("neither origin/main nor main is available");
-    }
-    const files = gitResult(deps, root, ["diff", "--name-only", mergeBase])
-      .split("\n")
-      .filter((file) => file === "package.json" || file.endsWith("/package.json"));
+    const mergeBase = resolveMergeBase(deps, root, values.base);
+    const changedFiles = gitResult(deps, root, ["diff", "--name-only", mergeBase]).split("\n");
+    const files = changedFiles.filter(
+      (file) => file === "package.json" || file.endsWith("/package.json"),
+    );
     const configPath = join(root, "warden.config.json");
     const failOn = deps.exists(configPath)
       ? (jsonFile<{ ci?: { failOn?: string } }>(deps, configPath).ci?.failOn ?? "block")
@@ -1080,27 +1094,61 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
         }),
       )
     ).filter((finding): finding is CiFinding => finding !== null);
-    const level = findings.some((finding) => finding.level === "block")
+    const promptPath = join(root, ".warden", "prompt.txt");
+    const intentPrompt =
+      values["intent-prompt"] ??
+      (deps.exists(promptPath) ? deps.readFile(promptPath).trim() : undefined);
+    const intent: IntentReport | undefined =
+      intentPrompt && changedFiles.some((file) => /\.[cm]?[jt]sx?$/.test(file))
+        ? (await runIntentPipeline(deps, root, mergeBase, intentPrompt)).report
+        : undefined;
+    const guardLevel = findings.some((finding) => finding.level === "block")
       ? "block"
       : findings.some((finding) => finding.level === "warn")
         ? "warn"
         : "allow";
+    const rank = { allow: 0, warn: 1, block: 2 } as const;
+    const level = intent && rank[intent.verdict] > rank[guardLevel] ? intent.verdict : guardLevel;
     const exit = exitCodeFor(level);
     deps.mkdir(join(root, ".warden"));
     deps.writeFile(
       join(root, ".warden", "last-run.json"),
-      `${JSON.stringify({ schema_version: SCHEMA_VERSION, findings, verdict: level, exit }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          schema_version: SCHEMA_VERSION,
+          findings,
+          ...(intent ? { intent } : {}),
+          verdict: level,
+          exit,
+        },
+        null,
+        2,
+      )}\n`,
     );
     if (values.reporter === "json") deps.stdout(`${JSON.stringify(findings)}\n`);
     else if (values.reporter === "agent")
-      deps.stdout(`${JSON.stringify({ findings, verdict: level, exit })}\n`);
+      deps.stdout(
+        `${JSON.stringify({ findings, ...(intent ? { intent } : {}), verdict: level, exit })}\n`,
+      );
     else {
       deps.stderr(ciSummary(findings, mergeBase.slice(0, 12), work.length));
+      if (intent) deps.stderr(`  intent  ${intentSummaryLine(intent)}\n`);
       if (values.reporter === "github") {
         for (const finding of findings) {
           const command = finding.level === "block" ? "error" : "warning";
           deps.stdout(
             `::${command} file=${annotationValue(finding.file)}${finding.line ? `,line=${finding.line}` : ""}::${annotationValue(`${finding.package}: ${finding.evidence}. Fix: ${finding.fix}`)}\n`,
+          );
+        }
+        for (const row of intent?.claims ?? []) {
+          if (row.verdict !== "dropped") continue;
+          deps.stdout(
+            `::error ::${annotationValue(`intent: dropped requirement: ${row.claim}`)}\n`,
+          );
+        }
+        for (const finding of intent?.hallucinations ?? []) {
+          deps.stdout(
+            `::error file=${annotationValue(finding.file)},line=${finding.line}::${annotationValue(`intent: hallucinated api ${finding.symbol}. ${finding.proof}`)}\n`,
           );
         }
       }
@@ -1346,6 +1394,11 @@ async function runWardenSelectManagers(argv: string[], deps: WardenDeps): Promis
   }
 }
 
+function runWardenVersion(_argv: string[], deps: WardenDeps): number {
+  deps.stdout(`${ANALYZER_VERSION}\n`);
+  return EXIT.allow;
+}
+
 const helpFlag = { name: "--help", description: "show this help" } as const;
 
 const visibleCommands = () => COMMAND_REGISTRY.filter((command) => !command.hidden);
@@ -1374,11 +1427,30 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
         description: "select human, JSON, workflow, or agent output",
       },
       { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
+      {
+        name: "--intent-prompt",
+        valueHint: "<text>",
+        description: "also verify the diff against this prompt",
+      },
       helpFlag,
     ],
     exitCodes: "0 clean · 10 warn · 20 block · 30 error",
     example: "warden ci --reporter github --base origin/main",
     run: runWardenCi,
+  },
+  {
+    name: "intent",
+    description: "verify the diff does what the prompt asked",
+    positional: { kind: "[check|extract|diff|symbols|schema]" },
+    flags: [
+      { name: "--prompt", valueHint: "<text>", description: "the instruction the agent was given" },
+      { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
+      { name: "--json", description: "write the intent report JSON to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",
+    example: 'warden intent check --prompt "add rate limiting to the api client"',
+    run: runWardenIntent,
   },
   {
     name: "detect",
@@ -1456,6 +1528,14 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     run: runWardenCompletions,
   },
   {
+    name: "version",
+    description: "print the warden version",
+    flags: [helpFlag],
+    exitCodes: "0 success",
+    example: "warden --version",
+    run: runWardenVersion,
+  },
+  {
     name: "select-managers",
     description: "select detected package managers",
     flags: [{ name: "--detected", valueHint: "<names>", description: "detected managers" }],
@@ -1470,6 +1550,7 @@ export async function runWarden(
   argv: string[],
   deps: WardenDeps = defaultWardenDeps,
 ): Promise<number> {
+  if (argv[0] === "--version" || argv[0] === "-v") return runWardenVersion(argv.slice(1), deps);
   if (!argv.length || argv[0] === "--help" || argv[0] === "help") {
     deps.stderr(renderWardenHelp());
     return EXIT.allow;

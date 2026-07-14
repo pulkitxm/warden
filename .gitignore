@@ -6,4 +6,5 @@ dist/
 coverage/
 .DS_Store
 .warden/
+task_manager/
 extras/
