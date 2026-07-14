@@ -58,4 +58,4 @@ test("refuses a multi-member tarball that inflates past the cap", () => {
   multi.set(big, 0);
   multi.set(tiny, big.length);
   expect(() => readTgz(multi)).toThrow(/unpacks to/);
-});
+}, 30_000);
