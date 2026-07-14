@@ -78,9 +78,9 @@ test("applyChanges pins changed dependencies to the exact verified version", () 
   expect(applyChanges("{}", [change()])).toBe("{}\n");
 });
 
-test("verifyPlan copies, patches, installs, and runs present scripts in order", () => {
+test("verifyPlan copies, patches, installs, and runs present scripts in order", async () => {
   const { deps, calls, written } = fakeDeps(JSON.stringify({ dependencies: { lib: "^1.0.0" } }));
-  const result = verifyPlan(project(), [change()], deps);
+  const result = await verifyPlan(project(), [change()], deps);
   expect(result.workspace).toBe("/workspace");
   expect(result.passed).toBe(true);
   expect(written[join("/workspace", "package.json")]).toContain('"lib": "1.2.0"');
@@ -90,16 +90,16 @@ test("verifyPlan copies, patches, installs, and runs present scripts in order", 
   expect(result.steps.every((s) => s.ok && s.ms >= 0)).toBe(true);
 });
 
-test("verifyPlan stops after a failing install", () => {
+test("verifyPlan stops after a failing install", async () => {
   const { deps } = fakeDeps("{}", [1]);
-  const result = verifyPlan(project(), [], deps);
+  const result = await verifyPlan(project(), [], deps);
   expect(result.passed).toBe(false);
   expect(result.steps).toEqual([{ name: "install", ok: false, ms: 1 }]);
 });
 
-test("verifyPlan stops after the first failing script", () => {
+test("verifyPlan stops after the first failing script", async () => {
   const { deps, calls } = fakeDeps("{}", [0, 1]);
-  const result = verifyPlan(project(), [], deps);
+  const result = await verifyPlan(project(), [], deps);
   expect(result.passed).toBe(false);
   expect(result.steps.map((s) => [s.name, s.ok])).toEqual([
     ["install", true],
@@ -108,22 +108,22 @@ test("verifyPlan stops after the first failing script", () => {
   expect(calls).toHaveLength(2);
 });
 
-test("verifyPlan uses bun when the project and PATH support it", () => {
+test("verifyPlan uses bun when the project and PATH support it", async () => {
   const { deps, calls } = fakeDeps("{}", [], "/bin/bun");
-  const result = verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
+  const result = await verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
   expect(result.passed).toBe(true);
   expect(calls[0]?.cmd).toEqual(["bun", "install", "--ignore-scripts"]);
 });
 
-test("verifyPlan falls back to npm when bun is requested but missing", () => {
+test("verifyPlan falls back to npm when bun is requested but missing", async () => {
   const { deps, calls } = fakeDeps("{}", [], null);
-  verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
+  await verifyPlan(project({ packageManager: "bun", scripts: {} }), [], deps);
   expect(calls[0]?.cmd).toEqual(["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"]);
 });
 
-test("applyPlan patches the real package.json and runs a single install", () => {
+test("applyPlan patches the real package.json and runs a single install", async () => {
   const { deps, calls, written } = fakeDeps(JSON.stringify({ dependencies: { lib: "^1.0.0" } }));
-  const result = applyPlan(project(), [change()], deps);
+  const result = await applyPlan(project(), [change()], deps);
   expect(result.applied).toBe(true);
   expect(written[join("/proj", "package.json")]).toContain('"lib": "1.2.0"');
   expect(calls).toHaveLength(1);
@@ -131,14 +131,14 @@ test("applyPlan patches the real package.json and runs a single install", () => 
   expect(result.steps[0]).toMatchObject({ name: "install", ok: true });
 });
 
-test("applyPlan reports failure when the install fails", () => {
+test("applyPlan reports failure when the install fails", async () => {
   const { deps } = fakeDeps("{}", [1]);
-  expect(applyPlan(project(), [], deps).applied).toBe(false);
+  expect((await applyPlan(project(), [], deps)).applied).toBe(false);
 });
 
-test("defaultVerifyDeps talks to the real system", () => {
-  expect(defaultVerifyDeps.exec(["sh", "-c", "exit 0"], tmpdir()).code).toBe(0);
-  expect(defaultVerifyDeps.exec(["sh", "-c", "exit 3"], tmpdir()).code).toBe(3);
+test("defaultVerifyDeps talks to the real system", async () => {
+  expect((await defaultVerifyDeps.exec(["sh", "-c", "exit 0"], tmpdir())).code).toBe(0);
+  expect((await defaultVerifyDeps.exec(["sh", "-c", "exit 3"], tmpdir())).code).toBe(3);
   expect(typeof defaultVerifyDeps.which("sh")).toBe("string");
   expect(defaultVerifyDeps.now()).toBeGreaterThan(0);
 

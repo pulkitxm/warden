@@ -77,6 +77,27 @@ test("installedVersion falls back from lockfile to node_modules to undefined", (
   expect(installedVersion("/p", "lib", memFs({}))).toBeUndefined();
 });
 
+test("a corrupt or incomplete lockfile falls back to node_modules", () => {
+  const corrupt = memFs({
+    [join("/p", "package-lock.json")]: "{not json",
+    [join("/p", "node_modules", "lib", "package.json")]: '{"version":"2.2.2"}',
+  });
+  expect(installedVersion("/p", "lib", corrupt)).toBe("2.2.2");
+
+  const versionless = memFs({
+    [join("/p", "package-lock.json")]: JSON.stringify({
+      packages: { "node_modules/lib": {} },
+    }),
+    [join("/p", "node_modules", "lib", "package.json")]: '{"version":"3.3.3"}',
+  });
+  expect(installedVersion("/p", "lib", versionless)).toBe("3.3.3");
+
+  const rootOnly = memFs({
+    [join("/p", "package-lock.json")]: JSON.stringify({ packages: { "": { version: "1.0.0" } } }),
+  });
+  expect(installedVersion("/p", "lib", rootOnly)).toBeUndefined();
+});
+
 test("defaultProjectFs reads real files and checks existence", () => {
   const dir = mkdtempSync(join(tmpdir(), "wnpm-project-"));
   mkdirSync(join(dir, "node_modules", "real-lib"), { recursive: true });

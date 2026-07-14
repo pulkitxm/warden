@@ -121,6 +121,57 @@ test("affectsVersion handles introduced=0, last_affected, explicit versions, and
   expect(affectsVersion(unbounded, "demo", "1.0.0")).toBe(true);
 });
 
+test("affectsVersion handles multiple spans in one range and out-of-order events", () => {
+  const twoSpans = vuln({
+    affected: [
+      {
+        package: { ecosystem: "npm", name: "demo" },
+        ranges: [
+          {
+            type: "SEMVER",
+            events: [
+              { introduced: "1.0.0" },
+              { fixed: "1.1.0" },
+              { introduced: "2.0.0" },
+              { fixed: "2.1.0" },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  expect(affectsVersion(twoSpans, "demo", "1.0.5")).toBe(true);
+  expect(affectsVersion(twoSpans, "demo", "1.5.0")).toBe(false);
+  expect(affectsVersion(twoSpans, "demo", "2.0.5")).toBe(true);
+  expect(affectsVersion(twoSpans, "demo", "2.1.0")).toBe(false);
+
+  const reversed = vuln({
+    affected: [
+      {
+        package: { ecosystem: "npm", name: "demo" },
+        ranges: [{ type: "SEMVER", events: [{ fixed: "1.1.0" }, { introduced: "1.0.0" }] }],
+      },
+    ],
+  });
+  expect(affectsVersion(reversed, "demo", "1.0.5")).toBe(true);
+});
+
+test("fixedVersions merges fixes across multiple affected entries", () => {
+  const multiEntry = vuln({
+    affected: [
+      {
+        package: { ecosystem: "npm", name: "demo" },
+        ranges: [{ type: "SEMVER", events: [{ introduced: "0" }, { fixed: "3.0.0" }] }],
+      },
+      {
+        package: { ecosystem: "npm", name: "demo" },
+        ranges: [{ type: "SEMVER", events: [{ introduced: "0" }, { fixed: "1.5.0" }] }],
+      },
+    ],
+  });
+  expect(fixedVersions(multiEntry, "demo")).toEqual(["1.5.0", "3.0.0"]);
+});
+
 test("fixedVersions collects, validates, and sorts fixed events", () => {
   const multi = vuln({
     affected: [

@@ -264,6 +264,73 @@ test("doctor marks a package unfixable when no release fixes the advisory", asyn
   expect(report.plans).toEqual([]);
 });
 
+test("doctor reports deprecated packages without planning an upgrade", async () => {
+  const deps = stubbedDeps(["1.0.0", "1.1.0"], undefined, () => "allow");
+  deps.vulns = () => Promise.resolve([]);
+  deps.resolve = () =>
+    Promise.resolve({
+      name: "stub-lib",
+      version: "1.1.0",
+      existsOnRegistry: true,
+      versions: ["1.0.0", "1.1.0"],
+      maintainers: ["stub"],
+      deprecated: true,
+    });
+  const report = await runDoctor("/stub", { verify: false }, deps);
+  expect(report.issues).toEqual([
+    {
+      name: "stub-lib",
+      group: "prod",
+      installed: "1.0.0",
+      kind: "deprecated",
+      summary: "the latest release of stub-lib is deprecated on the registry",
+    },
+  ]);
+  expect(report.plans).toEqual([]);
+  expect(report.gate).toEqual([]);
+});
+
+test("doctor --apply with --no-verify applies the unverified minimal plan", async () => {
+  const deps = stubbedDeps(["1.0.0", "1.0.1"], "1.0.1", () => "allow");
+  const written: Record<string, string> = {};
+  const calls: string[][] = [];
+  deps.verifier = {
+    exec: (cmd) => {
+      calls.push(cmd);
+      return { code: 0 };
+    },
+    mkWorkspace: () => "/workspace",
+    readFile: () => JSON.stringify({ dependencies: { "stub-lib": "^1.0.0" } }),
+    writeFile: (path, content) => {
+      written[path] = content;
+    },
+    which: () => null,
+    now: () => 0,
+  };
+  const report = await runDoctor("/stub", { verify: false, apply: true }, deps);
+  expect(report.recommended).toBe("minimal");
+  expect(report.applied).toBe(true);
+  expect(report.plans[0]?.verification).toBeUndefined();
+  expect(written[join("/stub", "package.json")]).toContain('"stub-lib": "1.0.1"');
+  expect(calls).toHaveLength(1);
+});
+
+test("doctor accepts warn-verdict candidates and surfaces the warning in the gate", async () => {
+  const deps = stubbedDeps(["1.0.0", "1.0.1"], "1.0.1", () => "warn");
+  const report = await runDoctor("/stub", { verify: false }, deps);
+  expect(report.gate).toEqual([
+    {
+      name: "stub-lib",
+      version: "1.0.1",
+      verdict: "warn",
+      categories: [],
+      summary: "stub verdict",
+    },
+  ]);
+  expect(report.plans[0]?.changes[0]?.to).toBe("1.0.1");
+  expect(report.unfixable).toEqual([]);
+});
+
 test("doctor falls back to the latest pick when early candidates are blocked", async () => {
   const blocked = new Set(["stub-lib@1.0.1", "stub-lib@1.0.2", "stub-lib@1.0.3"]);
   const deps = stubbedDeps(

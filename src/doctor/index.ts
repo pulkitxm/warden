@@ -200,7 +200,7 @@ export async function runDoctor(
       recommended = plans[0]?.id;
     } else {
       for (const plan of plans) {
-        const result = verifyPlan(project, plan.changes, verifier);
+        const result = await verifyPlan(project, plan.changes, verifier);
         plan.verification = { passed: result.passed, steps: result.steps };
       }
       recommended = plans.find((p) => p.verification?.passed)?.id;
@@ -210,7 +210,7 @@ export async function runDoctor(
   let applied: boolean | undefined;
   const recommendedPlan = plans.find((p) => p.id === recommended);
   if (opts.apply && recommendedPlan) {
-    applied = applyPlan(project, recommendedPlan.changes, verifier).applied;
+    applied = (await applyPlan(project, recommendedPlan.changes, verifier)).applied;
   }
 
   return {
