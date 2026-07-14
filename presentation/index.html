@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Warden package trust presentation" />
+    <title>Warden | Trust before execution</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section class="cover dark" data-background-color="#081022">
+          <div class="cover-copy auto auto-1">
+            <p class="eyebrow">Agent-first package security</p>
+            <h1 class="brand-title"><span>WARDEN</span></h1>
+            <h2 class="cover-promise">Nothing runs without a verdict.</h2>
+          </div>
+          <div class="cover-visual auto auto-2">
+            <div class="orbit orbit-a"></div>
+            <div class="orbit orbit-b"></div>
+            <div class="scan-beam"></div>
+            <div class="cover-package">expres<span>@0.0.5</span></div>
+            <div class="verdict-seal"><small>WARDEN</small><strong>BLOCK</strong><span>92 / 100</span></div>
+            <div class="signal signal-a"></div>
+            <div class="signal signal-b"></div>
+            <div class="signal signal-c"></div>
+          </div>
+          <div class="cover-command auto auto-4"><span>$</span> npm install expres <b class="block-cursor"></b></div>
+        </section>
+
+        <section class="paper" data-background-color="#f4f7ff">
+          <p class="eyebrow ink auto auto-1">The attack surface</p>
+          <h2 class="ink auto auto-1">The package is the payload.</h2>
+          <div class="threat-constellation">
+            <div class="threat-core auto auto-2"><strong>454,648</strong><span>malicious packages<br />found in 2025</span></div>
+            <div class="threat-node node-cve auto auto-3"><strong>48,244</strong><span>CVEs published<br />in 2025</span></div>
+            <div class="threat-node node-third auto auto-4"><strong>48%</strong><span>breaches with<br />third parties</span></div>
+            <div class="threat-node node-agent auto auto-5"><strong>205,474</strong><span>fake package<br />names generated</span></div>
+            <svg class="threat-lines" viewBox="0 0 1000 420" aria-hidden="true">
+              <path d="M500 210 C380 120 285 110 190 150" />
+              <path d="M500 210 C650 90 760 95 845 145" />
+              <path d="M500 210 C610 330 745 330 835 300" />
+            </svg>
+          </div>
+          <div class="source-ticker auto auto-6">SONATYPE 2026 · CVE PROGRAM · VERIZON DBIR 2026 · USENIX SECURITY 2025</div>
+        </section>
+
+        <section class="dark checkpoint-slide" data-background-color="#081022">
+          <p class="eyebrow auto auto-1">The checkpoint</p>
+          <h2 class="auto auto-1">One command enters. Evidence decides what leaves.</h2>
+          <div class="packet-trace">
+            <div class="trace-line"></div>
+            <div class="trace-packet">pkg</div>
+            <div class="trace-gate gate-one auto auto-2"><i>01</i><strong>Resolve</strong><span>registry</span></div>
+            <div class="trace-gate gate-two auto auto-3"><i>02</i><strong>Integrity</strong><span>SRI hash</span></div>
+            <div class="trace-gate gate-three auto auto-4"><i>03</i><strong>Diff</strong><span>previous</span></div>
+            <div class="trace-gate gate-four auto auto-5"><i>04</i><strong>AST scan</strong><span>capabilities</span></div>
+            <div class="trace-gate gate-five auto auto-5"><i>05</i><strong>Score</strong><span>intel + rules</span></div>
+            <div class="trace-result auto auto-6"><small>VERDICT</small><strong>BLOCK</strong><span>exit 20</span></div>
+          </div>
+          <div class="signal-ribbon auto auto-6"><span>typosquat</span><span>install script</span><span>provenance downgrade</span><span>environment access</span><span>raw IP</span></div>
+        </section>
+
+        <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="check">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2><code>warden check</code></h2></div>
+          <div class="terminal-shell auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-screen" aria-live="polite"></div>
+          </div>
+          <div class="terminal-meter auto auto-4"><i></i><span>blocked before any script ran</span></div>
+        </section>
+
+        <section class="terminal-slide paper" data-background-color="#f4f7ff" data-terminal="shim">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow ink">No habit change</p><h2 class="ink">Warden intercepts the command.</h2></div>
+          <div class="shim-figure auto auto-2">
+            <span>npm</span><span>pnpm</span><span>yarn</span><span>bun</span><i>→</i><strong>WARDEN</strong><i>→</i><span>registry</span>
+          </div>
+          <div class="terminal-shell light-shell auto auto-3">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>transparent shim</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-screen" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="terminal-slide dark" data-background-color="#081022" data-terminal="install">
+          <div class="install-layout">
+            <div class="terminal-heading auto auto-1"><p class="eyebrow">One-time setup</p><h2>Install once.<br />Protect every manager.</h2></div>
+            <div class="install-stack auto auto-3">
+              <div><i>✓</i><span>SHA-256</span></div>
+              <div><i>✓</i><span>3 binaries</span></div>
+              <div><i>✓</i><span>6 shims</span></div>
+              <div><i>✓</i><span>completions</span></div>
+            </div>
+          </div>
+          <div class="terminal-shell install-terminal auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>installer</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-screen" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <section class="paper product-slide" data-background-color="#f4f7ff">
+          <p class="eyebrow ink auto auto-1">The product surface</p>
+          <h2 class="ink auto auto-1">One trust layer. Every workflow.</h2>
+          <div class="product-proof auto auto-2"><span>protect or observe</span><span>typed JSON</span><span>integrity cache</span></div>
+          <div class="command-orbit">
+            <div class="command-core auto auto-2"><span>WARDEN</span><strong>allow<br />warn<br />block</strong></div>
+            <div class="command-pill pill-check auto auto-2"><code>check</code><span>AST + threat intel</span></div>
+            <div class="command-pill pill-ci auto auto-3"><code>ci</code><span>vet changed deps</span></div>
+            <div class="command-pill pill-detect auto auto-4"><code>detect</code><span>map workspace</span></div>
+            <div class="command-pill pill-init auto auto-5"><code>init</code><span>wire guardrails</span></div>
+            <div class="command-pill pill-fix auto auto-6"><code>fix</code><span>agent handoff</span></div>
+            <div class="command-pill pill-log auto auto-7"><code>log</code><span>observe safely</span></div>
+            <svg class="orbit-lines" viewBox="0 0 1100 430" aria-hidden="true">
+              <ellipse cx="550" cy="215" rx="355" ry="162" />
+              <ellipse cx="550" cy="215" rx="485" ry="205" />
+            </svg>
+          </div>
+        </section>
+
+        <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="ci">
+          <div class="ci-layout">
+            <div>
+              <p class="eyebrow auto auto-1">Pull request gate</p>
+              <h2 class="auto auto-1"><code>warden ci</code></h2>
+              <div class="diff-figure auto auto-2"><span>main</span><i></i><strong>+ expres</strong><i></i><b>BLOCK</b></div>
+              <div class="reporter-row auto auto-5"><span>summary</span><span>JSON</span><span>GitHub</span><span>agent</span></div>
+            </div>
+            <div class="terminal-shell ci-terminal auto auto-3">
+              <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>pull request #142</b><span class="terminal-live"><i></i> LIVE</span></div>
+              <div class="terminal-screen" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="agent-slide dark" data-background-color="#081022" data-terminal="agent">
+          <p class="eyebrow auto auto-1">Agent-first guardrail</p>
+          <h2 class="auto auto-1">Your agent gets evidence, a fix, and a finish line.</h2>
+          <div class="agent-layout">
+            <div class="terminal-shell agent-terminal auto auto-2">
+              <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>structured handoff</b><span class="terminal-live"><i></i> LIVE</span></div>
+              <div class="terminal-screen" aria-live="polite"></div>
+            </div>
+            <div class="agent-field auto auto-3">
+              <div class="agent-core"><small>SECURITY BOUNDARY</small><strong>WARDEN</strong><span>deterministic verdict</span></div>
+              <span class="agent-badge badge-claude">Claude Code</span>
+              <span class="agent-badge badge-codex">Codex</span>
+              <span class="agent-badge badge-cursor">Cursor</span>
+              <span class="agent-badge badge-copilot">Copilot</span>
+              <span class="agent-badge badge-gemini">Gemini</span>
+              <span class="agent-badge badge-aider">aider</span>
+              <span class="agent-badge badge-opencode">opencode</span>
+            </div>
+          </div>
+          <div class="agent-loop auto auto-5"><span>detect</span><i>→</i><span>handoff</span><i>→</i><span>fix</span><i>→</i><strong>verify clean</strong></div>
+        </section>
+
+        <section class="dark" data-background-color="#101a38">
+          <p class="eyebrow auto auto-1">Three incidents, one pattern</p>
+          <h2 class="auto auto-1">Trust changed faster than defenders reacted.</h2>
+          <div class="incident-track">
+            <article class="incident-point point-one auto auto-2">
+              <time>SEP 2025</time><strong>2B+</strong><span>weekly downloads exposed</span><b>chalk + debug</b><i>18 poisoned packages</i>
+            </article>
+            <article class="incident-point point-two auto auto-3">
+              <time>NOV 2025</time><strong>796</strong><span>infected npm packages</span><b>Shai-Hulud 2.0</b><i>1,092 affected versions</i>
+            </article>
+            <article class="incident-point point-three auto auto-4">
+              <time>MAR 2026</time><strong>39m</strong><span>between poisoned releases</span><b>axios</b><i>cross-platform RAT</i>
+            </article>
+            <div class="time-window auto auto-5"><span>Axios malicious versions remained live</span><strong>about 3 hours</strong></div>
+          </div>
+        </section>
+
+        <section class="paper roadmap-slide" data-background-color="#f4f7ff">
+          <p class="eyebrow ink auto auto-1">What comes next</p>
+          <h2 class="ink auto auto-1">From package gate to repository shield.</h2>
+          <div class="radar auto auto-2">
+            <div class="radar-sweep"></div>
+            <div class="radar-ring ring-1"></div><div class="radar-ring ring-2"></div><div class="radar-ring ring-3"></div>
+            <span class="radar-dot dot-1"><i></i>lockfile</span>
+            <span class="radar-dot dot-2"><i></i>scripts</span>
+            <span class="radar-dot dot-3"><i></i>registry config</span>
+            <span class="radar-dot dot-4"><i></i>policy</span>
+            <span class="radar-dot dot-5"><i></i>secrets</span>
+            <span class="radar-dot dot-6"><i></i>licenses</span>
+            <strong>WARDEN</strong>
+          </div>
+          <div class="roadmap-phases auto auto-4">
+            <span><b>CORE</b> supply-chain coverage</span>
+            <i>→</i>
+            <span><b>NEXT</b> repository policy</span>
+            <i>→</i>
+            <span><b>LATER</b> MCP + organization view</span>
+          </div>
+        </section>
+
+        <section class="close-slide" data-background-color="#43d8c9">
+          <div class="close-copy auto auto-1"><p class="eyebrow ink">The outcome</p><h2 class="ink">Keep the workflow.<br />Add the checkpoint.</h2></div>
+          <div class="close-flow">
+            <span class="auto auto-2">request</span><i class="auto auto-3">→</i><strong class="auto auto-4">WARDEN</strong><i class="auto auto-5">→</i><b class="auto auto-6">verified execution</b>
+          </div>
+          <div class="guardrail-scope auto auto-6"><span>local</span><span>package managers</span><span>CI</span><span>coding agents</span></div>
+          <div class="close-verdict auto auto-7"><small>VERDICT</small><strong>ALLOW</strong><span>risk 04 / 100</span></div>
+        </section>
+
+        <section class="sources-slide dark" data-background-color="#081022">
+          <p class="eyebrow auto auto-1">Evidence</p>
+          <h2 class="auto auto-1">Sources</h2>
+          <div class="source-matrix auto auto-2">
+            <a href="https://www.cve.org/About/Metrics" target="_blank" rel="noreferrer"><span>01</span>CVE Program metrics</a>
+            <a href="https://www.verizon.com/about/news/breach-industry-wide-dbir-finds" target="_blank" rel="noreferrer"><span>02</span>Verizon DBIR 2026</a>
+            <a href="https://www.sonatype.com/blog/securing-the-software-supply-chain-a-federal-imperative-for-2026" target="_blank" rel="noreferrer"><span>03</span>Sonatype 2026 report</a>
+            <a href="https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" target="_blank" rel="noreferrer"><span>04</span>USENIX package hallucinations</a>
+            <a href="https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/" target="_blank" rel="noreferrer"><span>05</span>Datadog Shai-Hulud 2.0</a>
+            <a href="https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised" target="_blank" rel="noreferrer"><span>06</span>Aikido chalk + debug</a>
+            <a href="https://github.com/axios/axios/issues/10636" target="_blank" rel="noreferrer"><span>07</span>axios maintainer report</a>
+            <a href="https://revealjs.com/auto-animate/" target="_blank" rel="noreferrer"><span>08</span>Reveal.js motion reference</a>
+          </div>
+          <p class="source-note auto auto-3">Figures checked July 14, 2026. Later settled incident counts are used where available.</p>
+        </section>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js"></script>
+    <script src="deck.js"></script>
+  </body>
+</html>
