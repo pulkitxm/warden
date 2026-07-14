@@ -42,3 +42,7 @@ make ci
 CI enforces comment-free source and strict Biome formatting. Use `bun run strip-comments` and `bun run format` before committing when either gate reports changes.
 
 See [CLI](docs/cli.md), [architecture](docs/architecture.md), [detection](docs/detection.md), [development](docs/development.md), and the [offline demo](demo/README.md).
+
+## Website
+
+Open `index.html` directly to view the Warden product site. It is dependency-free and includes an interactive package verdict demo, workflow examples, the agent integration contract, and the installer experience.
