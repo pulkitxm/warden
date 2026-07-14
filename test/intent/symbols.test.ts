@@ -303,6 +303,18 @@ test("findHallucinations stays silent on unknowns, prototypes, and real members"
   expect(scan(code, [3, 4, 5, 6])).toHaveLength(0);
 });
 
+test("findHallucinations survives prototype-named identifiers without crashing", () => {
+  const code = [
+    'import axios from "axios";',
+    "const proto = hasOwnProperty.call(obj, key);",
+    "const tag = toString.call(value);",
+    "constructor.build();",
+    "valueOf.compute();",
+    "axios.create({});",
+  ].join("\n");
+  expect(scan(code, [2, 3, 4, 5, 6])).toHaveLength(0);
+});
+
 test("findHallucinations checks named-import namespaces and skips unknown named imports", () => {
   const code = [
     'import { z } from "zod";',

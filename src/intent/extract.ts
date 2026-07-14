@@ -40,7 +40,7 @@ export function claimsSchema(): Record<string, unknown> {
 export function parseClaims(value: unknown): Omit<IntentClaim, "id">[] | null {
   if (typeof value !== "object" || value === null) return null;
   const claims = (value as { claims?: unknown }).claims;
-  if (!Array.isArray(claims) || !claims.length) return null;
+  if (!Array.isArray(claims)) return null;
   const out: Omit<IntentClaim, "id">[] = [];
   for (const entry of claims) {
     if (typeof entry !== "object" || entry === null) return null;

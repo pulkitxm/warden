@@ -42,7 +42,7 @@ function isBare(spec: string): boolean {
 }
 
 export function bindingsFromAst(program: unknown): Record<string, Binding> {
-  const bindings: Record<string, Binding> = {};
+  const bindings: Record<string, Binding> = Object.create(null);
   walk.simple(program as any, {
     ImportDeclaration(node: any) {
       const spec = String(node.source?.value ?? "");
@@ -95,7 +95,7 @@ const REQUIRE_RE = /(?:const|let|var)\s+([\w$]+)\s*=\s*require\(\s*["']([^"']+)[
 const REQUIRE_NAMED_RE = /(?:const|let|var)\s*\{([^}]+)\}\s*=\s*require\(\s*["']([^"']+)["']\s*\)/;
 
 function namedBindings(list: string, pkg: string, sep: RegExp): Record<string, Binding> {
-  const bindings: Record<string, Binding> = {};
+  const bindings: Record<string, Binding> = Object.create(null);
   for (const item of list.split(",")) {
     const trimmed = item.trim();
     if (!trimmed) continue;
@@ -107,7 +107,7 @@ function namedBindings(list: string, pkg: string, sep: RegExp): Record<string, B
 }
 
 export function bindingsFromText(code: string): Record<string, Binding> {
-  const bindings: Record<string, Binding> = {};
+  const bindings: Record<string, Binding> = Object.create(null);
   for (const line of code.split("\n")) {
     const ns = line.match(IMPORT_NS_RE);
     if (ns && isBare(ns[2]!)) bindings[ns[1]!] = { pkg: ns[2]!, kind: "namespace" };
@@ -135,7 +135,7 @@ export function propagateInstances(
   bindings: Record<string, Binding>,
   surfaceOf: (pkg: string) => ApiSurface | null,
 ): Record<string, Binding> {
-  const out = { ...bindings };
+  const out: Record<string, Binding> = Object.assign(Object.create(null), bindings);
   for (const line of code.split("\n")) {
     const match = line.match(FACTORY_RE);
     if (!match) continue;
@@ -156,7 +156,12 @@ export function propagateInstances(
 const ACCESS_RE = /([\w$]+)\.([\w$]+)/g;
 
 function stripNoise(line: string): string {
-  return line.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
+  return line
+    .replace(/\/\/.*$/, "")
+    .replace(/\/\*.*?\*\//g, "")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/`(?:[^`\\]|\\.)*`/g, "``");
 }
 
 export function memberAccesses(code: string): MemberAccess[] {

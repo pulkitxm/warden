@@ -256,9 +256,35 @@ export const API_SIGNATURES: Record<string, ApiSurface> = {
   },
 };
 
+const NODE_BUILTINS = new Set([
+  "assert",
+  "buffer",
+  "child_process",
+  "crypto",
+  "dns",
+  "events",
+  "fs",
+  "http",
+  "http2",
+  "https",
+  "net",
+  "os",
+  "path",
+  "process",
+  "querystring",
+  "readline",
+  "stream",
+  "string_decoder",
+  "timers",
+  "tls",
+  "url",
+  "util",
+  "zlib",
+]);
+
 export function curatedSurface(pkg: string): ApiSurface | undefined {
   const direct = API_SIGNATURES[pkg];
   if (direct) return direct;
-  if (!pkg.startsWith("node:")) return API_SIGNATURES[`node:${pkg}`];
+  if (!pkg.startsWith("node:") && NODE_BUILTINS.has(pkg)) return API_SIGNATURES[`node:${pkg}`];
   return undefined;
 }

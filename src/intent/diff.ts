@@ -147,6 +147,7 @@ export function declsFromText(code: string): Decl[] {
   const lines = code.split("\n");
   const decls: Decl[] = [];
   for (let i = 0; i < lines.length; i++) {
+    if (/^\s/.test(lines[i]!)) continue;
     const match = lines[i]!.match(DECL_LINE_RE);
     if (!match) continue;
     const name = match[1] ?? match[2] ?? match[3]!;
@@ -183,6 +184,13 @@ function importSpecs(lines: string[]): string[] {
   return [...specs];
 }
 
+function capExcerpt(text: string): string {
+  if (text.length <= 1500) return text;
+  const slice = text.slice(0, 1500);
+  const newline = slice.lastIndexOf("\n");
+  return newline > 0 ? slice.slice(0, newline) : slice;
+}
+
 function stripped(lines: string[]): string[] {
   return lines
     .map((line) => line.replace(/\s+/g, ""))
@@ -215,10 +223,6 @@ function categorize(
     return "formatting_only";
   }
   if (!JS_RE.test(diff.file)) return "other";
-  const addedImports = added.some((line) => IMPORT_SPEC_RE.test(line));
-  const removedImports = removed.some((line) => IMPORT_SPEC_RE.test(line));
-  if (addedImports) return "import_added";
-  if (removedImports) return "import_removed";
   const functionDecls = decls.filter((decl) => decl.kind !== "variable");
   const fullyAdded = (decl: Decl) => {
     for (let line = decl.lineStart; line <= decl.lineEnd; line++) {
@@ -232,6 +236,10 @@ function categorize(
   if (newFn) return "new_function";
   const signature = functionDecls.some((decl) => addedSet.has(decl.lineStart));
   if (signature && removed.some((line) => line.includes("("))) return "signature_change";
+  const addedImports = added.some((line) => IMPORT_SPEC_RE.test(line));
+  const removedImports = removed.some((line) => IMPORT_SPEC_RE.test(line));
+  if (addedImports) return "import_added";
+  if (removedImports) return "import_removed";
   if (added.some((line) => /\b(if|else|switch|case|while|for)\b|\?.*:/.test(line))) {
     return "conditional_changed";
   }
@@ -260,13 +268,17 @@ export function classifyHunks(
       const lineEnd = hunk.newStart + Math.max(0, span - 1);
       const addedSet = addedLineNumbers(hunk);
       const category = categorize(diff, added, removed, decls, addedSet, lineStart, lineEnd);
-      const symbols = [
-        ...new Set(
-          decls
-            .filter((decl) => decl.lineStart <= lineEnd && decl.lineEnd >= lineStart)
-            .map((decl) => decl.name),
-        ),
-      ];
+      const inRange = decls.filter(
+        (decl) => decl.lineStart <= lineEnd && decl.lineEnd >= lineStart,
+      );
+      const symbols = [...new Set(inRange.map((decl) => decl.name))];
+      const declChanged = (decl: Decl) => {
+        for (let line = decl.lineStart; line <= decl.lineEnd; line++) {
+          if (addedSet.has(line)) return true;
+        }
+        return false;
+      };
+      const changedSymbols = [...new Set(inRange.filter(declChanged).map((decl) => decl.name))];
       const summary = `${category} ${symbols.slice(0, 3).join(", ") || basename(diff.file)}`;
       out.push({
         id: `h${counter}`,
@@ -276,9 +288,10 @@ export function classifyHunks(
         category,
         summary,
         symbols,
+        changedSymbols,
         imports: importSpecs([...added, ...removed]),
         addedLines: added.length,
-        excerpt: added.join("\n").slice(0, 1500),
+        excerpt: capExcerpt(added.join("\n")),
       });
     }
   }

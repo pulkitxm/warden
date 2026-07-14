@@ -101,11 +101,25 @@ test("indexDeclarations maps functions, classes, methods, and variables", () => 
   expect(indexDeclarations("let let = ;")).toEqual([]);
 });
 
-test("declsFromText survives an unclosed brace", () => {
+test("declsFromText keeps top-level declarations and skips indented locals", () => {
   expect(declsFromText("function broken() {\n  const a = 1;")).toEqual([
     { name: "broken", kind: "function", lineStart: 1, lineEnd: 2 },
-    { name: "a", kind: "variable", lineStart: 2, lineEnd: 2 },
   ]);
+  expect(declsFromText("const top = 1;\n  const nested = 2;\nclass Outer {}")).toEqual([
+    { name: "top", kind: "variable", lineStart: 1, lineEnd: 1 },
+    { name: "Outer", kind: "class", lineStart: 3, lineEnd: 3 },
+  ]);
+});
+
+test("classifyHunks truncates long excerpts at a line boundary", () => {
+  const added = Array.from({ length: 100 }, (_, i) => `+const variableNumber${i} = ${i};`);
+  const hunks = classify("big.ts", ["@@ -1 +1,100 @@", ...added]);
+  const excerpt = hunks[0]!.excerpt;
+  expect(excerpt.length).toBeLessThanOrEqual(1500);
+  expect(excerpt.endsWith("\n")).toBe(false);
+  expect(excerpt.split("\n").every((line) => /^const variableNumber\d+ = \d+;$/.test(line))).toBe(
+    true,
+  );
 });
 
 test("classifyHunks uses acorn declarations for plain javascript", () => {

@@ -53,6 +53,7 @@ export interface ClassifiedHunk {
   category: HunkCategory;
   summary: string;
   symbols: string[];
+  changedSymbols: string[];
   imports: string[];
   addedLines: number;
   excerpt: string;

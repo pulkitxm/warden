@@ -140,8 +140,16 @@ async function httpText(provider: Provider, request: LlmJsonRequest): Promise<st
     signal: AbortSignal.timeout(60_000),
     body: JSON.stringify(requestBody(provider, request)),
   });
-  if (!res.ok) throw new Error(`${provider.name} ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.text()).trim().replace(/\s+/g, " ").slice(0, 200);
+    throw new Error(body ? `${provider.name} ${res.status}: ${body}` : `${provider.name} ${res.status}`);
+  }
   return contentOf(provider, (await res.json()) as unknown);
+}
+
+function cliError(name: string, exitCode: number, stderr: string): string {
+  const detail = stderr.trim().replace(/\s+/g, " ").slice(0, 200);
+  return detail ? `${name} ${exitCode}: ${detail}` : `${name} ${exitCode}`;
 }
 
 async function claudeText(provider: Provider, request: LlmJsonRequest): Promise<string> {
@@ -157,8 +165,12 @@ async function claudeText(provider: Provider, request: LlmJsonRequest): Promise<
     env: { ...process.env },
     timeout: 120_000,
   });
-  const [text, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
-  if (exitCode !== 0) throw new Error(`claude ${exitCode}`);
+  const [text, err, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) throw new Error(cliError("claude", exitCode, err));
   return text;
 }
 
@@ -178,8 +190,12 @@ async function codexText(provider: Provider, request: LlmJsonRequest): Promise<s
     env: { ...process.env },
     timeout: 120_000,
   });
-  const [text, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
-  if (exitCode !== 0) throw new Error(`codex ${exitCode}`);
+  const [text, err, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode !== 0) throw new Error(cliError("codex", exitCode, err));
   return text;
 }
 

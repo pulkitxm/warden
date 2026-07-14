@@ -66,7 +66,7 @@ test("parseClaims rejects every malformed shape", () => {
   expect(parseClaims(null)).toBeNull();
   expect(parseClaims("text")).toBeNull();
   expect(parseClaims({})).toBeNull();
-  expect(parseClaims({ claims: [] })).toBeNull();
+  expect(parseClaims({ claims: [] })).toEqual([]);
   expect(parseClaims({ claims: ["nope"] })).toBeNull();
   expect(parseClaims({ claims: [{ ...VALID_CLAIM, claim: "  " }] })).toBeNull();
   expect(parseClaims({ claims: [{ ...VALID_CLAIM, claim: 7 }] })).toBeNull();

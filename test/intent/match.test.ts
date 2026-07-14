@@ -42,7 +42,7 @@ function claim(id: string, text: string, over: Partial<IntentClaim> = {}): Inten
 }
 
 function hunk(id: string, over: Partial<ClassifiedHunk> = {}): ClassifiedHunk {
-  return {
+  const base: ClassifiedHunk = {
     id,
     file: "api-client.ts",
     lineStart: 1,
@@ -50,11 +50,13 @@ function hunk(id: string, over: Partial<ClassifiedHunk> = {}): ClassifiedHunk {
     category: "new_function",
     summary: "new_function fetchPage",
     symbols: ["fetchPage"],
+    changedSymbols: ["fetchPage"],
     imports: [],
     addedLines: 10,
     excerpt: "function fetchPage(url) {",
     ...over,
   };
+  return { ...base, changedSymbols: over.changedSymbols ?? base.symbols };
 }
 
 test("tokenize splits camel case, stems, and drops stopwords", () => {
@@ -275,6 +277,28 @@ test("decide verifies preservation claims against the diff", () => {
   expect(violated.claims[0]!.evidence[0]!.detail).toContain("asked to preserve");
   expect(violated.scope_creep).toEqual([]);
   expect(violated.verdict).toBe("block");
+});
+
+test("decide preserves symbols merely spanned by a sibling addition", () => {
+  const report = decide(
+    decideInput({
+      claims: [
+        claim("c1", "keep getUser and listUsers unchanged", {
+          kind: "preservation",
+          keywords: ["getuser", "listusers"],
+        }),
+      ],
+      hunks: [
+        hunk("h1", {
+          symbols: ["getUser", "deleteUser", "listUsers"],
+          changedSymbols: ["deleteUser"],
+          summary: "new_function getUser, deleteUser, listUsers",
+        }),
+      ],
+    }),
+  );
+  expect(report.claims[0]).toMatchObject({ verdict: "delivered", origin: "preservation" });
+  expect(report.claims[0]!.evidence[0]!.detail).toBe("no change touches it");
 });
 
 test("decide reports uncited meaningful hunks as scope creep, largest first", () => {

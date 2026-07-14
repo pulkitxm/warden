@@ -90,12 +90,21 @@ function keywordMatches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
 }
 
 function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
-  if (keywordScore(claim, hunk).symbolHits >= 1) return true;
+  if (!hunk.changedSymbols.length) return false;
   const claimTokens = new Set([
     ...tokenize(claim.claim),
     ...claim.keywords.flatMap((keyword) => tokenize(keyword)),
   ]);
-  return tokenize(hunk.file).some((token) => claimTokens.has(token));
+  const keywordTokens = claim.keywords
+    .map((keyword) => tokenize(keyword))
+    .filter((tokens) => tokens.length > 0);
+  return hunk.changedSymbols.some((symbol) => {
+    const symbolTokens = tokenize(symbol);
+    if (!symbolTokens.length) return false;
+    const named = symbolTokens.every((token) => claimTokens.has(token));
+    const denoted = keywordTokens.some((tokens) => tokens.every((token) => symbolTokens.includes(token)));
+    return named || denoted;
+  });
 }
 
 export function keywordPass(claims: IntentClaim[], hunks: ClassifiedHunk[]): MatchProposal[] {
@@ -111,6 +120,8 @@ export function keywordPass(claims: IntentClaim[], hunks: ClassifiedHunk[]): Mat
 }
 
 const STATUSES = ["delivered", "partial", "dropped"];
+
+const SCOPE_CREEP_MIN_ADDED_LINES = 5;
 
 export function proposalsSchema(): Record<string, unknown> {
   return {
@@ -172,7 +183,7 @@ export async function llmPass(
   claims: IntentClaim[],
   hunks: ClassifiedHunk[],
 ): Promise<{ proposals: MatchProposal[]; failed: boolean }> {
-  if (!claims.length) return { proposals: [], failed: false };
+  if (!claims.length || !hunks.length) return { proposals: [], failed: false };
   const user = JSON.stringify({
     claims: claims.map(({ id, claim }) => ({ id, claim })),
     hunks: hunks.map(({ id, file, summary, symbols, excerpt }) => ({
@@ -337,7 +348,7 @@ export function decide(input: DecideInput): IntentReport {
       (hunk) =>
         !cited.has(hunk.id) &&
         !["formatting_only", "test_or_doc"].includes(hunk.category) &&
-        hunk.addedLines >= 5,
+        hunk.addedLines >= SCOPE_CREEP_MIN_ADDED_LINES,
     )
     .sort((a, b) => b.addedLines - a.addedLines)
     .map((hunk) => ({
