@@ -56,6 +56,19 @@ export interface Verdict {
   source: VerdictSource;
 }
 
+export interface CiFinding {
+  schema_version: typeof SCHEMA_VERSION;
+  rule: string;
+  package: string;
+  file: string;
+  line?: number;
+  level: VerdictLevel;
+  evidence: string;
+  fix: string;
+  verify: string;
+  seen_before: boolean;
+}
+
 export const VERDICT_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -98,6 +111,39 @@ export const VERDICT_JSON_SCHEMA = {
     source: { type: "string", enum: ["cache", "blocklist", "heuristics", "llm"] },
   },
 } as const;
+
+export const FINDINGS_JSON_SCHEMA = {
+  type: "array",
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "schema_version",
+      "rule",
+      "package",
+      "file",
+      "level",
+      "evidence",
+      "fix",
+      "verify",
+      "seen_before",
+    ],
+    properties: {
+      schema_version: { type: "integer", const: SCHEMA_VERSION },
+      rule: { type: "string" },
+      package: { type: "string" },
+      file: { type: "string" },
+      line: { type: "integer" },
+      level: { type: "string", enum: ["allow", "warn", "block"] },
+      evidence: { type: "string" },
+      fix: { type: "string" },
+      verify: { type: "string" },
+      seen_before: { type: "boolean" },
+    },
+  },
+} as const;
+
+export const CI_FINDINGS_JSON_SCHEMA = FINDINGS_JSON_SCHEMA;
 
 export const EXIT = {
   allow: 0,

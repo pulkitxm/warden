@@ -1,7 +1,13 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
-import { defaultDeps, type RunDeps, runWnpm } from "../../src/cli/main.ts";
+import {
+  defaultDeps,
+  type RunDeps,
+  runWarden,
+  runWnpm,
+  type WardenDeps,
+} from "../../src/cli/main.ts";
 import { renderDoctorReport } from "../../src/cli/ui.ts";
 import type { DoctorOptions, DoctorReport } from "../../src/doctor/index.ts";
 
@@ -115,6 +121,70 @@ function makeDeps(over: Partial<RunDeps> = {}) {
   };
   return { deps, out, err };
 }
+
+function makeWardenDeps(over: Partial<WardenDeps> = {}) {
+  const base = makeDeps();
+  const deps: WardenDeps = {
+    ...base.deps,
+    home: "/home/test",
+    mkdir: () => undefined,
+    writeFile: () => undefined,
+    exists: () => false,
+    cwd: () => "/repo",
+    glob: () => [],
+    git: () => ({ exitCode: 1, stdout: "", stderr: "" }),
+    isTTY: () => false,
+    prompt: () => Promise.resolve(""),
+    selectManagers: () => Promise.resolve([]),
+    ...over,
+  };
+  return { ...base, deps };
+}
+
+test("warden doctor dispatches through the command registry with flags intact", async () => {
+  const seen: Array<{ dir: string; opts: DoctorOptions }> = [];
+  const { deps, out } = makeWardenDeps({
+    doctor: (dir, opts) => {
+      seen.push({ dir, opts });
+      return Promise.resolve(richReport());
+    },
+  });
+  expect(await runWarden(["doctor", "--dir", "/proj", "--no-verify", "--json"], deps)).toBe(10);
+  expect(seen).toEqual([{ dir: "/proj", opts: { verify: false, apply: false } }]);
+  expect((JSON.parse(out.join("")) as DoctorReport).recommended).toBe("minimal");
+});
+
+test("warden doctor renders the human report and lists in help", async () => {
+  const human = makeWardenDeps({ doctor: () => Promise.resolve(richReport()) });
+  expect(await runWarden(["doctor"], human.deps)).toBe(10);
+  expect(human.err.join("")).toContain("Warden doctor — demo");
+
+  const applied = makeWardenDeps({
+    doctor: (_dir, opts) =>
+      Promise.resolve(cleanReport({ issues: richReport().issues, applied: opts.apply })),
+  });
+  expect(await runWarden(["doctor", "--apply"], applied.deps)).toBe(0);
+
+  const help = makeWardenDeps();
+  expect(await runWarden(["doctor", "--help"], help.deps)).toBe(0);
+  expect(help.err.join("")).toContain("usage: warden doctor");
+
+  const top = makeWardenDeps();
+  expect(await runWarden(["--help"], top.deps)).toBe(0);
+  expect(top.err.join("")).toContain("doctor");
+});
+
+test("warden doctor rejects invalid flags with a typed error envelope", async () => {
+  const human = makeWardenDeps();
+  expect(await runWarden(["doctor", "--wat"], human.deps)).toBe(30);
+  expect(human.err.join("")).toContain("invalid doctor flags");
+
+  const json = makeWardenDeps();
+  expect(await runWarden(["doctor", "--wat", "--json"], json.deps)).toBe(30);
+  const envelope = JSON.parse(json.out.join("")) as { error: { code: string; kind: string } };
+  expect(envelope.error.code).toBe("WARDEN_DOCTOR_USAGE");
+  expect(envelope.error.kind).toBe("usage");
+});
 
 test("wnpm doctor passes flags through and exits 10 when issues remain", async () => {
   const seen: Array<{ dir: string; opts: DoctorOptions }> = [];

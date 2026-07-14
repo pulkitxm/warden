@@ -90,7 +90,7 @@ function encodeName(name: string): string {
 
 export async function resolvePackage(name: string, version = "latest"): Promise<PackageMeta> {
   const pack = await getJson<Packument>(`${registryBase()}/${encodeName(name)}`);
-  if (!pack || !pack.versions) {
+  if (!pack?.versions) {
     return { name, version, existsOnRegistry: false, versions: [], maintainers: [] };
   }
 

@@ -6,15 +6,16 @@
   "private": true,
   "license": "MIT",
   "bin": {
+    "warden": "./src/bin/warden.ts",
     "wnpm": "./src/bin/wnpm.ts",
     "wnpx": "./src/bin/wnpx.ts"
   },
   "scripts": {
-    "build": "bun build ./src/bin/wnpm.ts --compile --outfile dist/wnpm && bun build ./src/bin/wnpx.ts --compile --outfile dist/wnpx",
+    "build": "bun build ./src/bin/warden.ts --compile --outfile dist/warden && bun build ./src/bin/wnpm.ts --compile --outfile dist/wnpm && bun build ./src/bin/wnpx.ts --compile --outfile dist/wnpx",
     "strip-comments": "bun scripts/strip-comments.mjs",
     "check-comments": "bun scripts/strip-comments.mjs --check",
     "format": "biome format --write .",
-    "lint": "biome check .",
+    "lint": "biome check --error-on-warnings .",
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

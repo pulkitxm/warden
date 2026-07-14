@@ -157,7 +157,7 @@ test("plain minification is NOT flagged as obfuscation (I4 fix)", () => {
 });
 
 test("hex-identifier obfuscation IS flagged (I4 keeps true positives)", () => {
-  const obf = "var _0x1a2b=['a','b'];function _0x3c(){}" + ";var q='" + "Q".repeat(900) + "';";
+  const obf = `var _0x1a2b=['a','b'];function _0x3c(){};var q='${"Q".repeat(900)}';`;
   const s = analyze(
     base({
       name: "sketchy",
@@ -259,7 +259,7 @@ test("scanJs detects new Function and ESM imports of exec/network modules", () =
 });
 
 test("long hex-escape runs are a hard obfuscation signature", () => {
-  const r = obfuscationScore("var s='" + "\\x41".repeat(30) + "';");
+  const r = obfuscationScore(`var s='${"\\x41".repeat(30)}';`);
   expect(r.hard).toBe(true);
   expect(r.reason).toContain("hex-escape");
 });
