@@ -17,9 +17,9 @@ bun run build
 ./dist/warden uninstall
 ```
 
-Prefer a real install over running from `dist/`? Use `sh install.sh` — it puts `warden`, `wnpm`, and `wnpx` on your `PATH`.
+Prefer a real install over running from `dist/`? Use `sh install.sh`: it puts `warden`, `wnpm`, and `wnpx` on your `PATH`.
 
-`wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself. `wnpm doctor` finds vulnerable and deprecated dependencies, then proposes the smallest verified fix — a candidate fix that fails the supply-chain check is rejected with evidence, even when an advisory names it as the official fix. `warden intent check` reads the diff against the merge base and checks it against a prompt you supply, flagging dropped requirements, unrequested scope creep, and calls to APIs that don't exist on the package they're called on.
+`wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself. `wnpm doctor` finds vulnerable and deprecated dependencies, then proposes the smallest verified fix: a candidate fix that fails the supply-chain check is rejected with evidence, even when an advisory names it as the official fix. `warden intent check` reads the diff against the merge base and checks it against a prompt you supply, flagging dropped requirements, unrequested scope creep, and calls to APIs that don't exist on the package they're called on.
 
 Exit codes are `0` allow, `10` warn, `20` block, and `30` analysis error. Use `--allow-risky` to override a block deliberately.
 

@@ -36,35 +36,17 @@
           <div class="threat-constellation">
             <div class="threat-core auto auto-2"><strong>454,648</strong><span>malicious packages<br />found in 2025</span></div>
             <div class="threat-node node-cve auto auto-3"><strong>48,244</strong><span>CVEs published<br />in 2025</span></div>
-            <div class="threat-node node-third auto auto-4"><strong>48%</strong><span>breaches with<br />third parties</span></div>
-            <div class="threat-node node-agent auto auto-5"><strong>205,474</strong><span>fake package<br />names generated</span></div>
+            <div class="threat-node node-agent auto auto-4"><strong>205,474</strong><span>fake package<br />names generated</span></div>
             <svg class="threat-lines" viewBox="0 0 1000 420" aria-hidden="true">
               <path d="M500 210 C380 120 285 110 190 150" />
-              <path d="M500 210 C650 90 760 95 845 145" />
               <path d="M500 210 C610 330 745 330 835 300" />
             </svg>
           </div>
-          <div class="source-ticker auto auto-6">SONATYPE 2026 · CVE PROGRAM · VERIZON DBIR 2026 · USENIX SECURITY 2025</div>
-        </section>
-
-        <section class="dark checkpoint-slide" data-background-color="#081022">
-          <p class="eyebrow auto auto-1">The checkpoint</p>
-          <h2 class="auto auto-1">One command enters. Evidence decides what leaves.</h2>
-          <div class="packet-trace">
-            <div class="trace-line"></div>
-            <div class="trace-packet">pkg</div>
-            <div class="trace-gate gate-one auto auto-2"><i>01</i><strong>Resolve</strong><span>registry</span></div>
-            <div class="trace-gate gate-two auto auto-3"><i>02</i><strong>Integrity</strong><span>SRI hash</span></div>
-            <div class="trace-gate gate-three auto auto-4"><i>03</i><strong>Diff</strong><span>previous</span></div>
-            <div class="trace-gate gate-four auto auto-5"><i>04</i><strong>AST scan</strong><span>capabilities</span></div>
-            <div class="trace-gate gate-five auto auto-5"><i>05</i><strong>Score</strong><span>intel + rules</span></div>
-            <div class="trace-result auto auto-6"><small>VERDICT</small><strong>BLOCK</strong><span>exit 20</span></div>
-          </div>
-          <div class="signal-ribbon auto auto-6"><span>typosquat</span><span>install script</span><span>provenance downgrade</span><span>environment access</span><span>raw IP</span></div>
+          <div class="source-ticker auto auto-5">SONATYPE 2026 · CVE PROGRAM · USENIX SECURITY 2025</div>
         </section>
 
         <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="check">
-          <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2><code>warden check</code></h2></div>
+          <div class="terminal-heading auto auto-1"><p class="eyebrow">The core loop</p><h2>Resolve, verify, diff, scan, score: before anything runs.</h2></div>
           <div class="terminal-shell auto auto-2">
             <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
@@ -72,65 +54,39 @@
           <div class="terminal-meter auto auto-4"><i></i><span>blocked before any script ran</span></div>
         </section>
 
-        <section class="terminal-slide paper" data-background-color="#f4f7ff" data-terminal="shim">
-          <div class="terminal-heading auto auto-1"><p class="eyebrow ink">No habit change</p><h2 class="ink">Warden intercepts the command.</h2></div>
-          <div class="shim-figure auto auto-2">
-            <span>npm</span><span>pnpm</span><span>yarn</span><span>bun</span><i>→</i><strong>WARDEN</strong><i>→</i><span>registry</span>
-          </div>
-          <div class="terminal-shell light-shell auto auto-3">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>transparent shim</b><span class="terminal-live"><i></i> LIVE</span></div>
+        <section class="terminal-slide paper" data-background-color="#f4f7ff" data-terminal="doctor">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow ink">Live product</p><h2 class="ink">The same gate, run backward across what's already installed.</h2></div>
+          <div class="terminal-shell light-shell auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
           </div>
+          <div class="terminal-meter auto auto-4"><i></i><span>the official fix gets rejected when the release itself is compromised</span></div>
         </section>
 
-        <section class="terminal-slide dark" data-background-color="#081022" data-terminal="install">
-          <div class="install-layout">
-            <div class="terminal-heading auto auto-1"><p class="eyebrow">One-time setup</p><h2>Install once.<br />Protect every manager.</h2></div>
-            <div class="install-stack auto auto-3">
-              <div><i>✓</i><span>SHA-256</span></div>
-              <div><i>✓</i><span>3 binaries</span></div>
-              <div><i>✓</i><span>6 shims</span></div>
-              <div><i>✓</i><span>completions</span></div>
-            </div>
-          </div>
-          <div class="terminal-shell install-terminal auto auto-2">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>installer</b><span class="terminal-live"><i></i> LIVE</span></div>
+        <section class="terminal-slide dark" data-background-color="#081022" data-terminal="intent">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2>Claims from the prompt, checked against the diff.</h2></div>
+          <div class="terminal-shell auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
           </div>
+          <div class="terminal-meter auto auto-4"><i></i><span>flags drift before the PR merges</span></div>
         </section>
 
         <section class="paper product-slide" data-background-color="#f4f7ff">
           <p class="eyebrow ink auto auto-1">The product surface</p>
           <h2 class="ink auto auto-1">One trust layer. Every workflow.</h2>
-          <div class="product-proof auto auto-2"><span>protect or observe</span><span>typed JSON</span><span>integrity cache</span></div>
-          <div class="command-orbit">
-            <div class="command-core auto auto-2"><span>WARDEN</span><strong>allow<br />warn<br />block</strong></div>
-            <div class="command-pill pill-check auto auto-2"><code>check</code><span>AST + threat intel</span></div>
-            <div class="command-pill pill-ci auto auto-3"><code>ci</code><span>vet changed deps</span></div>
-            <div class="command-pill pill-detect auto auto-4"><code>detect</code><span>map workspace</span></div>
-            <div class="command-pill pill-init auto auto-5"><code>init</code><span>wire guardrails</span></div>
-            <div class="command-pill pill-fix auto auto-6"><code>fix</code><span>agent handoff</span></div>
-            <div class="command-pill pill-log auto auto-7"><code>log</code><span>observe safely</span></div>
-            <svg class="orbit-lines" viewBox="0 0 1100 430" aria-hidden="true">
-              <ellipse cx="550" cy="215" rx="355" ry="162" />
-              <ellipse cx="550" cy="215" rx="485" ry="205" />
-            </svg>
+          <p class="trust-layer-sub ink auto auto-2">Every verb resolves to the same contract: allow, warn, or block.</p>
+          <div class="command-grid auto auto-3">
+            <div class="grid-pill"><code>check</code><span>vet a package</span></div>
+            <div class="grid-pill"><code>ci</code><span>vet changed deps</span></div>
+            <div class="grid-pill"><code>doctor</code><span>audit &amp; repair</span></div>
+            <div class="grid-pill"><code>intent</code><span>diff vs. prompt</span></div>
+            <div class="grid-pill"><code>detect</code><span>map workspace</span></div>
+            <div class="grid-pill"><code>init</code><span>wire guardrails</span></div>
+            <div class="grid-pill"><code>fix</code><span>agent handoff</span></div>
+            <div class="grid-pill"><code>log</code><span>observe safely</span></div>
           </div>
-        </section>
-
-        <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="ci">
-          <div class="ci-layout">
-            <div>
-              <p class="eyebrow auto auto-1">Pull request gate</p>
-              <h2 class="auto auto-1"><code>warden ci</code></h2>
-              <div class="diff-figure auto auto-2"><span>main</span><i></i><strong>+ expres</strong><i></i><b>BLOCK</b></div>
-              <div class="reporter-row auto auto-5"><span>summary</span><span>JSON</span><span>GitHub</span><span>agent</span></div>
-            </div>
-            <div class="terminal-shell ci-terminal auto auto-3">
-              <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>pull request #142</b><span class="terminal-live"><i></i> LIVE</span></div>
-              <div class="terminal-screen" aria-live="polite"></div>
-            </div>
-          </div>
+          <p class="trust-layer-note auto auto-4">shims for npm, pnpm, yarn, bun, npx, and bunx &middot; protect blocks, observe just records</p>
         </section>
 
         <section class="agent-slide dark" data-background-color="#081022" data-terminal="agent">
@@ -155,71 +111,6 @@
           <div class="agent-loop auto auto-5"><span>detect</span><i>→</i><span>handoff</span><i>→</i><span>fix</span><i>→</i><strong>verify clean</strong></div>
         </section>
 
-        <section class="dark intent-checkpoint-slide" data-background-color="#101a38">
-          <p class="eyebrow auto auto-1">Beyond the package</p>
-          <h2 class="auto auto-1">The agent shipped code. Does it match what you asked?</h2>
-          <div class="packet-trace">
-            <div class="trace-line"></div>
-            <div class="trace-packet">diff</div>
-            <div class="trace-gate gate-one auto auto-2"><i>01</i><strong>Diff</strong><span>tracked + new files</span></div>
-            <div class="trace-gate gate-two auto auto-3"><i>02</i><strong>Classify</strong><span>AST hunks</span></div>
-            <div class="trace-gate gate-three auto auto-4"><i>03</i><strong>Hallucinate</strong><span>curated APIs</span></div>
-            <div class="trace-gate gate-four auto auto-5"><i>04</i><strong>Extract</strong><span>LLM reads prompt</span></div>
-            <div class="trace-gate gate-five auto auto-5"><i>05</i><strong>Match</strong><span>claim ↔ code</span></div>
-            <div class="trace-result auto auto-6"><small>VERDICT</small><strong>BLOCK</strong><span>exit 20</span></div>
-          </div>
-          <div class="signal-ribbon auto auto-6"><span>unclaimed hunk</span><span>hallucinated API</span><span>broken preservation</span><span>unmatched claim</span></div>
-        </section>
-
-        <section class="terminal-slide dark" data-background-color="#081022" data-terminal="intent">
-          <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2><code>warden intent check</code></h2></div>
-          <div class="terminal-shell auto auto-2">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
-            <div class="terminal-screen" aria-live="polite"></div>
-          </div>
-          <div class="terminal-meter auto auto-4"><i></i><span>flags drift before the PR merges</span></div>
-        </section>
-
-        <section class="dark" data-background-color="#101a38">
-          <p class="eyebrow auto auto-1">Three incidents, one pattern</p>
-          <h2 class="auto auto-1">Trust changed faster than defenders reacted.</h2>
-          <div class="incident-track">
-            <article class="incident-point point-one auto auto-2">
-              <time>SEP 2025</time><strong>2B+</strong><span>weekly downloads exposed</span><b>chalk + debug</b><i>18 poisoned packages</i>
-            </article>
-            <article class="incident-point point-two auto auto-3">
-              <time>NOV 2025</time><strong>796</strong><span>infected npm packages</span><b>Shai-Hulud 2.0</b><i>1,092 affected versions</i>
-            </article>
-            <article class="incident-point point-three auto auto-4">
-              <time>MAR 2026</time><strong>39m</strong><span>between poisoned releases</span><b>axios</b><i>cross-platform RAT</i>
-            </article>
-            <div class="time-window auto auto-5"><span>Axios malicious versions remained live</span><strong>about 3 hours</strong></div>
-          </div>
-        </section>
-
-        <section class="paper roadmap-slide" data-background-color="#f4f7ff">
-          <p class="eyebrow ink auto auto-1">What comes next</p>
-          <h2 class="ink auto auto-1">From package gate to repository shield.</h2>
-          <div class="radar auto auto-2">
-            <div class="radar-sweep"></div>
-            <div class="radar-ring ring-1"></div><div class="radar-ring ring-2"></div><div class="radar-ring ring-3"></div>
-            <span class="radar-dot dot-1"><i></i>lockfile</span>
-            <span class="radar-dot dot-2"><i></i>scripts</span>
-            <span class="radar-dot dot-3"><i></i>registry config</span>
-            <span class="radar-dot dot-4"><i></i>policy</span>
-            <span class="radar-dot dot-5"><i></i>secrets</span>
-            <span class="radar-dot dot-6"><i></i>licenses</span>
-            <strong>WARDEN</strong>
-          </div>
-          <div class="roadmap-phases auto auto-4">
-            <span><b>CORE</b> supply-chain + intent coverage</span>
-            <i>→</i>
-            <span><b>NEXT</b> repository policy</span>
-            <i>→</i>
-            <span><b>LATER</b> MCP + organization view</span>
-          </div>
-        </section>
-
         <section class="close-slide" data-background-color="#43d8c9">
           <div class="close-copy auto auto-1"><p class="eyebrow ink">The outcome</p><h2 class="ink">Keep the workflow.<br />Add the checkpoint.</h2></div>
           <div class="close-flow">
@@ -234,15 +125,11 @@
           <h2 class="auto auto-1">Sources</h2>
           <div class="source-matrix auto auto-2">
             <a href="https://www.cve.org/About/Metrics" target="_blank" rel="noreferrer"><span>01</span>CVE Program metrics</a>
-            <a href="https://www.verizon.com/about/news/breach-industry-wide-dbir-finds" target="_blank" rel="noreferrer"><span>02</span>Verizon DBIR 2026</a>
-            <a href="https://www.sonatype.com/blog/securing-the-software-supply-chain-a-federal-imperative-for-2026" target="_blank" rel="noreferrer"><span>03</span>Sonatype 2026 report</a>
-            <a href="https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" target="_blank" rel="noreferrer"><span>04</span>USENIX package hallucinations</a>
-            <a href="https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/" target="_blank" rel="noreferrer"><span>05</span>Datadog Shai-Hulud 2.0</a>
-            <a href="https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised" target="_blank" rel="noreferrer"><span>06</span>Aikido chalk + debug</a>
-            <a href="https://github.com/axios/axios/issues/10636" target="_blank" rel="noreferrer"><span>07</span>axios maintainer report</a>
-            <a href="https://revealjs.com/auto-animate/" target="_blank" rel="noreferrer"><span>08</span>Reveal.js motion reference</a>
+            <a href="https://www.sonatype.com/blog/securing-the-software-supply-chain-a-federal-imperative-for-2026" target="_blank" rel="noreferrer"><span>02</span>Sonatype 2026 report</a>
+            <a href="https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" target="_blank" rel="noreferrer"><span>03</span>USENIX package hallucinations</a>
+            <a href="https://google.github.io/osv-scanner/" target="_blank" rel="noreferrer"><span>04</span>OSV advisory database</a>
           </div>
-          <p class="source-note auto auto-3">Figures checked July 14, 2026. Later settled incident counts are used where available.</p>
+          <p class="source-note auto auto-3">Figures checked July 14, 2026.</p>
         </section>
       </div>
     </div>

@@ -318,7 +318,7 @@ $ echo $?
 20
 ```
 
-The hallucination scan only covers a small curated set of packages plus whatever `node_modules` can be statically proven to have a closed export surface, and only checks member accesses on added lines — see [intent](intent.md) for the exact limits.
+The hallucination scan only covers a small curated set of packages plus whatever `node_modules` can be statically proven to have a closed export surface, and only checks member accesses on added lines: see [intent](intent.md) for the exact limits.
 
 ## Agent-first output
 

@@ -22,13 +22,13 @@ Exit code `0` means every claim was delivered. Exit code `10` means a claim was 
 
 ## Pipeline
 
-1. **Diff** — `git diff <mergeBase>`, plus untracked files synthesized as a diff, parsed into hunks.
-2. **Classify** — each hunk is parsed with an AST walk (acorn) and bucketed into a category: new function, signature change, import added/removed, conditional changed, assignment changed, formatting only, deletion, test or doc, other. Deterministic, no LLM.
-3. **Scan hallucinations** — see below. Deterministic, no LLM.
-4. **Extract claims** — one LLM call decomposes the prompt into atomic claims (behavior, preservation, constraint, structural). This step has no non-LLM fallback: if it fails, the whole check errors out with exit `30`.
-5. **Match, pass one** — deterministic keyword and stem overlap between each claim and each hunk's symbols and summary.
-6. **Match, pass two** — a second LLM call resolves whatever claims pass one left unmatched. If this call fails, those claims degrade to partial rather than failing the run.
-7. **Decide** — merges both passes, resolves preservation claims separately, flags scope creep, and produces the verdict.
+1. **Diff**: `git diff <mergeBase>`, plus untracked files synthesized as a diff, parsed into hunks.
+2. **Classify**: each hunk is parsed with an AST walk (acorn) and bucketed into a category: new function, signature change, import added/removed, conditional changed, assignment changed, formatting only, deletion, test or doc, other. Deterministic, no LLM.
+3. **Scan hallucinations**: see below. Deterministic, no LLM.
+4. **Extract claims**: one LLM call decomposes the prompt into atomic claims (behavior, preservation, constraint, structural). This step has no non-LLM fallback: if it fails, the whole check errors out with exit `30`.
+5. **Match, pass one**: deterministic keyword and stem overlap between each claim and each hunk's symbols and summary.
+6. **Match, pass two**: a second LLM call resolves whatever claims pass one left unmatched. If this call fails, those claims degrade to partial rather than failing the run.
+7. **Decide**: merges both passes, resolves preservation claims separately, flags scope creep, and produces the verdict.
 
 Matching is heuristic-first: the cheap keyword pass runs before the LLM is asked to look at anything.
 

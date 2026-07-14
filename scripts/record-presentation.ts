@@ -6,9 +6,7 @@ import { chromium } from "playwright-core";
 
 const width = 1280;
 const height = 720;
-const slideDurations = [
-  4000, 4000, 4000, 5000, 4500, 11000, 4000, 4500, 6000, 4000, 4000, 4000, 4000,
-];
+const slideDurations = [4000, 4500, 5000, 5000, 5500, 4000, 6000, 4000, 4000];
 const workspace = resolve(import.meta.dir, "..");
 const presentation = join(workspace, "presentation");
 const output = resolve(workspace, process.argv[2] ?? "presentation/warden-preview.mp4");
