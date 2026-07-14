@@ -16,6 +16,7 @@
     "check-comments": "bun scripts/strip-comments.mjs --check",
     "format": "biome format --write .",
     "lint": "biome check --error-on-warnings .",
+    "record:presentation": "bun scripts/record-presentation.ts",
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "@types/bun": "latest",
+    "playwright-core": "^1.61.1",
     "typescript": "^5.6.0"
   }
 }
