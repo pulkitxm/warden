@@ -47,6 +47,8 @@ test("bash completions define verb, flag, and shell completion", async () => {
   expect(script).toContain("complete -F _warden warden");
   expect(script).toContain("bash zsh fish --help");
   expect(script).toContain("--reporter --base --help");
+  expect(script).toContain("complete -F _wnpm wnpm");
+  expect(script).toContain("--no-apply");
 });
 
 test("zsh completions define verb, flag, and shell completion", async () => {
@@ -55,6 +57,8 @@ test("zsh completions define verb, flag, and shell completion", async () => {
   expect(script).toContain("compdef _warden warden");
   expect(script).toContain("_values 'shell' 'bash' 'zsh' 'fish'");
   expect(script).toContain("'--allow-risky:permit blocked packages and exit 10'");
+  expect(script).toContain("compdef _wnpm wnpm");
+  expect(script).toContain("--no-apply");
 });
 
 test("fish completions define verb, flag, and shell completion", async () => {
@@ -63,6 +67,8 @@ test("fish completions define verb, flag, and shell completion", async () => {
   expect(script).toContain("__fish_seen_subcommand_from check");
   expect(script).toContain("-l 'allow-risky'");
   expect(script).toContain("-a 'bash zsh fish'");
+  expect(script).toContain("complete -c wnpm");
+  expect(script).toContain("-l 'no-apply'");
 });
 
 test("unknown completion shells return a typed error", async () => {

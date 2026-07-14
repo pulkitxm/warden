@@ -1,4 +1,4 @@
-.PHONY: install build test test-shell typecheck ci ci-comments ci-format docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-shell typecheck ci ci-comments ci-format doctor-demo docker-build docker-run docker-install-demo
 
 install:
 	bun install
@@ -9,6 +9,9 @@ build:
 
 test:
 	bun test
+
+test-doctor:
+	bun test test/doctor/ test/cli/doctor.test.ts
 
 test-shell:
 	bun test test/shell/
@@ -33,6 +36,10 @@ ci:
 	./dist/warden check --help 2>&1 | grep -F 'usage: warden check' >/dev/null
 	./dist/wnpx --schema >/dev/null
 	./dist/wnpm invalid-command 2>&1 | grep -F 'unknown command "invalid-command"' >/dev/null
+	./dist/wnpm --help 2>&1 | grep -F 'usage:' >/dev/null
+
+doctor-demo: build
+	bun scripts/doctor-demo.ts
 
 docker-build:
 	@printf 'docker: building warden:dev... '

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
+import { type DoctorOptions, type DoctorReport, runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import {
   type CiFinding,
@@ -12,7 +13,7 @@ import {
   VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../schema.ts";
-import { bold, dim, renderLine, renderVerdict } from "./ui.ts";
+import { bold, dim, renderDoctorReport, renderLine, renderVerdict } from "./ui.ts";
 
 export interface RunDeps {
   check: (spec: string) => Promise<Verdict>;
@@ -21,6 +22,7 @@ export interface RunDeps {
   which: (cmd: string) => string | null;
   spawn: (cmd: string[]) => number;
   readFile: (path: string) => string;
+  doctor?: (dir: string, opts: DoctorOptions) => Promise<DoctorReport>;
 }
 
 export interface WardenDeps extends RunDeps {
@@ -147,6 +149,7 @@ export const defaultDeps: RunDeps = {
   which: Bun.which,
   spawn: (cmd) => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
   readFile: (path) => readFileSync(path, "utf8"),
+  doctor: runDoctor,
 };
 
 export const defaultWardenDeps: WardenDeps = {
@@ -259,14 +262,79 @@ function directDeps(deps: RunDeps): string[] {
   }
 }
 
+async function runDoctorCommand(
+  values: { json?: boolean; "no-apply"?: boolean; "no-verify"?: boolean; dir?: string },
+  deps: RunDeps,
+): Promise<number> {
+  return guarded("wnpm doctor", deps, async () => {
+    const doctor = deps.doctor ?? runDoctor;
+    const report = await doctor(values.dir ?? ".", {
+      apply: !values["no-apply"],
+      ...(values["no-verify"] ? { verify: false } : {}),
+    });
+    if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
+    else deps.stderr(renderDoctorReport(report));
+    if (!report.issues.length) {
+      return report.audited === 0 && report.skipped > 0 ? EXIT.error : 0;
+    }
+    const plan = report.plans.find((p) => p.id === report.recommended);
+    const fixed = new Set(report.applied ? (plan?.changes ?? []).map((c) => c.name) : []);
+    return report.issues.every((i) => fixed.has(i.name)) ? 0 : EXIT.warn;
+  });
+}
+
+const WNPM_HELP = `wnpm: vets packages with Warden before installing
+
+usage:
+  wnpm install [packages...] [--json] [--allow-risky]
+  wnpm doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+
+doctor flags:
+  --dir <path>   project directory (default .)
+  --json         write the doctor report JSON to stdout
+  --no-apply     report and plan only, do not modify package.json
+  --no-verify    skip isolated-workspace verification of plans
+
+exit codes: 0 clean or fully fixed - 10 unresolved issues - 30 error
+`;
+
+function parseArgsSafe<T extends NonNullable<Parameters<typeof parseArgs>[0]>>(
+  config: T,
+): ReturnType<typeof parseArgs<T>> | null {
+  try {
+    return parseArgs(config);
+  } catch {
+    return null;
+  }
+}
+
 export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
-    options: { json: { type: "boolean" }, "allow-risky": { type: "boolean" } },
+    options: {
+      json: { type: "boolean" },
+      "allow-risky": { type: "boolean" },
+      "no-apply": { type: "boolean" },
+      "no-verify": { type: "boolean" },
+      dir: { type: "string" },
+      help: { type: "boolean" },
+    },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr(
+      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply] [--no-verify]\n",
+    );
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   const verb = positionals[0];
+  if (values.help || verb === "help") {
+    deps.stderr(WNPM_HELP);
+    return 0;
+  }
+  if (verb === "doctor") return runDoctorCommand(values, deps);
   if (verb && !["install", "add", "i"].includes(verb)) {
     deps.stderr(`wnpm: unknown command "${verb}"\n`);
     return 2;
@@ -322,7 +390,7 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
 }
 
 export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
     options: {
       json: { type: "boolean" },
@@ -331,6 +399,11 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
     },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   if (values.schema) {
     deps.stdout(`${JSON.stringify(VERDICT_JSON_SCHEMA, null, 2)}\n`);
@@ -1146,6 +1219,11 @@ function renderCommandHelp(command: CommandDefinition): string {
   return `warden ${command.name}: ${command.description}\n\n${usage}\n\n${flags}\n\nexit codes: ${command.exitCodes}\nexample: ${command.example}\n`;
 }
 
+const WNPM_COMPLETIONS = [
+  { name: "install", flags: ["--json", "--allow-risky"] },
+  { name: "doctor", flags: ["--dir", "--json", "--no-apply", "--no-verify"] },
+] as const;
+
 function bashCompletions(): string {
   const verbs = visibleCommands()
     .map((command) => command.name)
@@ -1159,7 +1237,12 @@ function bashCompletions(): string {
         : `    ${command.name}) COMPREPLY=( $(compgen -W '${flags}' -- "$cur") ) ;;`;
     })
     .join("\n");
-  return `_warden() {\n  local cur\n  COMPREPLY=()\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  if (( COMP_CWORD == 1 )); then\n    COMPREPLY=( $(compgen -W '${verbs}' -- "$cur") )\n    return\n  fi\n  case "\${COMP_WORDS[1]}" in\n${cases}\n  esac\n}\ncomplete -F _warden warden\n`;
+  const wnpmVerbs = WNPM_COMPLETIONS.map((command) => command.name).join(" ");
+  const wnpmCases = WNPM_COMPLETIONS.map(
+    (command) =>
+      `    ${command.name}) COMPREPLY=( $(compgen -W '${command.flags.join(" ")}' -- "$cur") ) ;;`,
+  ).join("\n");
+  return `_warden() {\n  local cur\n  COMPREPLY=()\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  if (( COMP_CWORD == 1 )); then\n    COMPREPLY=( $(compgen -W '${verbs}' -- "$cur") )\n    return\n  fi\n  case "\${COMP_WORDS[1]}" in\n${cases}\n  esac\n}\ncomplete -F _warden warden\n\n_wnpm() {\n  local cur\n  COMPREPLY=()\n  cur="\${COMP_WORDS[COMP_CWORD]}"\n  if (( COMP_CWORD == 1 )); then\n    COMPREPLY=( $(compgen -W '${wnpmVerbs}' -- "$cur") )\n    return\n  fi\n  case "\${COMP_WORDS[1]}" in\n${wnpmCases}\n  esac\n}\ncomplete -F _wnpm wnpm\n`;
 }
 
 function zshQuote(value: string): string {
@@ -1181,7 +1264,11 @@ function zshCompletions(): string {
         : `    ${command.name}) _values 'flag' ${flags} ;;`;
     })
     .join("\n");
-  return `_warden() {\n  local -a verbs\n  verbs=(\n${verbs}\n  )\n  if (( CURRENT == 2 )); then\n    _describe 'verb' verbs\n    return\n  fi\n  case "$words[2]" in\n${cases}\n  esac\n}\nif (( ! $+functions[compdef] )); then\n  autoload -Uz compinit\n  compinit -u\nfi\ncompdef _warden warden\n`;
+  const wnpmVerbs = WNPM_COMPLETIONS.map((command) => `    ${zshQuote(command.name)}`).join("\n");
+  const wnpmCases = WNPM_COMPLETIONS.map(
+    (command) => `    ${command.name}) _values 'flag' ${command.flags.map(zshQuote).join(" ")} ;;`,
+  ).join("\n");
+  return `_warden() {\n  local -a verbs\n  verbs=(\n${verbs}\n  )\n  if (( CURRENT == 2 )); then\n    _describe 'verb' verbs\n    return\n  fi\n  case "$words[2]" in\n${cases}\n  esac\n}\nif (( ! $+functions[compdef] )); then\n  autoload -Uz compinit\n  compinit -u\nfi\ncompdef _warden warden\n\n_wnpm() {\n  local -a verbs\n  verbs=(\n${wnpmVerbs}\n  )\n  if (( CURRENT == 2 )); then\n    _describe 'verb' verbs\n    return\n  fi\n  case "$words[2]" in\n${wnpmCases}\n  esac\n}\ncompdef _wnpm wnpm\n`;
 }
 
 function fishQuote(value: string): string {
@@ -1205,7 +1292,17 @@ function fishCompletions(): string {
       );
     return flags;
   });
-  return `${[`complete -c warden -f`, ...verbs, ...details].join("\n")}\n`;
+  const wnpmVerbs = WNPM_COMPLETIONS.map(
+    (command) =>
+      `complete -c wnpm -n 'test (count (commandline -opc)) -eq 1' -a ${fishQuote(command.name)}`,
+  );
+  const wnpmFlags = WNPM_COMPLETIONS.flatMap((command) =>
+    command.flags.map(
+      (flag) =>
+        `complete -c wnpm -n '__fish_seen_subcommand_from ${command.name}' -l ${fishQuote(flag.slice(2))}`,
+    ),
+  );
+  return `${[`complete -c warden -f`, ...verbs, ...details, `complete -c wnpm -f`, ...wnpmVerbs, ...wnpmFlags].join("\n")}\n`;
 }
 
 function runWardenCompletions(argv: string[], deps: WardenDeps): number {

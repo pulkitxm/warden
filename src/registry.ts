@@ -43,12 +43,17 @@ interface Packument {
 }
 
 async function getJson<T>(url: string, timeoutMs = 10_000): Promise<T | null> {
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!res.ok) return null;
+  } catch (e) {
+    throw new Error(`registry unreachable: GET ${url} (${(e as Error).message})`);
+  }
+  if (!res.ok) return null;
+  try {
     return (await res.json()) as T;
   } catch {
     return null;

@@ -385,6 +385,12 @@ test("wnpm analysis error exits 30", async () => {
   expect(err.join("")).toContain("wnpm: analysis error: boom");
 });
 
+test("wnpx unknown flags print usage and exit 2 instead of crashing", async () => {
+  const { deps, err } = makeDeps();
+  expect(await runWnpx(["left-pad", "--bogus"], deps)).toBe(2);
+  expect(err.join("")).toContain("usage: wnpx");
+});
+
 test("defaultDeps: spawn returns the command's exit code, readFile reads files", () => {
   expect(defaultDeps.spawn(["sh", "-c", "exit 7"])).toBe(7);
   expect(
