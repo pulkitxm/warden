@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { join } from "node:path";
 import {
+  cliError,
   completeJson,
   contentOf,
   extractJson,
@@ -186,7 +187,10 @@ test("completeJson calls ollama with the native format field", async () => {
 test("completeJson surfaces http, missing-json, and invalid-payload failures", async () => {
   process.env.GROQ_API_KEY = "gsk-test";
   globalThis.fetch = (async () => new Response("nope", { status: 500 })) as unknown as typeof fetch;
-  expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("groq 500");
+  expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("groq 500: nope");
+
+  globalThis.fetch = (async () => new Response("", { status: 429 })) as unknown as typeof fetch;
+  expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("groq 429");
 
   globalThis.fetch = (async () =>
     new Response(JSON.stringify({ choices: [{ message: { content: "plain text" } }] }), {
@@ -216,6 +220,12 @@ test("completeJson surfaces a nonzero claude exit code", async () => {
   process.env.WNPM_CLAUDE_BIN = join(import.meta.dir, "../../fixtures/claude-stub.sh");
   process.env.CLAUDE_STUB_EXIT = "3";
   expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("claude 3");
+});
+
+test("cliError appends trimmed stderr only when present", () => {
+  expect(cliError("claude", 3, "boom\n")).toBe("claude 3: boom");
+  expect(cliError("codex", 4, "  spaced  \n  detail ")).toBe("codex 4: spaced detail");
+  expect(cliError("claude", 1, "   ")).toBe("claude 1");
 });
 
 test("completeJson shells out to the codex cli and parses its final message", async () => {

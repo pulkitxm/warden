@@ -102,7 +102,9 @@ function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean 
     const symbolTokens = tokenize(symbol);
     if (!symbolTokens.length) return false;
     const named = symbolTokens.every((token) => claimTokens.has(token));
-    const denoted = keywordTokens.some((tokens) => tokens.every((token) => symbolTokens.includes(token)));
+    const denoted = keywordTokens.some((tokens) =>
+      tokens.every((token) => symbolTokens.includes(token)),
+    );
     return named || denoted;
   });
 }

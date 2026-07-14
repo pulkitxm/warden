@@ -42,7 +42,7 @@ Exit code 20 — the same contract as `warden check`: 0 allow · 10 warn · 20 b
 warden intent extract --prompt "$(cat .warden/prompt.txt)"   # claims ledger only (1 LLM call)
 warden intent diff                                           # deterministic hunk classification (0 tokens)
 warden intent symbols                                        # deterministic hallucination proof (0 tokens)
-bun test ./rate-limit.demo.ts                                  # pre-baked micro-test for the backoff claim
+bun test ./rate-limit.test.ts                                  # pre-baked micro-test for the backoff claim
 ```
 
 ## Both senses in one pass

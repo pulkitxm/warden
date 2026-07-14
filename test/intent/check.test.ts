@@ -208,11 +208,73 @@ test("warden intent check degrades to warn when the match llm fails", async () =
   expect(written.hallucinations).toHaveLength(1);
 });
 
-test("warden intent check surfaces extract failures as analysis errors", async () => {
+test("warden intent check surfaces extract failures with a deterministic hallucination note", async () => {
   globalThis.fetch = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
   const state = makeDeps();
   expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(30);
-  expect(state.err.join("")).toContain("groq 503");
+  const rendered = state.err.join("");
+  expect(rendered).toContain("groq 503");
+  expect(rendered).toContain("hallucinated api(s): axios.instance.throttle");
+  expect(rendered).toContain("hint: check your llm setup");
+});
+
+const CLEAN_IMAGE = [
+  'import axios from "axios";',
+  "const client = axios.create({});",
+  "function applyRateLimit(request) {",
+  "  return request;",
+  "}",
+  "export { applyRateLimit };",
+].join("\n");
+
+const CLEAN_DIFF = [
+  "diff --git a/api-client.ts b/api-client.ts",
+  "index 1111111..2222222 100644",
+  "--- a/api-client.ts",
+  "+++ b/api-client.ts",
+  "@@ -1,3 +1,6 @@",
+  ' import axios from "axios";',
+  " const client = axios.create({});",
+  "-export {};",
+  "+function applyRateLimit(request) {",
+  "+  return request;",
+  "+}",
+  "+export { applyRateLimit };",
+  "",
+].join("\n");
+
+test("warden intent check errors without a note when nothing deterministic is found", async () => {
+  globalThis.fetch = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
+  const state = makeDeps({
+    readFile: (path) => {
+      if (path === "/repo/api-client.ts") return CLEAN_IMAGE;
+      throw new Error("ENOENT");
+    },
+    git: (args) => {
+      if (args[0] === "diff") return { exitCode: 0, stdout: CLEAN_DIFF, stderr: "" };
+      return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
+    },
+  });
+  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(30);
+  const rendered = state.err.join("");
+  expect(rendered).toContain("groq 503");
+  expect(rendered).not.toContain("deterministic scan still found");
+});
+
+test("warden intent check cleans git noise and gives a git-focused hint", async () => {
+  const state = makeDeps({
+    git: () => ({
+      exitCode: 128,
+      stdout: "",
+      stderr:
+        "fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).",
+    }),
+  });
+  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(30);
+  const rendered = state.err.join("");
+  expect(rendered).toContain("not a git repository");
+  expect(rendered).not.toContain("Stopping at filesystem boundary");
+  expect(rendered).toContain("hint: run inside a git repo");
 });
 
 test("warden intent check exits clean when everything is delivered", async () => {
@@ -254,4 +316,41 @@ test("warden intent check exits clean when everything is delivered", async () =>
   const written = JSON.parse(state.files.get("/repo/.warden/intent-report.json")!) as IntentReport;
   expect(written.verdict).toBe("allow");
   expect(written.claims.map((row) => row.verdict)).toEqual(["delivered", "delivered", "delivered"]);
+});
+
+test("warden intent scans untracked new files and skips noise", async () => {
+  const untrackedList = [
+    "new-feature.js",
+    ".warden/prompt.txt",
+    "node_modules",
+    "node_modules/axios/index.js",
+    "lib/node_modules/vendored.js",
+    ".git/config",
+    "empty.js",
+    "binary.bin",
+    "missing.js",
+    "",
+  ].join("\n");
+  const files: Record<string, string> = {
+    "/repo/new-feature.js":
+      'import axios from "axios";\nconst c = axios.create({});\nc.throttle();\n',
+    "/repo/empty.js": "",
+    "/repo/binary.bin": "PNG\u0000data",
+  };
+  const state = makeDeps({
+    readFile: (path) => {
+      const hit = files[path];
+      if (hit !== undefined) return hit;
+      throw new Error("ENOENT");
+    },
+    git: (args) => {
+      if (args[0] === "rev-parse") return { exitCode: 0, stdout: "true\n", stderr: "" };
+      if (args[0] === "merge-base") return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
+      if (args[0] === "ls-files") return { exitCode: 0, stdout: untrackedList, stderr: "" };
+      if (args[0] === "diff") return { exitCode: 0, stdout: "", stderr: "" };
+      return { exitCode: 1, stdout: "", stderr: "unexpected git call" };
+    },
+  });
+  expect(await runWarden(["intent", "symbols"], state.deps)).toBe(20);
+  expect(state.err.join("")).toContain("axios.instance.throttle");
 });

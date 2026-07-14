@@ -91,12 +91,50 @@ interface DiffContext {
   hunks: ClassifiedHunk[];
 }
 
+function untrackedDiffText(deps: WardenDeps, root: string): string {
+  const result = deps.git(["ls-files", "--others", "--exclude-standard"], root);
+  if (result.exitCode !== 0) return "";
+  const sections: string[] = [];
+  for (const raw of result.stdout.split("\n")) {
+    const path = raw.trim();
+    if (path === "" || path.startsWith(".warden/")) continue;
+    if (path === "node_modules" || path.startsWith("node_modules/")) continue;
+    if (path.includes("/node_modules/") || path.startsWith(".git/")) continue;
+    let code: string;
+    try {
+      code = deps.readFile(join(root, path));
+    } catch {
+      continue;
+    }
+    if (code.includes("\u0000")) continue;
+    const lines = code.split("\n");
+    if (lines.length && lines[lines.length - 1] === "") lines.pop();
+    if (!lines.length) continue;
+    sections.push(
+      [
+        `diff --git a/${path} b/${path}`,
+        "new file mode 100644",
+        "--- /dev/null",
+        `+++ b/${path}`,
+        `@@ -0,0 +1,${lines.length} @@`,
+        ...lines.map((line) => `+${line}`),
+      ].join("\n"),
+    );
+  }
+  return sections.join("\n");
+}
+
+function collectFileDiffs(deps: WardenDeps, root: string, mergeBase: string): FileDiff[] {
+  const tracked = gitResult(deps, root, ["diff", mergeBase]);
+  const untracked = untrackedDiffText(deps, root);
+  return parseUnifiedDiff(untracked === "" ? tracked : `${tracked}\n${untracked}`);
+}
+
 function collectDiff(flags: IntentFlags, deps: WardenDeps): DiffContext {
   const root = deps.cwd();
   gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
   const mergeBase = resolveMergeBase(deps, root, flags.base);
-  const diffText = gitResult(deps, root, ["diff", mergeBase]);
-  const diffs = parseUnifiedDiff(diffText);
+  const diffs = collectFileDiffs(deps, root, mergeBase);
   const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
   return { root, mergeBase, diffs, hunks };
 }
@@ -149,12 +187,21 @@ export async function runIntentPipeline(
   mergeBase: string,
   prompt: string,
 ): Promise<IntentRun> {
-  const diffText = gitResult(deps, root, ["diff", mergeBase]);
-  const diffs = parseUnifiedDiff(diffText);
+  const diffs = collectFileDiffs(deps, root, mergeBase);
   const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
   const context: DiffContext = { root, mergeBase, diffs, hunks };
-  const ledger = await extractClaims(prompt);
   const hallucinations = scanHallucinations(context, deps);
+  let ledger: IntentLedger;
+  try {
+    ledger = await extractClaims(prompt);
+  } catch (error) {
+    const note = hallucinations.length
+      ? ` (note: deterministic scan still found ${hallucinations.length} hallucinated api(s): ${hallucinations
+          .map((finding) => finding.symbol)
+          .join(", ")})`
+      : "";
+    throw new Error(`${(error as Error).message}${note}`);
+  }
   const keyword = keywordPass(ledger.claims, hunks);
   const matchedClaims = new Set(keyword.map((proposal) => proposal.claimId));
   const leftovers = ledger.claims.filter(
@@ -217,13 +264,40 @@ export async function runWardenIntent(argv: string[], deps: WardenDeps): Promise
     }
     return await handler(flags, deps);
   } catch (error) {
+    const message = cleanErrorMessage((error as Error).message);
     return wardenFailure(
       deps,
       wantsJson,
       "analysis",
       "WARDEN_INTENT_ERROR",
-      (error as Error).message,
-      "check git, --prompt, and your llm setup (WNPM_LLM_PROVIDER=claude or codex, or GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY)",
+      message,
+      hintFor(message),
     );
   }
+}
+
+function cleanErrorMessage(message: string): string {
+  return message
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("Stopping at filesystem boundary"))
+    .join(" ");
+}
+
+const LLM_HINT =
+  "check your llm setup (WNPM_LLM_PROVIDER=claude or codex, or GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY)";
+
+function hintFor(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("git repository") ||
+    lower.includes("not a valid object") ||
+    lower.includes("merge-base") ||
+    lower.includes("main is available") ||
+    lower.includes("ambiguous argument") ||
+    lower.includes("unknown revision")
+  ) {
+    return "run inside a git repo whose base ref exists (set --base to a real branch or commit)";
+  }
+  return LLM_HINT;
 }

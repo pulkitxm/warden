@@ -142,12 +142,12 @@ async function httpText(provider: Provider, request: LlmJsonRequest): Promise<st
   });
   if (!res.ok) {
     const body = (await res.text()).trim().replace(/\s+/g, " ").slice(0, 200);
-    throw new Error(body ? `${provider.name} ${res.status}: ${body}` : `${provider.name} ${res.status}`);
+    throw new Error(cliError(provider.name, res.status, body));
   }
   return contentOf(provider, (await res.json()) as unknown);
 }
 
-function cliError(name: string, exitCode: number, stderr: string): string {
+export function cliError(name: string, exitCode: number, stderr: string): string {
   const detail = stderr.trim().replace(/\s+/g, " ").slice(0, 200);
   return detail ? `${name} ${exitCode}: ${detail}` : `${name} ${exitCode}`;
 }
