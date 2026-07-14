@@ -34,6 +34,19 @@ Every check returns a versioned JSON verdict (`warden schema` prints the JSON Sc
 
 Verdicts are cached in SQLite (`~/.wnpm-cache/verdicts.sqlite`) keyed by tarball integrity and analyzer version, so repeat checks are instant and re-analysis happens automatically when the analyzer changes.
 
+## Dependency doctor
+
+`warden doctor` (also `wnpm doctor`) turns the vetting engine into a repair loop for a project's existing dependencies:
+
+1. Read `package.json` plus installed versions from `package-lock.json` (v1/v3) or `node_modules`, falling back to the smallest version satisfying the declared range.
+2. Audit every dependency: OSV advisories (`WNPM_OSV` override for offline use), the known-malware blocklist (issue kind `compromised`), and registry deprecation.
+3. Build minimal and latest upgrade plans from versions that clear every advisory.
+4. Gate each candidate version through the standard verdict engine. A blocked candidate is rejected with evidence even when an advisory names it as the official fix; packages whose only fixes are blocked are reported unfixable.
+5. Verify surviving plans in throwaway workspaces: install with lifecycle scripts disabled, then the project's own `test`, `typecheck`, and `build` scripts.
+6. Apply the recommended plan by default: pin the exact verified versions into `package.json` and reinstall, so the installed state cannot drift from the verified state. A failed apply restores the original manifest. `--no-apply` reports without touching the project.
+
+Installed versions are gated through the verdict engine too, so a hijacked release that is already in `node_modules` is reported as `compromised` even without an advisory. Flags: `--dir <path>`, `--json` (one report object on stdout), `--no-apply`. Exit codes: `0` clean or fully fixed, `10` issues remain, `30` analysis error. A registry or advisory outage — or a machine with no package manager on PATH — degrades to notes instead of failing the run.
+
 ## Interception
 
 See [interception](interception.md).

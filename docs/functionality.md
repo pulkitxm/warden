@@ -17,6 +17,7 @@ usage: warden <verb> [flags]
   detect       classify the workspace (framework, role, tooling per package)
   init         onboard a repo: config, workflow, hooks, agent context
   fix          hand the last failing check to your coding agent
+  doctor       audit dependencies, gate candidate fixes, verify and apply the safest plan
   config       read or set user-level settings (mode, intercept, agent)
   log          render recorded verdicts from ~/.warden/log.jsonl
   schema       print the JSON schema for structured output

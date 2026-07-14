@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
+import { type DoctorOptions, type DoctorReport, runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import {
   type CiFinding,
@@ -12,7 +13,7 @@ import {
   VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../schema.ts";
-import { bold, dim, renderLine, renderVerdict } from "./ui.ts";
+import { bold, dim, renderDoctorReport, renderLine, renderVerdict } from "./ui.ts";
 
 export interface RunDeps {
   check: (spec: string) => Promise<Verdict>;
@@ -21,6 +22,7 @@ export interface RunDeps {
   which: (cmd: string) => string | null;
   spawn: (cmd: string[]) => number;
   readFile: (path: string) => string;
+  doctor?: (dir: string, opts: DoctorOptions) => Promise<DoctorReport>;
 }
 
 export interface WardenDeps extends RunDeps {
@@ -147,6 +149,7 @@ export const defaultDeps: RunDeps = {
   which: Bun.which,
   spawn: (cmd) => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
   readFile: (path) => readFileSync(path, "utf8"),
+  doctor: runDoctor,
 };
 
 export const defaultWardenDeps: WardenDeps = {
@@ -259,14 +262,55 @@ function directDeps(deps: RunDeps): string[] {
   }
 }
 
+async function runDoctorCommand(
+  values: { json?: boolean; "no-apply"?: boolean; dir?: string },
+  deps: RunDeps,
+): Promise<number> {
+  return guarded("wnpm doctor", deps, async () => {
+    const doctor = deps.doctor ?? runDoctor;
+    const report = await doctor(values.dir ?? ".", {
+      apply: !values["no-apply"],
+    });
+    if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
+    else deps.stderr(renderDoctorReport(report));
+    if (!report.issues.length) return 0;
+    const plan = report.plans.find((p) => p.id === report.recommended);
+    const fixed = new Set(report.applied ? (plan?.changes ?? []).map((c) => c.name) : []);
+    return report.issues.every((i) => fixed.has(i.name)) ? 0 : EXIT.warn;
+  });
+}
+
+function parseArgsSafe<T extends NonNullable<Parameters<typeof parseArgs>[0]>>(
+  config: T,
+): ReturnType<typeof parseArgs<T>> | null {
+  try {
+    return parseArgs(config);
+  } catch {
+    return null;
+  }
+}
+
 export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
-    options: { json: { type: "boolean" }, "allow-risky": { type: "boolean" } },
+    options: {
+      json: { type: "boolean" },
+      "allow-risky": { type: "boolean" },
+      "no-apply": { type: "boolean" },
+      dir: { type: "string" },
+    },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr(
+      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply]\n",
+    );
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   const verb = positionals[0];
+  if (verb === "doctor") return runDoctorCommand(values, deps);
   if (verb && !["install", "add", "i"].includes(verb)) {
     deps.stderr(`wnpm: unknown command "${verb}"\n`);
     return 2;
@@ -322,7 +366,7 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
 }
 
 export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const { values, positionals } = parseArgs({
+  const parsed = parseArgsSafe({
     args: argv,
     options: {
       json: { type: "boolean" },
@@ -331,6 +375,11 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
     },
     allowPositionals: true,
   });
+  if (!parsed) {
+    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+    return 2;
+  }
+  const { values, positionals } = parsed;
 
   if (values.schema) {
     deps.stdout(`${JSON.stringify(VERDICT_JSON_SCHEMA, null, 2)}\n`);
@@ -1020,6 +1069,28 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   }
 }
 
+async function runWardenDoctor(argv: string[], deps: WardenDeps): Promise<number> {
+  const parsed = parseArgsSafe({
+    args: argv,
+    options: {
+      json: { type: "boolean" },
+      "no-apply": { type: "boolean" },
+      dir: { type: "string" },
+    },
+  });
+  if (!parsed) {
+    return wardenFailure(
+      deps,
+      argv.includes("--json"),
+      "usage",
+      "WARDEN_DOCTOR_USAGE",
+      "invalid doctor flags",
+      "run warden doctor --help",
+    );
+  }
+  return runDoctorCommand(parsed.values, deps);
+}
+
 async function runWardenFix(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
   try {
@@ -1285,6 +1356,19 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden fix",
     run: runWardenFix,
+  },
+  {
+    name: "doctor",
+    description: "audit dependencies, gate candidate fixes, verify and apply the safest plan",
+    flags: [
+      { name: "--dir", valueHint: "<path>", description: "project directory (default: cwd)" },
+      { name: "--json", description: "write the doctor report to stdout" },
+      { name: "--no-apply", description: "report only; leave the project untouched" },
+      helpFlag,
+    ],
+    exitCodes: "0 clean or fully fixed · 10 issues remain · 30 error",
+    example: "warden doctor --dir ./api",
+    run: runWardenDoctor,
   },
   {
     name: "config",
