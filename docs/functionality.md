@@ -59,7 +59,7 @@ new shells pick it up automatically
 verify with: warden check left-pad
 ```
 
-Upgrades preserve config, and `sh install.sh --uninstall` removes everything the installer placed.
+Upgrades preserve config, and `warden uninstall` removes everything the installer placed.
 
 ## Vetting packages: `warden check`
 

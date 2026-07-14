@@ -11,6 +11,7 @@ bun run build
 wnpm install left-pad
 wnpx some-cli@latest
 wnpx some-cli@latest --json
+warden uninstall
 ```
 
 `wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself.
