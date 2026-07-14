@@ -366,6 +366,68 @@ test("uninstall removes a PATH-only rc when grep finds no retained lines", () =>
     expect(readFileSync(join(sandbox.home, ".profile"), "utf8")).toBe("");
   }));
 
+test("installed warden command completes a full install and uninstall round trip", () =>
+  inSandbox(["npm", "bun", "npx", "bunx"], (sandbox) => {
+    const actualSource = join(sandbox.root, "actual-source");
+    mkdirSync(join(actualSource, "dist"), { recursive: true });
+    mkdirSync(join(actualSource, "scripts"), { recursive: true });
+    copyFileSync(installScript, join(actualSource, "install.sh"));
+    copyFileSync(shimScript, join(actualSource, "scripts", "shim.sh"));
+    copyFileSync(join(source, "dist", "wnpm"), join(actualSource, "dist", "wnpm"));
+    copyFileSync(join(source, "dist", "wnpx"), join(actualSource, "dist", "wnpx"));
+    const entrypoint = join(import.meta.dir, "../../src/bin/warden.ts");
+    executable(
+      join(actualSource, "dist", "warden"),
+      `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(entrypoint)} "$@"\n`,
+    );
+
+    const localBin = join(sandbox.home, ".local", "bin");
+    mkdirSync(localBin, { recursive: true });
+    writeFileSync(join(sandbox.home, ".zshrc"), "before\n");
+    const safePath = `${localBin}:${sandbox.stubs}:${sandbox.tools}`;
+    const installed = run(sandbox, [], {
+      answer: "\n",
+      env: { SHELL: "/bin/zsh", WARDEN_INSTALL_SOURCE: actualSource },
+      path: safePath,
+    });
+    expect(installed.exitCode).toBe(0);
+    expect(existsSync(join(sandbox.home, ".warden", "shims", "bun"))).toBe(true);
+    expect(readlinkSync(join(localBin, "warden"))).toBe(
+      join(sandbox.home, ".warden", "bin", "warden"),
+    );
+    expect(readFileSync(join(sandbox.home, ".zshrc"), "utf8")).toBe(
+      `before\n${pathLine}\n${completionLines.zsh}\n`,
+    );
+
+    writeFileSync(
+      join(sandbox.home, ".zshrc"),
+      `before\n${pathLine}\n${completionLines.zsh}\nafter\n`,
+    );
+    const removed = Bun.spawnSync([join(localBin, "warden"), "uninstall"], {
+      env: {
+        ...process.env,
+        HOME: sandbox.home,
+        PATH: safePath,
+        SHELL: "/bin/zsh",
+        TMPDIR: sandbox.temp,
+      },
+    });
+    expect(removed.exitCode).toBe(0);
+    expect(output(removed)).toContain("package managers restored to direct execution");
+    expect(existsSync(join(sandbox.home, ".warden"))).toBe(false);
+    for (const name of ["warden", "wnpm", "wnpx"]) {
+      expect(existsSync(join(localBin, name))).toBe(false);
+    }
+    expect(readFileSync(join(sandbox.home, ".zshrc"), "utf8")).toBe("before\nafter\n");
+    for (const name of ["npm", "bun", "npx", "bunx"]) {
+      const manager = Bun.spawnSync([name, "--version"], {
+        env: { ...process.env, HOME: sandbox.home, PATH: safePath },
+      });
+      expect(manager.exitCode).toBe(0);
+      expect(text(manager.stdout).trim()).toBe(`${name}-9.9.9`);
+    }
+  }));
+
 test("writable HOME local bin receives links and ready message", () =>
   inSandbox([], (sandbox) => {
     const localBin = join(sandbox.home, ".local", "bin");
@@ -380,15 +442,15 @@ test("writable HOME local bin receives links and ready message", () =>
     );
   }));
 
-test("no writable on-PATH candidate prints export fallback", () =>
+test("no writable on-PATH candidate still prints the activation instruction", () =>
   inSandbox([], (sandbox) => {
     const missingCandidate = join(sandbox.home, ".local", "bin");
     const result = run(sandbox, [], {
       path: `${missingCandidate}:${sandbox.stubs}:${sandbox.tools}`,
     });
     expect(result.exitCode).toBe(0);
-    expect(output(result)).toContain("to use warden in this shell right now");
-    expect(output(result)).toContain(pathLine);
+    expect(output(result)).toContain("NOT active in this shell yet");
+    expect(output(result)).toContain("exec");
   }));
 
 test("download install verifies with sha256sum and extracts all binaries", () =>

@@ -269,11 +269,11 @@ fi
 printf '\n  config     ~/.warden/config.json  (mode: %s, intercept: install+exec)\n\n' "$mode"
 if [ -n "$link_dir" ]; then
   printf 'done; warden is ready in this shell (linked into %s)\n' "$link_dir"
-  printf 'package-manager interception starts in new shells\n'
 else
-  printf 'done; to use warden in this shell right now, run:\n'
-  printf '  export PATH="$HOME/.warden/shims:$HOME/.warden/bin:$PATH"\n'
-  printf 'new shells pick it up automatically\n'
+  printf 'done\n'
 fi
+printf '\nIMPORTANT: package-manager interception is NOT active in this shell yet.\n'
+printf 'activate it now:  exec %s\n' "$shell_name"
+printf 'new shells pick it up automatically\n'
 printf 'verify with: warden check left-pad\n'
 install_complete=true

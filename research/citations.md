@@ -4,6 +4,21 @@ Every claim below was checked against a primary or vendor source on 2026-07-04.
 "Verified" = corroborated by the linked source. Use these exact numbers in the
 deck; where a source refines the plan's figure, the refined number is noted.
 
+## CVE publication volume (CVE Program)
+
+- CVE Program metrics list **25,059 published records in 2022**, **28,961 in
+  2023**, **40,077 in 2024**, and **48,244 in 2025**. The 2026 Q1 snapshot lists
+  **15,176 records**. Prior quarters can be recalculated during the current year,
+  while prior years are frozen after year-end reconciliation.
+  https://www.cve.org/About/Metrics
+
+## Breach entry points and third parties (Verizon DBIR 2026)
+
+- Verizon reports that exploitation of vulnerabilities became the leading breach
+  entry point at **31%**. Breaches involving a third party reached **48%**, a
+  **60% increase** over the prior report. The report uses 2025 incident data.
+  https://www.verizon.com/about/news/breach-industry-wide-dbir-finds
+
 ## npm malware volume (Sonatype)
 
 - **454,648 new malicious open-source packages in 2025**, cumulative >1.233M

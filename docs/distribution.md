@@ -84,11 +84,13 @@ done in 2.8s
 Uninstall:
 
 ```
-$ ~/.warden/install.sh --uninstall
+$ warden uninstall
 removed ~/.warden (binaries, shims, cache, config)
 removed PATH line from ~/.zshrc
 package managers restored to direct execution
 ```
+
+The command also removes Warden-owned links from `/usr/local/bin` or `~/.local/bin`. Open a new shell after uninstalling so the updated PATH takes effect.
 
 Notes the transcripts encode:
 
