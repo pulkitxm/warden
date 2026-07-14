@@ -1,0 +1,11 @@
+{
+  "name": "structural-chaos-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "eslint": "latest",
+    "eslint-plugin-react": "^7.30.0",
+    "jsonwebtoken": "abc-123-invalid-version",
+    "uuid": "v3.0.0",
+    "corrupted-pkg": ""
+  }
+}
