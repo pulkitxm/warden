@@ -9,6 +9,8 @@ A three-minute demo of `warden intent` — verifying that an agent's diff actual
 
 ## Run it
 
+Needs `warden` on your `PATH` (`sh install.sh`) — or run the commands below via `./dist/warden` from the repo root after `bun run build`.
+
 ```sh
 sh demo/intent/setup.sh
 cd /tmp/warden-intent-demo
@@ -22,15 +24,16 @@ warden intent check            # prompt read from .warden/prompt.txt
 Expected shape:
 
 ```
-VERDICT: 4 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
+VERDICT: 5 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
 
-  ✅ Add rate limiting to the API client        [api-client.ts:…]
-  ✅ Keep the retry logic                        [no change touches it]
-  ✅ Ensure 429 responses back off exponentially [api-client.ts:…]
-  ✅ Make the rate configurable                  [config.ts:…]
-  ❌ DROPPED: Log every rate-limited request     [no matching change found]
+  ✅ Add rate limiting to the API client          [api-client.ts:…]
+  ✅ Preserve existing retry logic                 [no change touches it]
+  ✅ Implement exponential backoff for HTTP 429s   [api-client.ts:…]
+  ✅ Handle empty HTTP responses gracefully        [api-client.ts:…]
+  ✅ Make rate limiting parameters configurable    [api-client.ts:…, config.ts:…]
+  ❌ DROPPED: Log all rate-limited requests        [no matching change found]
   ⚠️ SCOPE CREEP: pagination.ts — 50+ lines changed, never requested
-  🚨 HALLUCINATED: axios.instance.throttle       [api-client.ts:27]
+  🚨 HALLUCINATED: axios.instance.throttle         [api-client.ts:27]
      axios instance has no member 'throttle'. Known: get, post, put, delete, …
 ```
 

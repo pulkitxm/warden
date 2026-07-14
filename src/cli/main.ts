@@ -863,15 +863,25 @@ async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> 
           `append Warden guidance to ${context}`,
         ]);
     }
+    const gitignorePath = join(root, ".gitignore");
+    changes.push([
+      ".gitignore",
+      deps.exists(gitignorePath)
+        ? `${deps.readFile(gitignorePath).trimEnd()}\n.warden/\n`
+        : ".warden/\n",
+      "ignore .warden/ in .gitignore",
+    ]);
+    const idempotentMarker: Record<string, string> = {
+      "CLAUDE.md": "## Warden",
+      "AGENTS.md": "## Warden",
+      ".gitignore": ".warden/",
+    };
     const written: string[] = [];
     const skipped: string[] = [];
     for (const [file, content, question] of changes) {
       const path = join(root, file);
-      if (
-        deps.exists(path) &&
-        ((file !== "CLAUDE.md" && file !== "AGENTS.md") ||
-          deps.readFile(path).includes("## Warden"))
-      ) {
+      const marker = idempotentMarker[file];
+      if (deps.exists(path) && (marker === undefined || deps.readFile(path).includes(marker))) {
         skipped.push(file);
         continue;
       }

@@ -8,11 +8,13 @@ WNPM checks npm packages before they install or execute. It compares releases, v
 make install
 bun run build
 
-wnpm install left-pad
-wnpx some-cli@latest
-wnpx some-cli@latest --json
-warden uninstall
+./dist/wnpm install left-pad
+./dist/wnpx some-cli@latest
+./dist/wnpx some-cli@latest --json
+./dist/warden uninstall
 ```
+
+Prefer a real install over running from `dist/`? Use `sh install.sh` — it puts `warden`, `wnpm`, and `wnpx` on your `PATH`.
 
 `wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself.
 

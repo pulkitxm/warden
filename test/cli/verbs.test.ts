@@ -270,7 +270,8 @@ test("init writes accepted files, reruns idempotently, and reports errors", asyn
     write(root, "package.json", packageJson({}));
     write(root, "CLAUDE.md", "# Context\n");
     write(root, "AGENTS.md", "# Instructions\n");
-    const answers = ["yes", "y", "y", "y"];
+    write(root, ".gitignore", "node_modules/\n");
+    const answers = ["yes", "y", "y", "y", "y"];
     const state = makeDeps(root, { isTTY: () => true, prompt: async () => answers.shift() ?? "n" });
     expect(await runWarden(["init"], state.deps)).toBe(0);
     expect(JSON.parse(readFileSync(join(root, "warden.config.json"), "utf8"))).toMatchObject({
@@ -282,6 +283,7 @@ test("init writes accepted files, reruns idempotently, and reports errors", asyn
       "./dist/warden ci --reporter github",
     );
     expect(readFileSync(join(root, "CLAUDE.md"), "utf8")).toContain("warden ci --reporter agent");
+    expect(readFileSync(join(root, ".gitignore"), "utf8")).toBe("node_modules/\n.warden/\n");
     const before = readFileSync(join(root, "AGENTS.md"), "utf8");
     expect(await runWarden(["init", "--yes"], state.deps)).toBe(0);
     expect(readFileSync(join(root, "AGENTS.md"), "utf8")).toBe(before);
@@ -306,6 +308,7 @@ test("init --yes writes defaults while non-TTY mode accepts no offers", async ()
     expect(await runWarden(["init", "--yes"], state.deps)).toBe(0);
     expect(existsSync(join(root, "warden.config.json"))).toBe(true);
     expect(existsSync(join(root, ".github/workflows/warden.yml"))).toBe(true);
+    expect(readFileSync(join(root, ".gitignore"), "utf8")).toBe(".warden/\n");
   });
 });
 
