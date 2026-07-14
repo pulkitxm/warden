@@ -11,6 +11,17 @@ python3 -m http.server 4173
 
 Open `http://localhost:4173`. Use one arrow-key or space-bar press per slide. Each slide runs its internal animation automatically. Press `F` for full screen and `S` for speaker view.
 
+## Record the video
+
+Install Chrome or Chromium and `ffmpeg`, then run:
+
+```sh
+bun install
+bun run record:presentation
+```
+
+The recorder captures the deck at 1280x720 and 25 fps, advances each slide after its animations finish, and replaces `presentation/warden-preview.mp4`. Pass a different output path as the first argument when needed. Set `CHROME_PATH` or `FFMPEG_PATH` if either executable is outside the standard locations.
+
 ## Ready-to-share outputs
 
 - `warden-deck.pdf`: 13-page, 16:9 presentation export
@@ -21,5 +32,7 @@ Open `http://localhost:4173`. Use one arrow-key or space-bar press per slide. Ea
 - `index.html`: slide content and citations
 - `styles.css`: layout, charts, animation, and print styling
 - `deck.js`: Reveal.js setup and terminal playback
+- `../scripts/record-presentation.ts`: automated Chrome capture and H.264 encoding
+- `presentation-context.md`: problem narrative, incident context, competitive gap, agent support, and speaker notes
 
 The deck uses Reveal.js 5.2.1 from jsDelivr, bundled Bricolage Grotesque, and the native macOS terminal font stack.

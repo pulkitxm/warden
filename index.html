@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Warden checks npm packages before they install or execute, then returns an evidence-backed allow, warn, or block verdict."
+    />
+    <meta name="theme-color" content="#081022" />
+    <title>Warden | Nothing runs without a verdict</title>
+    <link rel="stylesheet" href="landing/styles.css" />
+    <script src="landing/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page-noise" aria-hidden="true"></div>
+    <header class="site-header" data-header>
+      <a class="brand" href="#top" aria-label="Warden home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>WARDEN</span>
+      </a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-button>
+        <span></span><span></span>
+        <span class="sr-only">Open navigation</span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Main navigation" data-nav>
+        <a href="#how-it-works">How it works</a>
+        <a href="#coverage">Coverage</a>
+        <a href="#workflows">Workflows</a>
+        <a href="#faq">FAQ</a>
+        <a class="nav-cta" href="#install">Install Warden</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-grid">
+          <div class="hero-copy reveal">
+            <p class="eyebrow"><span></span>Package trust, before execution</p>
+            <h1>Nothing runs<br />without a <em>verdict.</em></h1>
+            <p class="hero-summary">
+              Warden checks npm packages before they install or execute. It verifies the artifact, reads what changed,
+              scans the code, and stops risky releases before a lifecycle script gets control.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#install">Protect this machine <span>↗</span></a>
+              <button class="button button-secondary" type="button" data-focus-scanner>Try a package <span>↓</span></button>
+            </div>
+            <div class="hero-proof" aria-label="Product attributes">
+              <span><i></i>Deterministic verdicts</span>
+              <span><i></i>Stable exit codes</span>
+              <span><i></i>Evidence in every result</span>
+            </div>
+          </div>
+
+          <div class="checkpoint reveal" data-checkpoint>
+            <div class="checkpoint-top">
+              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>preflight / package intake</span>
+              <span class="live-status"><i></i> armed</span>
+            </div>
+            <div class="checkpoint-stage">
+              <div class="radar-grid" aria-hidden="true"></div>
+              <div class="orbit orbit-one" aria-hidden="true"></div>
+              <div class="orbit orbit-two" aria-hidden="true"></div>
+              <div class="scan-beam" aria-hidden="true"></div>
+              <div class="package-card">
+                <small>incoming</small>
+                <strong data-hero-package>lodahs</strong>
+                <span data-hero-version>@0.0.1</span>
+              </div>
+              <div class="verdict-stamp is-block" data-hero-stamp>
+                <small>verdict</small>
+                <strong data-hero-verdict>BLOCK</strong>
+                <span data-hero-score>risk 60 / 100</span>
+              </div>
+              <span class="signal signal-one" aria-hidden="true"></span>
+              <span class="signal signal-two" aria-hidden="true"></span>
+              <span class="signal signal-three" aria-hidden="true"></span>
+            </div>
+            <div class="checkpoint-log" aria-live="polite">
+              <span>$</span>
+              <code data-hero-command>npm install lodahs</code>
+              <i></i>
+            </div>
+          </div>
+        </div>
+        <div class="manager-strip reveal" aria-label="Supported package manager commands">
+          <span>Keep the command you already use</span>
+          <div><b>npm</b><b>pnpm</b><b>yarn</b><b>bun</b><b>npx</b><b>bunx</b></div>
+        </div>
+      </section>
+
+      <section class="problem section-pad" id="problem">
+        <div class="section-heading reveal">
+          <p class="eyebrow eyebrow-dark"><span></span>The missing checkpoint</p>
+          <h2>A package manager answers <em>“can I install this?”</em><br />Warden asks <em>“should this run?”</em></h2>
+        </div>
+        <div class="problem-grid">
+          <article class="problem-card reveal">
+            <span class="card-index">01</span>
+            <div class="problem-icon typo-icon" aria-hidden="true"><b>lodash</b><b>lodahs</b></div>
+            <h3>Names deceive</h3>
+            <p>One swapped character, a lookalike glyph, or an invented package name can turn a routine command into code execution.</p>
+          </article>
+          <article class="problem-card reveal">
+            <span class="card-index">02</span>
+            <div class="problem-icon diff-icon" aria-hidden="true"><b>- 1.0.0 clean</b><b>+ 1.0.1 postinstall</b></div>
+            <h3>Trust changes</h3>
+            <p>A familiar package can add a lifecycle script, change maintainers, or lose provenance in a single release.</p>
+          </article>
+          <article class="problem-card reveal">
+            <span class="card-index">03</span>
+            <div class="problem-icon script-icon" aria-hidden="true"><span>$</span><b>postinstall</b><i></i></div>
+            <h3>Scripts run early</h3>
+            <p>Install hooks execute before you inspect the dependency. By the time a scanner reports the problem, the payload may have run.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="evidence-band" id="evidence" aria-label="Package security evidence">
+        <div class="evidence-band-heading reveal">
+          <p class="eyebrow eyebrow-dark"><span></span>The scale of the problem</p>
+          <h2>The ecosystem moves faster than manual review.</h2>
+        </div>
+        <div class="evidence-stats">
+          <article class="reveal"><strong>454,648</strong><span>malicious packages identified in 2025</span><small>Sonatype 2026</small></article>
+          <article class="reveal"><strong>48,244</strong><span>CVEs published in 2025</span><small>CVE Program</small></article>
+          <article class="reveal"><strong>31%</strong><span>breaches entered through vulnerability exploitation</span><small>Verizon DBIR 2026</small></article>
+          <article class="reveal"><strong>205,474</strong><span>unique hallucinated package names</span><small>USENIX Security 2025</small></article>
+        </div>
+      </section>
+
+      <section class="pipeline section-pad" id="how-it-works">
+        <div class="pipeline-intro reveal">
+          <p class="eyebrow"><span></span>The checkpoint</p>
+          <h2>Evidence enters.<br /><em>A verdict leaves.</em></h2>
+          <p>Every package moves through the same deterministic sequence. Signals can explain a verdict, but they cannot quietly rewrite the rules.</p>
+        </div>
+        <div class="pipeline-machine reveal" data-pipeline>
+          <div class="pipeline-rail" aria-hidden="true"><i></i></div>
+          <div class="pipeline-package" aria-hidden="true"><span>pkg</span></div>
+          <article class="pipeline-step is-active" data-pipeline-step>
+            <small>01</small><strong>Resolve</strong><span>Exact version and registry metadata</span>
+          </article>
+          <article class="pipeline-step" data-pipeline-step>
+            <small>02</small><strong>Verify</strong><span>Tarball integrity and known intel</span>
+          </article>
+          <article class="pipeline-step" data-pipeline-step>
+            <small>03</small><strong>Compare</strong><span>Release diff, scripts, maintainers</span>
+          </article>
+          <article class="pipeline-step" data-pipeline-step>
+            <small>04</small><strong>Inspect</strong><span>AST scan for dangerous capabilities</span>
+          </article>
+          <article class="pipeline-step" data-pipeline-step>
+            <small>05</small><strong>Decide</strong><span>Allow, warn, or block with evidence</span>
+          </article>
+        </div>
+        <div class="pipeline-footer reveal">
+          <span>exit 0 <b>allow</b></span><span>exit 10 <b>warn</b></span><span>exit 20 <b>block</b></span><span>exit 30 <b>error</b></span>
+        </div>
+      </section>
+
+      <section class="scanner section-pad" id="scanner" data-scanner>
+        <div class="scanner-copy reveal">
+          <p class="eyebrow eyebrow-dark"><span></span>Interactive verdict</p>
+          <h2>Put a package<br />through the gate.</h2>
+          <p>Try a known clean package, a misspelled name, or a compromised release. This demo mirrors Warden’s evidence contract without contacting a registry.</p>
+          <div class="preset-list" aria-label="Example packages">
+            <button type="button" data-package="left-pad">left-pad</button>
+            <button type="button" data-package="lodahs">lodahs</button>
+            <button type="button" data-package="chalk@5.6.1">chalk@5.6.1</button>
+            <button type="button" data-package="react-codeshift">react-codeshift</button>
+          </div>
+        </div>
+        <div class="scanner-console reveal">
+          <form class="scanner-form" data-scanner-form>
+            <label for="package-input">Package name or version</label>
+            <div>
+              <span>$</span>
+              <input id="package-input" name="package" value="lodahs" autocomplete="off" spellcheck="false" />
+              <button type="submit">Run check <span>↗</span></button>
+            </div>
+          </form>
+          <div class="scan-progress" data-scan-progress>
+            <div><span>resolve</span><i></i></div>
+            <div><span>integrity</span><i></i></div>
+            <div><span>diff</span><i></i></div>
+            <div><span>AST scan</span><i></i></div>
+            <div><span>score</span><i></i></div>
+          </div>
+          <div class="scan-result is-block" data-scan-result aria-live="polite">
+            <div class="result-head">
+              <div><small>verdict</small><strong data-result-verdict>BLOCK</strong></div>
+              <div class="risk-ring" style="--risk: 60" data-risk-ring><span data-result-risk>60</span><small>/ 100</small></div>
+            </div>
+            <div class="result-package"><span data-result-package>lodahs@0.0.1-security</span><b data-result-source>heuristics</b></div>
+            <div class="result-evidence">
+              <small>evidence</small>
+              <p data-result-evidence>Name is 1 edit from popular package “lodash”.</p>
+            </div>
+            <div class="result-foot"><span data-result-category>typosquat</span><b data-result-exit>exit 20</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="coverage section-pad" id="coverage">
+        <div class="section-heading coverage-heading reveal">
+          <p class="eyebrow"><span></span>What Warden sees</p>
+          <h2>Signals that matter together.</h2>
+          <p>Newness and low downloads never block by themselves. Warden looks for actions, changes, and combinations that make a package dangerous.</p>
+        </div>
+        <div class="coverage-grid">
+          <article class="coverage-card reveal"><span class="coverage-code">N/01</span><h3>Name attacks</h3><p>Typosquats, homoglyphs, scoped impersonation, and known invented package names.</p><div class="mini-name"><b>express</b><i></i><b>expres</b></div></article>
+          <article class="coverage-card reveal"><span class="coverage-code">R/02</span><h3>Release drift</h3><p>New install scripts, maintainer changes, publisher email changes, and provenance downgrades.</p><div class="mini-diff"><span>- provenance</span><span>+ postinstall</span></div></article>
+          <article class="coverage-card reveal"><span class="coverage-code">C/03</span><h3>Code capabilities</h3><p>Shell execution, environment access, raw-IP traffic, reverse shells, and destructive filesystem calls.</p><div class="mini-code"><span>env</span><i>+</i><span>net</span><i>+</i><span>exec</span></div></article>
+          <article class="coverage-card reveal"><span class="coverage-code">I/04</span><h3>Threat intelligence</h3><p>Known malicious package versions and curated names that should never reach the registry path.</p><div class="mini-shield"><i></i><strong>100</strong><span>block</span></div></article>
+        </div>
+      </section>
+
+      <section class="workflows section-pad" id="workflows">
+        <div class="workflow-copy reveal">
+          <p class="eyebrow eyebrow-dark"><span></span>One trust layer</p>
+          <h2>Meet every package<br /><em>where it enters.</em></h2>
+          <p>Use Warden explicitly, place it in front of package-manager commands, or enforce it on pull requests. The verdict stays the same everywhere.</p>
+          <div class="workflow-tabs" role="tablist" aria-label="Warden workflows">
+            <button id="tab-local" type="button" role="tab" aria-selected="true" aria-controls="panel-local" data-tab="local">Local</button>
+            <button id="tab-intercept" type="button" role="tab" aria-selected="false" aria-controls="panel-intercept" data-tab="intercept">Intercept</button>
+            <button id="tab-ci" type="button" role="tab" aria-selected="false" aria-controls="panel-ci" data-tab="ci">Pull request</button>
+          </div>
+        </div>
+        <div class="workflow-terminal reveal">
+          <div class="terminal-bar"><span class="window-dots"><i></i><i></i><i></i></span><b data-terminal-title>local check</b><span>~/project</span></div>
+          <div class="terminal-panel is-active" id="panel-local" role="tabpanel" aria-labelledby="tab-local" data-panel="local">
+            <p><span>$</span> warden check chalk@5.6.1</p>
+            <p class="terminal-gap"></p>
+            <p><strong class="text-block">BLOCK</strong> chalk@5.6.1 <i>risk 100/100 · blocklist</i></p>
+            <p class="terminal-muted">categories: known_malware</p>
+            <p class="terminal-evidence">• blocklist entry MAL-CHALK-2025</p>
+            <p class="terminal-gap"></p>
+            <p class="terminal-muted">blocked before any script ran</p>
+          </div>
+          <div class="terminal-panel" id="panel-intercept" role="tabpanel" aria-labelledby="tab-intercept" data-panel="intercept" hidden>
+            <p><span>$</span> npm install chalk@5.6.1</p>
+            <p class="terminal-gap"></p>
+            <p>Warden: vetting 1 package before install</p>
+            <p><strong class="text-block">BLOCK</strong> chalk@5.6.1 <i>known_malware</i></p>
+            <p class="terminal-gap"></p>
+            <p class="terminal-muted">install cancelled · exit 20</p>
+          </div>
+          <div class="terminal-panel" id="panel-ci" role="tabpanel" aria-labelledby="tab-ci" data-panel="ci" hidden>
+            <p><span>$</span> warden ci --reporter github</p>
+            <p class="terminal-gap"></p>
+            <p>Warden CI · diff vs merge-base · 1 package changed</p>
+            <p class="terminal-gap"></p>
+            <p><strong class="text-block">BLOCK</strong> chalk@5.6.1 <i>package.json</i></p>
+            <p class="terminal-muted">workflow annotation written · exit 20</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="contract section-pad">
+        <div class="contract-window reveal">
+          <div class="contract-copy">
+            <p class="eyebrow"><span></span>A contract, not a hunch</p>
+            <h2>Readable by people.<br />Reliable in automation.</h2>
+            <p>Every verdict uses a versioned schema with the same fields and stable exit codes. Human summaries and machine output describe one decision.</p>
+            <div class="contract-actions"><button class="button button-light" type="button" data-copy-json>Copy JSON <span>↗</span></button><span data-json-status aria-live="polite"></span></div>
+          </div>
+          <pre class="json-card" aria-label="Example Warden JSON verdict"><code>{
+  <span class="json-key">"schema_version"</span>: <span class="json-number">1</span>,
+  <span class="json-key">"package"</span>: <span class="json-string">"chalk"</span>,
+  <span class="json-key">"version"</span>: <span class="json-string">"5.6.1"</span>,
+  <span class="json-key">"verdict"</span>: <span class="json-block">"block"</span>,
+  <span class="json-key">"risk_score"</span>: <span class="json-number">100</span>,
+  <span class="json-key">"categories"</span>: [<span class="json-string">"known_malware"</span>],
+  <span class="json-key">"source"</span>: <span class="json-string">"blocklist"</span>
+}</code></pre>
+        </div>
+      </section>
+
+      <section class="install section-pad" id="install">
+        <div class="install-copy reveal">
+          <p class="eyebrow eyebrow-dark"><span></span>Start at the boundary</p>
+          <h2>Keep your workflow.<br /><em>Add the checkpoint.</em></h2>
+          <p>Install the binaries, choose which package managers Warden should intercept, and open a new shell. Your commands stay familiar.</p>
+        </div>
+        <div class="install-command reveal">
+          <div class="install-label"><span>terminal</span><span>one-time setup</span></div>
+          <div class="command-row"><span>$</span><code data-install-command>curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh</code><button type="button" data-copy-install>Copy</button></div>
+          <div class="install-status" data-install-status aria-live="polite"><span><i></i>Detects OS and architecture</span><span><i></i>Verifies SHA-256</span><span><i></i>Wires selected managers</span></div>
+        </div>
+      </section>
+
+      <section class="faq section-pad" id="faq">
+        <div class="faq-heading reveal"><p class="eyebrow"><span></span>Questions, answered</p><h2>Know exactly<br />what stands guard.</h2></div>
+        <div class="faq-list reveal">
+          <details open><summary>Does Warden replace npm, pnpm, yarn, or Bun?<span></span></summary><p>No. It runs before install and execute commands, then hands cleared packages to the manager you already use. Non-install commands pass through.</p></details>
+          <details><summary>Can a generated summary change the verdict?<span></span></summary><p>No. Deterministic rules produce allow, warn, or block. Optional summary rewriting can improve wording, but it cannot change the score, categories, or verdict.</p></details>
+          <details><summary>Will a new or unpopular package be blocked?<span></span></summary><p>Not for being new or unpopular alone. Warden uses those facts as context and blocks when stronger evidence, dangerous capabilities, or meaningful signal combinations justify it.</p></details>
+          <details><summary>What happens when Warden blocks a package?<span></span></summary><p>The package manager never receives the install. Warden prints the evidence, returns exit code 20, and supports an explicit allow-risky override when a human accepts the risk.</p></details>
+          <details><summary>Does it work in pull requests and scripted workflows?<span></span></summary><p>Yes. Warden checks dependency changes against the merge base and provides human, JSON, and workflow annotation reporters using stable exit codes.</p></details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand"><a class="brand" href="#top"><span class="brand-mark"><i></i><i></i><i></i></span><span>WARDEN</span></a><p>Trust before execution.</p></div>
+      <div class="footer-links"><a href="#how-it-works">How it works</a><a href="#coverage">Coverage</a><a href="#workflows">Workflows</a><a href="#install">Install</a></div>
+      <p class="footer-note">Built for the package boundary.</p>
+    </footer>
+  </body>
+</html>

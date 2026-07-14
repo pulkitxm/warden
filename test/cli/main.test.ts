@@ -182,6 +182,35 @@ test("warden config rejects invalid files and settings", async () => {
   }
 });
 
+test("warden uninstall delegates to the installed cleanup script", async () => {
+  const state = makeWardenDeps();
+  const installer = "/home/test/.warden/install.sh";
+  state.files.set(installer, "#!/bin/sh\n");
+  const spawns: string[][] = [];
+  state.deps.spawn = (command) => {
+    spawns.push(command);
+    return 0;
+  };
+  expect(await runWarden(["uninstall"], state.deps)).toBe(0);
+  expect(spawns).toEqual([["sh", installer, "--uninstall"]]);
+});
+
+test("warden uninstall reports missing installers, arguments, and cleanup failures", async () => {
+  const missing = makeWardenDeps();
+  expect(await runWarden(["uninstall"], missing.deps)).toBe(30);
+  expect(missing.err.join("")).toContain("installer not found");
+
+  const argument = makeWardenDeps();
+  expect(await runWarden(["uninstall", "now"], argument.deps)).toBe(30);
+  expect(argument.err.join("")).toContain("does not accept arguments");
+
+  const failed = makeWardenDeps({
+    exists: () => true,
+    spawn: () => 1,
+  });
+  expect(await runWarden(["uninstall"], failed.deps)).toBe(30);
+});
+
 test("default warden dependencies cover filesystem, workspace, git, TTY, and prompt", async () => {
   const root = mkdtempSync(join(tmpdir(), "warden-config-"));
   const nested = join(root, "nested");
@@ -354,6 +383,12 @@ test("wnpm analysis error exits 30", async () => {
   const { deps, err } = makeDeps({ check: () => Promise.reject(new Error("boom")) });
   expect(await runWnpm(["install", "left-pad"], deps)).toBe(30);
   expect(err.join("")).toContain("wnpm: analysis error: boom");
+});
+
+test("wnpx unknown flags print usage and exit 2 instead of crashing", async () => {
+  const { deps, err } = makeDeps();
+  expect(await runWnpx(["left-pad", "--bogus"], deps)).toBe(2);
+  expect(err.join("")).toContain("usage: wnpx");
 });
 
 test("defaultDeps: spawn returns the command's exit code, readFile reads files", () => {

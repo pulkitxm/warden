@@ -1,0 +1,17 @@
+{
+  "name": "malicious-dependency-test",
+  "version": "1.0.0",
+  "description": "Tests typosquatting and malicious script detection",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "crossenv": "7.0.3",
+    "rc-ts-loader": "1.0.3",
+    "peacenotwar": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

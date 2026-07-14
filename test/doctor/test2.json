@@ -1,0 +1,12 @@
+{
+  "name": "vulnerable-legacy-test",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "4.16.0",
+    "axios": "^0.19.0",
+    "minimist": "1.2.0",
+    "react": "^16.8.0",
+    "react-dom": "^18.2.0"
+  }
+}

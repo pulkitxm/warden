@@ -8,7 +8,7 @@ export class VerdictCache {
   private db: Database;
 
   constructor(path = process.env.WNPM_CACHE ?? join(homedir(), ".wnpm-cache", "verdicts.sqlite")) {
-    mkdirSync(dirname(path), { recursive: true });
+    if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new Database(path, { create: true });
     this.db.run(
       "CREATE TABLE IF NOT EXISTS verdicts (integrity TEXT PRIMARY KEY, analyzer_version TEXT, json TEXT, created_at INTEGER)",

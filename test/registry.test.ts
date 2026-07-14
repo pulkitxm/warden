@@ -30,11 +30,22 @@ afterAll(() => {
   else process.env.WNPM_DOWNLOADS = saved.downloads;
 });
 
-test("an unreachable registry resolves to not-on-registry (fetch error path)", async () => {
+test("an unreachable registry raises an analysis error instead of a fake missing-package result", async () => {
   process.env.WNPM_REGISTRY = DEAD;
-  const meta = await resolvePackage("anything");
-  expect(meta.existsOnRegistry).toBe(false);
-  expect(meta.versions).toEqual([]);
+  expect(resolvePackage("anything")).rejects.toThrow("registry unreachable");
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+});
+
+test("a 200 response with a non-JSON body resolves to not-on-registry", async () => {
+  const junk = Bun.serve({ port: 0, fetch: () => new Response("<html>maintenance</html>") });
+  try {
+    process.env.WNPM_REGISTRY = `http://localhost:${junk.port}`;
+    const meta = await resolvePackage("demo-pkg");
+    expect(meta.existsOnRegistry).toBe(false);
+  } finally {
+    junk.stop(true);
+    process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  }
 });
 
 test("a downloads-API outage is reported as unknown, not zero", async () => {

@@ -155,6 +155,31 @@
           <div class="agent-loop auto auto-5"><span>detect</span><i>→</i><span>handoff</span><i>→</i><span>fix</span><i>→</i><strong>verify clean</strong></div>
         </section>
 
+        <section class="dark intent-checkpoint-slide" data-background-color="#101a38">
+          <p class="eyebrow auto auto-1">Beyond the package</p>
+          <h2 class="auto auto-1">The agent shipped code. Does it match what you asked?</h2>
+          <div class="packet-trace">
+            <div class="trace-line"></div>
+            <div class="trace-packet">diff</div>
+            <div class="trace-gate gate-one auto auto-2"><i>01</i><strong>Diff</strong><span>tracked + new files</span></div>
+            <div class="trace-gate gate-two auto auto-3"><i>02</i><strong>Classify</strong><span>AST hunks</span></div>
+            <div class="trace-gate gate-three auto auto-4"><i>03</i><strong>Hallucinate</strong><span>curated APIs</span></div>
+            <div class="trace-gate gate-four auto auto-5"><i>04</i><strong>Extract</strong><span>LLM reads prompt</span></div>
+            <div class="trace-gate gate-five auto auto-5"><i>05</i><strong>Match</strong><span>claim ↔ code</span></div>
+            <div class="trace-result auto auto-6"><small>VERDICT</small><strong>BLOCK</strong><span>exit 20</span></div>
+          </div>
+          <div class="signal-ribbon auto auto-6"><span>unclaimed hunk</span><span>hallucinated API</span><span>broken preservation</span><span>unmatched claim</span></div>
+        </section>
+
+        <section class="terminal-slide dark" data-background-color="#081022" data-terminal="intent">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2><code>warden intent check</code></h2></div>
+          <div class="terminal-shell auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-screen" aria-live="polite"></div>
+          </div>
+          <div class="terminal-meter auto auto-4"><i></i><span>flags drift before the PR merges</span></div>
+        </section>
+
         <section class="dark" data-background-color="#101a38">
           <p class="eyebrow auto auto-1">Three incidents, one pattern</p>
           <h2 class="auto auto-1">Trust changed faster than defenders reacted.</h2>
@@ -187,7 +212,7 @@
             <strong>WARDEN</strong>
           </div>
           <div class="roadmap-phases auto auto-4">
-            <span><b>CORE</b> supply-chain coverage</span>
+            <span><b>CORE</b> supply-chain + intent coverage</span>
             <i>→</i>
             <span><b>NEXT</b> repository policy</span>
             <i>→</i>

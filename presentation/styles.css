@@ -261,7 +261,7 @@ body { margin: 0; background: var(--night); }
   .trace-packet { display: none; }
   .trace-result { display: none !important; }
   .trace-gate span { display: none !important; }
-  .checkpoint-slide::after { content: "VERDICT  BLOCK  ·  EXIT 20"; position: absolute; right: 95px; bottom: 95px; padding: 16px 20px; color: var(--ink); background: var(--coral); font: 600 13px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace; }
+  .checkpoint-slide::after, .intent-checkpoint-slide::after { content: "VERDICT  BLOCK  ·  EXIT 20"; position: absolute; right: 95px; bottom: 95px; padding: 16px 20px; color: var(--ink); background: var(--coral); font: 600 13px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace; }
   .signal-ribbon { display: none !important; }
   .install-terminal .terminal-line:nth-child(-n+18) { display: none !important; }
 }
