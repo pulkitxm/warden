@@ -80,7 +80,6 @@ body { margin: 0; background: var(--night); }
 .threat-node span { color: #64718e; font-size: 10px; }
 .node-cve { left: 72px; top: 58px; }
 .node-third { right: 62px; top: 54px; }
-.node-exploit { left: 92px; bottom: 5px; }
 .node-agent { right: 92px; bottom: 5px; }
 .threat-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .threat-lines path { fill: none; stroke: #cbd3e6; stroke-width: 1.2; stroke-dasharray: 5 7; }
@@ -262,7 +261,7 @@ body { margin: 0; background: var(--night); }
   .trace-packet { display: none; }
   .trace-result { display: none !important; }
   .trace-gate span { display: none !important; }
-  .checkpoint-slide::after { content: "VERDICT  BLOCK  ·  EXIT 20"; position: absolute; right: 95px; bottom: 95px; padding: 16px 20px; color: var(--ink); background: var(--coral); font: 600 13px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace; }
+  .checkpoint-slide::after, .intent-checkpoint-slide::after { content: "VERDICT  BLOCK  ·  EXIT 20"; position: absolute; right: 95px; bottom: 95px; padding: 16px 20px; color: var(--ink); background: var(--coral); font: 600 13px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace; }
   .signal-ribbon { display: none !important; }
   .install-terminal .terminal-line:nth-child(-n+18) { display: none !important; }
 }
