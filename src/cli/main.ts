@@ -460,6 +460,31 @@ function runWardenConfig(argv: string[], deps: WardenDeps): number {
   }
 }
 
+function runWardenUninstall(argv: string[], deps: WardenDeps): number {
+  if (argv.length) {
+    return wardenFailure(
+      deps,
+      false,
+      "usage",
+      "WARDEN_UNINSTALL_ARGUMENTS",
+      "uninstall does not accept arguments",
+      "run warden uninstall --help",
+    );
+  }
+  const installer = `${deps.home}/.warden/install.sh`;
+  if (!deps.exists(installer)) {
+    return wardenFailure(
+      deps,
+      false,
+      "config",
+      "WARDEN_INSTALLER_NOT_FOUND",
+      `installer not found at ${installer}`,
+      "reinstall Warden, then run warden uninstall",
+    );
+  }
+  return deps.spawn(["sh", installer, "--uninstall"]) === 0 ? EXIT.allow : EXIT.error;
+}
+
 export interface DetectionPackage {
   path: string;
   framework: string;
@@ -1294,6 +1319,14 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden config intercept off",
     run: runWardenConfig,
+  },
+  {
+    name: "uninstall",
+    description: "remove Warden, its shims, config, cache, and shell setup",
+    flags: [helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden uninstall",
+    run: runWardenUninstall,
   },
   {
     name: "log",
