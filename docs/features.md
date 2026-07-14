@@ -51,6 +51,14 @@ Before changing the project, doctor copies it to an isolated workspace, installs
 
 See [docs/doctor.md](doctor.md) for the full reference.
 
+## Intent verification
+
+`warden intent check` reads the diff against the merge base, decomposes the prompt an agent was given into atomic claims, and checks the diff against them: which claims were delivered, which were dropped, and which hunks were never requested at all. A separate deterministic scan flags calls to APIs a package doesn't export, catching diffs that reference methods that were never real.
+
+Claim extraction and part of the matching go through an LLM (`claude`, `codex`, `openai`, `groq`, or `ollama`); the cheap keyword-overlap pass runs first, and the hallucination scan is pure static analysis that never runs code. `warden ci` runs this automatically when `.warden/prompt.txt` exists and JS/TS files changed.
+
+See [docs/intent.md](intent.md) for the full reference, including its real limits.
+
 ## Workspace awareness
 
 See [detection and init](detection-and-init.md).

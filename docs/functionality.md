@@ -14,13 +14,16 @@ usage: warden <verb> [flags]
 
   check        vet packages, the lockfile, scripts, or registry config
   ci           run all checks against the merge-base diff
+  intent       verify the diff does what the prompt asked
   detect       classify the workspace (framework, role, tooling per package)
   init         onboard a repo: config, workflow, hooks, agent context
   fix          hand the last failing check to your coding agent
   config       read or set user-level settings (mode, intercept, agent)
+  uninstall    remove Warden, its shims, config, cache, and shell setup
   log          render recorded verdicts from ~/.warden/log.jsonl
   schema       print the JSON schema for structured output
   completions  print a shell completion script
+  version      print the warden version
 
 exit codes: 0 allow · 10 warn · 20 block · 30 error
 docs: https://github.com/pulkitxm/warden
@@ -266,6 +269,57 @@ Warden CI · diff vs merge-base 1c216f09730c · 0 packages changed
   no dependency changes
 ```
 
+## Dependency repair: `wnpm doctor`
+
+`wnpm doctor` audits a project's direct dependencies against OSV advisories, builds minimal and latest upgrade plans, gates every candidate through the same check as `warden check`, verifies the surviving plans by installing and running the project's own tests in an isolated workspace, then applies the recommended plan by default. A candidate that fails the supply-chain gate is rejected even when an advisory names it as the official fix:
+
+```
+$ wnpm doctor
+Warden doctor — doctor-demo
+
+  2 issue(s) found — 2 affect production
+  critical  acme-http@1.0.0 [GHSA-ACME-HTTP-0001]
+    acme-http request smuggling via keep-alive header handling (fixed in 1.0.1)
+  high  acme-json@2.1.0 [GHSA-ACME-JSON-0001]
+    acme-json prototype pollution through __proto__ keys (fixed in 2.1.4)
+
+  BLOCK  acme-http@1.0.1  install_script, exfiltration, provenance_downgrade, metadata_anomaly
+    postinstall lifecycle script added; code requires child_process; code contains a raw IP address literal.
+
+  UNFIXABLE acme-http — every candidate fix was blocked by the supply-chain gate
+
+  plan minimal — smallest safe upgrade  ▸ recommended
+    acme-json 2.1.0 -> 2.1.4  patch, in range
+    verification: install ok 339ms · test ok 260ms — passed
+
+  recommended plan applied to package.json
+```
+
+## Intent verification: `warden intent check`
+
+`warden intent check` decomposes a prompt into claims with one LLM call, then checks the diff against each claim: matched deterministically first by keyword overlap, then by a second LLM call for whatever is left unmatched. A separate deterministic AST scan flags calls to APIs a package doesn't export:
+
+```
+$ warden intent check --prompt "add rate limiting to the api client, keep the retry logic, and log every rate-limited request"
+intent claims (3):
+  c1  [behavior]  Add rate limiting to the API client.
+  c2  [preservation]  Preserve the existing retry logic.
+  c3  [behavior]  Log every request affected by rate limiting.
+
+VERDICT: 2 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
+
+  ✅ Add rate limiting to the API client.  [api-client.ts:1-39]
+  ✅ Preserve the existing retry logic.  [no change touches it]
+  ❌ DROPPED: Log every request affected by rate limiting.  [no matching change found]
+  ⚠️ SCOPE CREEP: pagination.ts — 55 lines changed, never requested  [pagination.ts:1-57]
+  🚨 HALLUCINATED: axios.instance.throttle  [api-client.ts:27]
+     axios instance has no member 'throttle'. Known: get, post, put, delete, patch, head, options, request, …
+$ echo $?
+20
+```
+
+The hallucination scan only covers a small curated set of packages plus whatever `node_modules` can be statically proven to have a closed export surface, and only checks member accesses on added lines — see [intent](intent.md) for the exact limits.
+
 ## Agent-first output
 
 Every verb supports `--json`, errors are typed JSON envelopes (kind, code, reason, hint), and `warden fix` hands the last failing check to your configured coding agent with full context. `warden schema` prints the verdict schema:
@@ -297,5 +351,5 @@ _warden() {
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   if (( COMP_CWORD == 1 )); then
-    COMPREPLY=( $(compgen -W 'check ci detect init fix config log schema completions' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'check ci intent detect init fix config uninstall log schema completions version' -- "$cur") )
 ```
