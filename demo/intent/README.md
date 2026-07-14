@@ -12,8 +12,9 @@ A three-minute demo of `warden intent` — verifying that an agent's diff actual
 ```sh
 sh demo/intent/setup.sh
 cd /tmp/warden-intent-demo
-export GROQ_API_KEY=...        # or OLLAMA_API_KEY / OPENAI_API_KEY
-                               # or, with zero keys: export WNPM_LLM_PROVIDER=claude
+export WNPM_LLM_PROVIDER=claude   # zero keys — runs on your claude cli subscription
+                                  # or: export WNPM_LLM_PROVIDER=codex (codex cli)
+                                  # HTTP fallback: GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY
 
 warden intent check            # prompt read from .warden/prompt.txt
 ```
@@ -55,4 +56,4 @@ The prompt is picked up from `.warden/prompt.txt` (or pass `--intent-prompt "<te
 ## Notes
 
 - The hallucination check is deterministic: curated signature db first, then static export extraction from `node_modules` (never executes the package). Ask for any installed package — it answers.
-- Claim extraction and leftover matching are the only LLM calls (2 per run, summaries only, never the raw diff). Providers: `OPENAI_API_KEY`, `GROQ_API_KEY`, or `OLLAMA_API_KEY`; with no key, `WNPM_LLM_PROVIDER=claude` shells out to the `claude` CLI on your subscription (haiku by default). Model override via `WNPM_LLM_MODEL`.
+- Claim extraction and leftover matching are the only LLM calls (2 per run, summaries only, never the raw diff). The two primary backends are zero-key CLI providers on your own subscription: `WNPM_LLM_PROVIDER=claude` shells out to the `claude` CLI (haiku by default) and `WNPM_LLM_PROVIDER=codex` shells out to `codex exec` (`WNPM_CLAUDE_BIN` / `WNPM_CODEX_BIN` override the binary). An HTTP fallback still works if you set `OPENAI_API_KEY`, `GROQ_API_KEY`, or `OLLAMA_API_KEY`. Model override via `WNPM_LLM_MODEL`. Note: the CLI providers have no temperature control, so borderline verdicts can reword between runs; the HTTP providers run at temperature 0 if you need reproducible output.

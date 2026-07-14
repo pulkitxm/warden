@@ -24,10 +24,11 @@ Requirements:
 
 - `warden` on PATH (or set `WARDEN_BIN=/path/to/warden` in your environment)
 - `bun` on PATH (runs the hook scripts)
-- an LLM: with no API key configured, the hook automatically uses the `claude` CLI itself
-  (`WNPM_LLM_PROVIDER=claude`, haiku by default) — your Claude subscription pays, no key
-  needed. To use an HTTP provider instead, set `GROQ_API_KEY`, `OLLAMA_API_KEY`, or
-  `OPENAI_API_KEY` in a project-local gitignored `.env`; bun auto-loads it
+- an LLM: with no API key configured, the hook auto-detects a CLI provider — it prefers the
+  `claude` CLI (`WNPM_LLM_PROVIDER=claude`, haiku by default), then falls back to `codex`
+  (`codex exec`) — so your existing Claude or Codex subscription pays, no key needed. To use
+  an HTTP provider instead, set `GROQ_API_KEY`, `OLLAMA_API_KEY`, or `OPENAI_API_KEY` in a
+  project-local gitignored `.env`; bun auto-loads it
 
 Restart Claude Code (or run `/hooks`) after editing settings so the hooks register.
 

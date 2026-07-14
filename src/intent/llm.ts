@@ -1,6 +1,6 @@
 export const intentLlmStats = { calls: 0 };
 
-export type ProviderName = "openai" | "groq" | "ollama" | "claude";
+export type ProviderName = "openai" | "groq" | "ollama" | "claude" | "codex";
 
 export interface Provider {
   name: ProviderName;
@@ -16,7 +16,7 @@ export interface LlmJsonRequest {
   schema: Record<string, unknown>;
 }
 
-type HttpProviderName = Exclude<ProviderName, "claude">;
+type HttpProviderName = Exclude<ProviderName, "claude" | "codex">;
 
 const PROVIDER_ORDER: HttpProviderName[] = ["openai", "groq", "ollama"];
 
@@ -50,6 +50,14 @@ export function resolveProvider(env: Record<string, string | undefined>): Provid
         model: env.WNPM_LLM_MODEL ?? "haiku",
       };
     }
+    if (env.WNPM_LLM_PROVIDER === "codex") {
+      return {
+        name: "codex",
+        key: "",
+        url: env.WNPM_CODEX_BIN ?? "codex",
+        model: env.WNPM_LLM_MODEL ?? "",
+      };
+    }
     if (!PROVIDER_ORDER.includes(forced)) {
       throw new Error(`unknown llm provider "${env.WNPM_LLM_PROVIDER}"`);
     }
@@ -58,7 +66,7 @@ export function resolveProvider(env: Record<string, string | undefined>): Provid
     const found = PROVIDER_ORDER.find((candidate) => env[PROVIDER_KEYS[candidate]]);
     if (!found) {
       throw new Error(
-        "no llm api key configured (set GROQ_API_KEY, OLLAMA_API_KEY, or OPENAI_API_KEY, or WNPM_LLM_PROVIDER=claude to use the claude cli)",
+        "no llm api key configured (set WNPM_LLM_PROVIDER=claude or codex to use a cli on your subscription, or GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY)",
       );
     }
     name = found;
@@ -154,6 +162,27 @@ async function claudeText(provider: Provider, request: LlmJsonRequest): Promise<
   return text;
 }
 
+async function codexText(provider: Provider, request: LlmJsonRequest): Promise<string> {
+  const prompt = [
+    request.system,
+    request.user,
+    `Respond with ONLY a JSON object matching this schema: ${JSON.stringify(request.schema)}`,
+  ].join("\n\n");
+  const args = ["exec", "--sandbox", "read-only"];
+  if (provider.model !== "") args.push("--model", provider.model);
+  args.push("-");
+  const proc = Bun.spawn([provider.url, ...args], {
+    stdin: new TextEncoder().encode(prompt),
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env },
+    timeout: 120_000,
+  });
+  const [text, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+  if (exitCode !== 0) throw new Error(`codex ${exitCode}`);
+  return text;
+}
+
 export async function completeJson<T>(
   request: LlmJsonRequest,
   parse: (value: unknown) => T | null,
@@ -163,7 +192,9 @@ export async function completeJson<T>(
   const text =
     provider.name === "claude"
       ? await claudeText(provider, request)
-      : await httpText(provider, request);
+      : provider.name === "codex"
+        ? await codexText(provider, request)
+        : await httpText(provider, request);
   const json = extractJson(text);
   if (!json) throw new Error("no json in llm response");
   const parsed = parse(JSON.parse(json) as unknown);

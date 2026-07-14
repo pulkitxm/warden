@@ -63,7 +63,10 @@ if (!bin) process.exit(0);
 const env: Record<string, string | undefined> = { ...process.env, NO_COLOR: "1" };
 const configured =
   env.WNPM_LLM_PROVIDER ?? env.OPENAI_API_KEY ?? env.GROQ_API_KEY ?? env.OLLAMA_API_KEY;
-if (configured === undefined && Bun.which("claude") !== null) env.WNPM_LLM_PROVIDER = "claude";
+if (configured === undefined) {
+  if (Bun.which("claude") !== null) env.WNPM_LLM_PROVIDER = "claude";
+  else if (Bun.which("codex") !== null) env.WNPM_LLM_PROVIDER = "codex";
+}
 
 const run = Bun.spawnSync([bin, "intent", "check"], {
   cwd: root,

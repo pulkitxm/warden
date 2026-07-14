@@ -223,7 +223,7 @@ export async function runWardenIntent(argv: string[], deps: WardenDeps): Promise
       "analysis",
       "WARDEN_INTENT_ERROR",
       (error as Error).message,
-      "check git, --prompt, and your llm setup (GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY, or WNPM_LLM_PROVIDER=claude)",
+      "check git, --prompt, and your llm setup (WNPM_LLM_PROVIDER=claude or codex, or GROQ_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY)",
     );
   }
 }

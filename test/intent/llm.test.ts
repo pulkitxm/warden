@@ -18,6 +18,9 @@ const ENV_KEYS = [
   "WNPM_CLAUDE_BIN",
   "CLAUDE_STUB_OUTPUT",
   "CLAUDE_STUB_EXIT",
+  "WNPM_CODEX_BIN",
+  "CODEX_STUB_OUTPUT",
+  "CODEX_STUB_EXIT",
 ];
 const saved = new Map<string, string | undefined>();
 const realFetch = globalThis.fetch;
@@ -86,6 +89,22 @@ test("WNPM_LLM_PROVIDER=claude uses the claude cli without any key", () => {
   });
   expect(custom.url).toBe("/opt/claude");
   expect(custom.model).toBe("sonnet");
+});
+
+test("WNPM_LLM_PROVIDER=codex uses the codex cli without any key", () => {
+  expect(resolveProvider({ WNPM_LLM_PROVIDER: "codex" })).toEqual({
+    name: "codex",
+    key: "",
+    url: "codex",
+    model: "",
+  });
+  const custom = resolveProvider({
+    WNPM_LLM_PROVIDER: "codex",
+    WNPM_CODEX_BIN: "/opt/codex",
+    WNPM_LLM_MODEL: "gpt-5-codex",
+  });
+  expect(custom.url).toBe("/opt/codex");
+  expect(custom.model).toBe("gpt-5-codex");
 });
 
 const REQUEST = {
@@ -197,6 +216,24 @@ test("completeJson surfaces a nonzero claude exit code", async () => {
   process.env.WNPM_CLAUDE_BIN = join(import.meta.dir, "../../fixtures/claude-stub.sh");
   process.env.CLAUDE_STUB_EXIT = "3";
   expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("claude 3");
+});
+
+test("completeJson shells out to the codex cli and parses its final message", async () => {
+  process.env.WNPM_LLM_PROVIDER = "codex";
+  process.env.WNPM_CODEX_BIN = join(import.meta.dir, "../../fixtures/codex-stub.sh");
+  process.env.WNPM_LLM_MODEL = "gpt-5-codex";
+  process.env.CODEX_STUB_OUTPUT = 'here is the result {"ok":true}';
+  const before = intentLlmStats.calls;
+  const result = await completeJson(REQUEST, (value) => value as { ok: boolean });
+  expect(result).toEqual({ ok: true });
+  expect(intentLlmStats.calls).toBe(before + 1);
+});
+
+test("completeJson surfaces a nonzero codex exit code", async () => {
+  process.env.WNPM_LLM_PROVIDER = "codex";
+  process.env.WNPM_CODEX_BIN = join(import.meta.dir, "../../fixtures/codex-stub.sh");
+  process.env.CODEX_STUB_EXIT = "4";
+  expect(completeJson(REQUEST, (value) => value)).rejects.toThrow("codex 4");
 });
 
 test("completeJson throws before fetching when no key is set", async () => {
