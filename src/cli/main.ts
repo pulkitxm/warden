@@ -263,19 +263,20 @@ function directDeps(deps: RunDeps): string[] {
 }
 
 async function runDoctorCommand(
-  values: { json?: boolean; apply?: boolean; "no-verify"?: boolean; dir?: string },
+  values: { json?: boolean; "no-apply"?: boolean; dir?: string },
   deps: RunDeps,
 ): Promise<number> {
   return guarded("wnpm doctor", deps, async () => {
     const doctor = deps.doctor ?? runDoctor;
     const report = await doctor(values.dir ?? ".", {
-      verify: !values["no-verify"],
-      apply: Boolean(values.apply),
+      apply: !values["no-apply"],
     });
     if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
     else deps.stderr(renderDoctorReport(report));
-    if (!report.issues.length || report.applied) return 0;
-    return EXIT.warn;
+    if (!report.issues.length) return 0;
+    const plan = report.plans.find((p) => p.id === report.recommended);
+    const fixed = new Set(report.applied ? (plan?.changes ?? []).map((c) => c.name) : []);
+    return report.issues.every((i) => fixed.has(i.name)) ? 0 : EXIT.warn;
   });
 }
 
@@ -295,15 +296,14 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     options: {
       json: { type: "boolean" },
       "allow-risky": { type: "boolean" },
-      apply: { type: "boolean" },
-      "no-verify": { type: "boolean" },
+      "no-apply": { type: "boolean" },
       dir: { type: "string" },
     },
     allowPositionals: true,
   });
   if (!parsed) {
     deps.stderr(
-      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-verify] [--apply]\n",
+      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply]\n",
     );
     return 2;
   }
@@ -1074,8 +1074,7 @@ async function runWardenDoctor(argv: string[], deps: WardenDeps): Promise<number
     args: argv,
     options: {
       json: { type: "boolean" },
-      apply: { type: "boolean" },
-      "no-verify": { type: "boolean" },
+      "no-apply": { type: "boolean" },
       dir: { type: "string" },
     },
   });
@@ -1364,12 +1363,11 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     flags: [
       { name: "--dir", valueHint: "<path>", description: "project directory (default: cwd)" },
       { name: "--json", description: "write the doctor report to stdout" },
-      { name: "--no-verify", description: "skip isolated-workspace verification" },
-      { name: "--apply", description: "pin the recommended plan and reinstall" },
+      { name: "--no-apply", description: "report only; leave the project untouched" },
       helpFlag,
     ],
-    exitCodes: "0 clean or applied · 10 issues remain · 30 error",
-    example: "warden doctor --apply",
+    exitCodes: "0 clean or fully fixed · 10 issues remain · 30 error",
+    example: "warden doctor --dir ./api",
     run: runWardenDoctor,
   },
   {

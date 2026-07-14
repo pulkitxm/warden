@@ -16,6 +16,7 @@ import {
 import { loadProject, type ProjectDependency, type ProjectFs } from "./project.ts";
 import {
   applyPlan,
+  availablePm,
   defaultVerifyDeps,
   type StepResult,
   type VerifyDeps,
@@ -154,8 +155,27 @@ export async function runDoctor(
     if (audit) audits.push(audit);
   }
 
-  const issues = audits.flatMap(issuesOf);
   const gates = new Map<string, GateRecord>();
+  for (const audit of audits) {
+    if (!audit.installed || audit.blocklistId) continue;
+    const key = `${audit.name}@${audit.installed}`;
+    try {
+      const verdict = await check(key);
+      const rec: GateRecord = {
+        name: audit.name,
+        version: audit.installed,
+        verdict: verdict.verdict,
+        categories: verdict.categories,
+        summary: verdict.summary,
+      };
+      gates.set(key, rec);
+      if (rec.verdict === "block") audit.installedBlocked = rec.summary;
+    } catch (e) {
+      notes.push(`${key}: installed-version gate check failed (${(e as Error).message})`);
+    }
+  }
+
+  const issues = audits.flatMap(issuesOf);
   const unfixable: UnfixableRecord[] = [];
   const minimalChanges: Change[] = [];
   const latestChanges: Change[] = [];
@@ -195,8 +215,12 @@ export async function runDoctor(
   }
 
   let recommended: string | undefined;
+  const pm = availablePm(project, verifier);
   if (plans.length) {
     if (opts.verify === false) {
+      recommended = plans[0]?.id;
+    } else if (!pm) {
+      notes.push("no package manager (bun or npm) found on PATH; verification skipped");
       recommended = plans[0]?.id;
     } else {
       for (const plan of plans) {
@@ -210,7 +234,12 @@ export async function runDoctor(
   let applied: boolean | undefined;
   const recommendedPlan = plans.find((p) => p.id === recommended);
   if (opts.apply && recommendedPlan) {
-    applied = (await applyPlan(project, recommendedPlan.changes, verifier)).applied;
+    if (pm) {
+      applied = (await applyPlan(project, recommendedPlan.changes, verifier)).applied;
+    } else {
+      applied = false;
+      notes.push("cannot apply: no package manager (bun or npm) found on PATH");
+    }
   }
 
   return {

@@ -12,8 +12,8 @@ wnpm install left-pad
 wnpx some-cli@latest
 wnpx some-cli@latest --json
 
-wnpm doctor
-wnpm doctor --apply
+wnpm doctor              # audits, verifies, and applies the fix
+wnpm doctor --no-apply   # report only
 ```
 
 `wnpm install` checks every requested package and installs only after clearance. `wnpx` checks a package intended for execution; it does not execute the package itself. `wnpm doctor` finds vulnerable and deprecated dependencies, then proposes the smallest verified fix — a candidate fix that fails the supply-chain check is rejected with evidence, even when an advisory names it as the official fix.

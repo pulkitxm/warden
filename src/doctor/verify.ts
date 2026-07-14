@@ -2,7 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import type { Change } from "./plan.ts";
-import type { Project } from "./project.ts";
+import { type Project, stripBom } from "./project.ts";
 
 export interface ExecCode {
   code: number;
@@ -23,14 +23,18 @@ export const defaultVerifyDeps: VerifyDeps = {
   exec: async (cmd, cwd) => {
     const env: Record<string, string | undefined> = { ...process.env };
     if (process.env.WNPM_REGISTRY) env.npm_config_registry = process.env.WNPM_REGISTRY;
-    const proc = Bun.spawn(cmd, {
-      cwd,
-      stdout: "ignore",
-      stderr: "ignore",
-      env,
-      timeout: 300_000,
-    });
-    return { code: await proc.exited };
+    try {
+      const proc = Bun.spawn(cmd, {
+        cwd,
+        stdout: "ignore",
+        stderr: "ignore",
+        env,
+        timeout: 300_000,
+      });
+      return { code: await proc.exited };
+    } catch {
+      return { code: 127 };
+    }
   },
   mkWorkspace: (fromDir) => {
     const dst = mkdtempSync(join(tmpdir(), "wnpm-doctor-"));
@@ -59,7 +63,7 @@ export interface VerificationResult {
 }
 
 export function applyChanges(pkgJsonText: string, changes: Change[]): string {
-  const pkg = JSON.parse(pkgJsonText) as {
+  const pkg = JSON.parse(stripBom(pkgJsonText)) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   };
@@ -78,18 +82,19 @@ function installCommand(pm: "bun" | "npm"): string[] {
     : ["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"];
 }
 
-function pickPm(project: Project, deps: VerifyDeps): "bun" | "npm" {
+export function availablePm(project: Project, deps: VerifyDeps): "bun" | "npm" | null {
   if (project.packageManager === "bun" && deps.which("bun")) return "bun";
-  if (!deps.which("npm") && deps.which("bun")) return "bun";
-  return "npm";
+  if (deps.which("npm")) return "npm";
+  if (deps.which("bun")) return "bun";
+  return null;
 }
 
 async function runSteps(
   dir: string,
   project: Project,
+  pm: "bun" | "npm",
   deps: VerifyDeps,
 ): Promise<{ passed: boolean; steps: StepResult[] }> {
-  const pm = pickPm(project, deps);
   const steps: StepResult[] = [];
   const run = async (name: string, cmd: string[]): Promise<boolean> => {
     const started = deps.now();
@@ -111,10 +116,12 @@ export async function verifyPlan(
   changes: Change[],
   deps: VerifyDeps = defaultVerifyDeps,
 ): Promise<VerificationResult> {
+  const pm = availablePm(project, deps);
+  if (!pm) return { workspace: "", passed: false, steps: [] };
   const workspace = deps.mkWorkspace(project.dir);
   const pkgPath = join(workspace, "package.json");
   deps.writeFile(pkgPath, applyChanges(deps.readFile(pkgPath), changes));
-  const { passed, steps } = await runSteps(workspace, project, deps);
+  const { passed, steps } = await runSteps(workspace, project, pm, deps);
   return { workspace, passed, steps };
 }
 
@@ -123,10 +130,18 @@ export async function applyPlan(
   changes: Change[],
   deps: VerifyDeps = defaultVerifyDeps,
 ): Promise<{ applied: boolean; steps: StepResult[] }> {
+  const pm = availablePm(project, deps);
+  if (!pm) return { applied: false, steps: [] };
   const pkgPath = join(project.dir, "package.json");
-  deps.writeFile(pkgPath, applyChanges(deps.readFile(pkgPath), changes));
+  const original = deps.readFile(pkgPath);
+  deps.writeFile(pkgPath, applyChanges(original, changes));
   const started = deps.now();
-  const { code } = await deps.exec(installCommand(pickPm(project, deps)), project.dir);
+  let code = 127;
+  try {
+    code = (await deps.exec(installCommand(pm), project.dir)).code;
+  } finally {
+    if (code !== 0) deps.writeFile(pkgPath, original);
+  }
   const steps = [{ name: "install", ok: code === 0, ms: deps.now() - started }];
   return { applied: code === 0, steps };
 }

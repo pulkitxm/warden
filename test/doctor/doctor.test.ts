@@ -35,7 +35,7 @@ interface FakeVerifier {
   written: Record<string, string>;
 }
 
-function fakeVerifier(pkgJson: string, exitCode = 0): FakeVerifier {
+function fakeVerifier(pkgJson: string, exitCode = 0, available: string[] = ["npm"]): FakeVerifier {
   const calls: Array<{ cmd: string[]; cwd: string }> = [];
   const written: Record<string, string> = {};
   let tick = 0;
@@ -52,7 +52,7 @@ function fakeVerifier(pkgJson: string, exitCode = 0): FakeVerifier {
       writeFile: (path, content) => {
         written[path] = content;
       },
-      which: () => null,
+      which: (cmd) => (available.includes(cmd) ? `/bin/${cmd}` : null),
       now: () => tick++,
     },
   };
@@ -94,6 +94,9 @@ test("doctor finds advisories, gates candidate fixes, and verifies plans", async
 
   const gate = Object.fromEntries(report.gate.map((g) => [`${g.name}@${g.version}`, g.verdict]));
   expect(gate).toEqual({
+    "acme-http@1.0.0": "allow",
+    "acme-json@2.1.0": "allow",
+    "left-pad@1.3.0": "allow",
     "acme-http@1.0.1": "block",
     "acme-json@2.1.4": "allow",
     "acme-json@2.2.0": "allow",
@@ -141,6 +144,37 @@ test("doctor recommends nothing when every plan fails verification", async () =>
   expect(report.plans.every((p) => p.verification?.passed === false)).toBe(true);
 });
 
+test("doctor degrades to an unverified report when no package manager exists", async () => {
+  const verifier = fakeVerifier(fixturePkgJson, 0, []);
+  const report = await runDoctor(
+    doctorProject,
+    {},
+    { check: engineCheck, verifier: verifier.deps },
+  );
+  expect(report.recommended).toBe("minimal");
+  expect(report.plans[0]?.verification).toBeUndefined();
+  expect(verifier.calls).toEqual([]);
+  expect(report.notes).toEqual([
+    "no package manager (bun or npm) found on PATH; verification skipped",
+  ]);
+});
+
+test("doctor --apply refuses and explains when no package manager exists", async () => {
+  const verifier = fakeVerifier(fixturePkgJson, 0, []);
+  const report = await runDoctor(
+    doctorProject,
+    { apply: true },
+    { check: engineCheck, verifier: verifier.deps },
+  );
+  expect(report.applied).toBe(false);
+  expect(verifier.calls).toEqual([]);
+  expect(verifier.written).toEqual({});
+  expect(report.notes).toEqual([
+    "no package manager (bun or npm) found on PATH; verification skipped",
+    "cannot apply: no package manager (bun or npm) found on PATH",
+  ]);
+});
+
 test("doctor --apply rewrites the project manifest after a verified plan", async () => {
   const verifier = fakeVerifier(fixturePkgJson);
   const report = await runDoctor(
@@ -164,7 +198,9 @@ test("doctor reports a clean project with no plans", async () => {
   const report = await runDoctor("/clean", {}, { fs, check: engineCheck });
   expect(report.issues).toEqual([]);
   expect(report.plans).toEqual([]);
-  expect(report.gate).toEqual([]);
+  expect(report.gate.map((g) => `${g.name}@${g.version}=${g.verdict}`)).toEqual([
+    "left-pad@1.3.0=allow",
+  ]);
   expect(report.recommended).toBeUndefined();
 });
 
@@ -287,7 +323,15 @@ test("doctor reports deprecated packages without planning an upgrade", async () 
     },
   ]);
   expect(report.plans).toEqual([]);
-  expect(report.gate).toEqual([]);
+  expect(report.gate).toEqual([
+    {
+      name: "stub-lib",
+      version: "1.0.0",
+      verdict: "allow",
+      categories: [],
+      summary: "stub verdict",
+    },
+  ]);
 });
 
 test("doctor --apply with --no-verify applies the unverified minimal plan", async () => {
@@ -304,7 +348,7 @@ test("doctor --apply with --no-verify applies the unverified minimal plan", asyn
     writeFile: (path, content) => {
       written[path] = content;
     },
-    which: () => null,
+    which: (cmd) => (cmd === "npm" ? "/bin/npm" : null),
     now: () => 0,
   };
   const report = await runDoctor("/stub", { verify: false, apply: true }, deps);
@@ -319,6 +363,13 @@ test("doctor accepts warn-verdict candidates and surfaces the warning in the gat
   const deps = stubbedDeps(["1.0.0", "1.0.1"], "1.0.1", () => "warn");
   const report = await runDoctor("/stub", { verify: false }, deps);
   expect(report.gate).toEqual([
+    {
+      name: "stub-lib",
+      version: "1.0.0",
+      verdict: "warn",
+      categories: [],
+      summary: "stub verdict",
+    },
     {
       name: "stub-lib",
       version: "1.0.1",
