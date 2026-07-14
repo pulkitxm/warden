@@ -52,6 +52,7 @@ export interface DoctorReport {
   plans: PlanReport[];
   recommended?: string;
   applied?: boolean;
+  unresolved: string[];
   notes: string[];
 }
 
@@ -71,27 +72,38 @@ export interface DoctorDeps {
 
 const GATE_ATTEMPTS = 3;
 
+const NON_REGISTRY_RANGE =
+  /^(github:|gitlab:|bitbucket:|git\+|git:|file:|link:|portal:|workspace:|https?:)/i;
+
 async function auditDependency(
   dep: ProjectDependency,
   resolve: typeof resolvePackage,
   vulnsFn: (name: string) => Promise<OsvVuln[] | null>,
   blocklist: Blocklist,
   notes: string[],
+  unresolved: ProjectDependency[],
 ): Promise<DepAudit | null> {
+  if (NON_REGISTRY_RANGE.test(dep.range)) {
+    notes.push(`${dep.name}: non-registry dependency ("${dep.range}"); skipped`);
+    return null;
+  }
   let meta: Awaited<ReturnType<typeof resolvePackage>>;
   try {
     meta = await resolve(dep.name);
   } catch (e) {
-    notes.push(`${dep.name}: registry lookup failed (${(e as Error).message}); skipped`);
+    notes.push(`${dep.name}: registry lookup failed (${(e as Error).message})`);
+    unresolved.push(dep);
     return null;
   }
   if (!meta.existsOnRegistry) {
-    notes.push(`${dep.name}: not found on the registry; skipped`);
+    notes.push(`${dep.name}: not found on the registry`);
+    unresolved.push(dep);
     return null;
   }
   const installed = dep.installed ?? minSatisfying(meta.versions, dep.range);
   if (!installed) {
-    notes.push(`${dep.name}: no installed version matches range "${dep.range}"; skipped`);
+    notes.push(`${dep.name}: no installed version matches range "${dep.range}"`);
+    unresolved.push(dep);
   }
   const vulns = await vulnsFn(dep.name);
   if (vulns === null) {
@@ -150,12 +162,51 @@ export async function runDoctor(
   const project = loadProject(dir, deps.fs);
   const notes: string[] = [];
   const audits: DepAudit[] = [];
+  const unresolvedDeps: ProjectDependency[] = [];
   for (const dep of project.deps) {
-    const audit = await auditDependency(dep, resolve, vulnsFn, blocklist, notes);
+    const audit = await auditDependency(dep, resolve, vulnsFn, blocklist, notes, unresolvedDeps);
     if (audit) audits.push(audit);
   }
 
   const gates = new Map<string, GateRecord>();
+  const nameIssues: Issue[] = [];
+  const unfixable: UnfixableRecord[] = [];
+  const unresolved: string[] = [];
+
+  for (const dep of unresolvedDeps) {
+    let verdict: Verdict;
+    try {
+      verdict = await check(dep.name);
+    } catch (e) {
+      notes.push(`${dep.name}: supply-chain check failed (${(e as Error).message})`);
+      unresolved.push(dep.name);
+      continue;
+    }
+    gates.set(`${dep.name}@${verdict.version}`, {
+      name: dep.name,
+      version: verdict.version,
+      verdict: verdict.verdict,
+      categories: verdict.categories,
+      summary: verdict.summary,
+    });
+    if (verdict.verdict !== "block") {
+      unresolved.push(dep.name);
+      continue;
+    }
+    nameIssues.push({
+      name: dep.name,
+      group: dep.group,
+      installed: verdict.version,
+      kind: "compromised",
+      severity: "critical",
+      summary: verdict.summary,
+    });
+    unfixable.push({
+      name: dep.name,
+      reason: "the package itself fails the supply-chain gate",
+    });
+  }
+
   for (const audit of audits) {
     if (!audit.installed || audit.blocklistId) continue;
     const key = `${audit.name}@${audit.installed}`;
@@ -175,12 +226,12 @@ export async function runDoctor(
     }
   }
 
-  const issues = audits.flatMap(issuesOf);
-  const unfixable: UnfixableRecord[] = [];
+  const issues = [...nameIssues, ...audits.flatMap(issuesOf)];
   const minimalChanges: Change[] = [];
   const latestChanges: Change[] = [];
 
   for (const audit of audits) {
+    if (!audit.installed) continue;
     const needsFix = issues.some(
       (i) => i.name === audit.name && (i.kind === "vulnerability" || i.kind === "compromised"),
     );
@@ -247,6 +298,7 @@ export async function runDoctor(
     project: project.name,
     issues,
     gate: [...gates.values()],
+    unresolved,
     unfixable,
     plans,
     recommended,

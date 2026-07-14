@@ -82,6 +82,13 @@ export function renderDoctorReport(r: DoctorReport): string {
   }
   if (r.unfixable.length) lines.push("");
 
+  if (r.unresolved.length) {
+    lines.push(
+      `  ${c("33", "UNASSESSED")} ${bold(`${r.unresolved.length} dependency(ies)`)} could not be checked: ${r.unresolved.join(", ")}`,
+    );
+    lines.push(dim("  this project is not verified clean; see the notes below"), "");
+  }
+
   for (const p of r.plans) {
     const mark = p.id === r.recommended ? c("32", "▸ recommended") : dim("candidate");
     lines.push(`  ${bold(`plan ${p.id}`)} — ${p.label}  ${mark}`);

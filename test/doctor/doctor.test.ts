@@ -213,10 +213,13 @@ test("doctor notes unknown packages, unmatched ranges, and advisory outages", as
   });
   const report = await runDoctor("/odd", {}, { fs, check: engineCheck });
   expect(report.notes).toEqual([
-    "wnpm-no-such-package-xyz: not found on the registry; skipped",
-    'left-pad: no installed version matches range "^9.0.0"; skipped',
+    "wnpm-no-such-package-xyz: not found on the registry",
+    'left-pad: no installed version matches range "^9.0.0"',
   ]);
-  expect(report.issues).toEqual([]);
+  expect(report.issues.map((i) => [i.name, i.kind])).toEqual([
+    ["wnpm-no-such-package-xyz", "compromised"],
+  ]);
+  expect(report.unresolved).toEqual(["left-pad"]);
 
   process.env.WNPM_OSV = "http://127.0.0.1:1";
   try {

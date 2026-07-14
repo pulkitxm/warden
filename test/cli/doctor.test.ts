@@ -36,6 +36,7 @@ const cleanReport = (over: Partial<DoctorReport> = {}): DoctorReport => ({
   gate: [],
   unfixable: [],
   plans: [],
+  unresolved: [],
   notes: [],
   ...over,
 });
@@ -188,6 +189,23 @@ test("wnpm doctor --no-apply skips apply and exits 10 when issues remain", async
   });
   expect(await runWnpm(["doctor", "--no-apply"], deps)).toBe(10);
   expect(err.join("")).toContain("run wnpm doctor without --no-apply");
+});
+
+test("wnpm doctor never exits 0 while a dependency went unassessed", async () => {
+  const { deps, err } = makeDeps({
+    doctor: () =>
+      Promise.resolve(
+        cleanReport({
+          unresolved: ["crossenv", "rc-ts-loader"],
+          notes: ["crossenv: no installed version matches range \"7.0.3\""],
+        }),
+      ),
+  });
+  expect(await runWnpm(["doctor"], deps)).toBe(10);
+  const text = err.join("");
+  expect(text).toContain("UNASSESSED");
+  expect(text).toContain("crossenv, rc-ts-loader");
+  expect(text).toContain("not verified clean");
 });
 
 test("wnpm doctor renders the human report on stderr", async () => {

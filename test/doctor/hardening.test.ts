@@ -224,11 +224,31 @@ test("git, tag, workspace, and file ranges are skipped with notes, not crashes",
   );
   expect(report.issues).toEqual([]);
   expect(report.notes).toEqual([
-    "git-dep: not found on the registry; skipped",
-    'left-pad: no installed version matches range "latest"; skipped',
-    "ws-dep: not found on the registry; skipped",
-    "file-dep: not found on the registry; skipped",
+    'git-dep: non-registry dependency ("github:foo/bar"); skipped',
+    'left-pad: no installed version matches range "latest"',
+    'ws-dep: non-registry dependency ("workspace:*"); skipped',
+    'file-dep: non-registry dependency ("file:../x"); skipped',
   ]);
+  expect(report.unresolved).toEqual(["left-pad"]);
+});
+
+test("a non-registry dependency is never mistaken for a slopsquat", async () => {
+  const report = await runDoctor(
+    "/p",
+    { verify: false },
+    {
+      check,
+      fs: project({
+        "internal-ui": "workspace:*",
+        "forked-lib": "github:acme/forked-lib",
+        "local-tool": "file:../tools/local",
+      }),
+    },
+  );
+  expect(report.issues).toEqual([]);
+  expect(report.unresolved).toEqual([]);
+  expect(report.gate).toEqual([]);
+  expect(report.unfixable).toEqual([]);
 });
 
 test("non-string range values are coerced instead of crashing", async () => {
@@ -320,11 +340,56 @@ test("a registry outage degrades to per-dependency notes instead of failing the 
       { check, fs: project({ "left-pad": "^1.3.0" }) },
     );
     expect(report.issues).toEqual([]);
-    expect(report.notes).toHaveLength(1);
     expect(report.notes[0]).toContain("left-pad: registry lookup failed");
+    expect(report.notes[1]).toContain("left-pad: supply-chain check failed");
+    expect(report.unresolved).toEqual(["left-pad"]);
   } finally {
     process.env.WNPM_REGISTRY = prev;
   }
+});
+
+test("a dependency whose pinned version no longer exists is still gated by name", async () => {
+  const report = await runDoctor(
+    "/p",
+    { verify: false },
+    { check, fs: project({ lodahs: "7.0.3" }) },
+  );
+  expect(report.issues).toHaveLength(1);
+  expect(report.issues[0]).toMatchObject({
+    name: "lodahs",
+    kind: "compromised",
+    severity: "critical",
+  });
+  expect(report.issues[0]?.summary).toContain("lodash");
+  expect(report.unfixable).toEqual([
+    { name: "lodahs", reason: "the package itself fails the supply-chain gate" },
+  ]);
+  expect(report.unresolved).toEqual([]);
+});
+
+test("a package missing from the registry entirely is reported, not silently skipped", async () => {
+  const report = await runDoctor(
+    "/p",
+    { verify: false },
+    { check, fs: project({ "wnpm-no-such-package-xyz": "^1.0.0" }) },
+  );
+  expect(report.issues).toHaveLength(1);
+  expect(report.issues[0]).toMatchObject({
+    name: "wnpm-no-such-package-xyz",
+    kind: "compromised",
+  });
+  expect(report.unfixable[0]?.reason).toBe("the package itself fails the supply-chain gate");
+});
+
+test("an unassessable but clean dependency is listed as unresolved, never as clean", async () => {
+  const report = await runDoctor(
+    "/p",
+    { verify: false },
+    { check, fs: project({ "left-pad": "latest" }) },
+  );
+  expect(report.issues).toEqual([]);
+  expect(report.unresolved).toEqual(["left-pad"]);
+  expect(report.gate.map((g) => g.verdict)).toEqual(["allow"]);
 });
 
 test("doctor report JSON round-trips through the public shape", async () => {

@@ -273,6 +273,7 @@ async function runDoctorCommand(
     });
     if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
     else deps.stderr(renderDoctorReport(report));
+    if (report.unresolved.length) return EXIT.warn;
     if (!report.issues.length) return 0;
     const plan = report.plans.find((p) => p.id === report.recommended);
     const fixed = new Set(report.applied ? (plan?.changes ?? []).map((c) => c.name) : []);
