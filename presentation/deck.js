@@ -55,6 +55,17 @@ const terminalScripts = {
     { text: "verify    warden ci --reporter agent", kind: "good", pause: 220 },
     { text: "verdict block · exit 20", kind: "bad", pause: 0 },
   ],
+  intent: [
+    { text: "warden intent check", kind: "command", typed: true, pause: 380 },
+    { text: 'prompt   "add email validation to the login form"', kind: "dim", pause: 260 },
+    { text: "3 claims extracted · 2 hunks changed", kind: "dim", pause: 240 },
+    { text: "✓ claim matched     validate email format       login.tsx:42", kind: "good", pause: 240 },
+    { text: "✓ claim matched     inline error message         login.tsx:58", kind: "good", pause: 240 },
+    { text: "! unclaimed hunk    checkout.ts:120  no matching claim", kind: "bad", pause: 260 },
+    { text: '! hallucinated API  stripe.chargeInstantly()  not exported by "stripe"', kind: "bad", pause: 320 },
+    { text: "BLOCK  intent mismatch   2 findings", kind: "bad", pause: 260 },
+    { text: "exit 20 · diff does not match the prompt", kind: "info", pause: 0 },
+  ],
   agent: [
     { text: "warden fix", kind: "command", typed: true, pause: 340 },
     { text: "wrote .warden/handoff.json", kind: "good", pause: 220 },
