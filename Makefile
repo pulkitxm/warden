@@ -1,4 +1,4 @@
-.PHONY: install build test test-doctor test-shell typecheck ci ci-comments ci-format doctor-demo docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format doctor-demo docker-build docker-run docker-install-demo
 
 install:
 	bun install
@@ -12,6 +12,9 @@ test:
 
 test-doctor:
 	bun test test/doctor/ test/cli/doctor.test.ts
+
+test-intent:
+	bun test test/intent/
 
 test-shell:
 	bun test test/shell/
