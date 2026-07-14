@@ -57,7 +57,9 @@ export function installedVersion(
   fs: ProjectFs = defaultProjectFs,
 ): string | undefined {
   try {
-    const pkg = JSON.parse(stripBom(fs.readFile(join(dir, "node_modules", name, "package.json")))) as {
+    const pkg = JSON.parse(
+      stripBom(fs.readFile(join(dir, "node_modules", name, "package.json"))),
+    ) as {
       version?: string;
     };
     if (pkg.version) return pkg.version;

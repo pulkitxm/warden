@@ -943,9 +943,7 @@ function harness(c: TestCase): Harness {
       fs: memFs(files),
       verifier,
       resolve: (name: string): Promise<PackageMeta> =>
-        Promise.resolve(
-          metaMap.get(name) ?? meta(name, [], { existsOnRegistry: false }),
-        ),
+        Promise.resolve(metaMap.get(name) ?? meta(name, [], { existsOnRegistry: false })),
       vulns: (name: string): Promise<OsvVuln[] | null> =>
         Promise.resolve((vulnMap.get(name) ?? []).map(osvRecord)),
       check: (spec: string): Promise<Verdict> =>
@@ -963,7 +961,9 @@ for (const c of ALL_CASES) {
     expect(report.project).toBe("test-project");
 
     expect(report.issues.map((i) => i.kind)).toEqual(c.expectIssues ?? []);
-    expect(report.unfixable.map((u) => u.name).sort()).toEqual([...(c.expectUnfixable ?? [])].sort());
+    expect(report.unfixable.map((u) => u.name).sort()).toEqual(
+      [...(c.expectUnfixable ?? [])].sort(),
+    );
 
     const minimal = report.plans.find((p) => p.id === "minimal");
     const applied = Object.fromEntries((minimal?.changes ?? []).map((ch) => [ch.name, ch.to]));

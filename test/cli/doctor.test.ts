@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
 import { defaultDeps, type RunDeps, runWnpm } from "../../src/cli/main.ts";
 import { renderDoctorReport } from "../../src/cli/ui.ts";
-import { runDoctor, type DoctorOptions, type DoctorReport } from "../../src/doctor/index.ts";
+import { type DoctorOptions, type DoctorReport, runDoctor } from "../../src/doctor/index.ts";
 
 const doctorProject = fileURLToPath(new URL("../../fixtures/doctor-project", import.meta.url));
 
@@ -172,8 +172,7 @@ test("wnpm doctor exits 0 when the applied plan covers every issue", async () =>
 
 test("wnpm doctor still exits 10 when apply leaves an unfixable issue behind", async () => {
   const { deps, err } = makeDeps({
-    doctor: (_dir, opts) =>
-      Promise.resolve(cleanReport({ ...richReport(), applied: opts.apply })),
+    doctor: (_dir, opts) => Promise.resolve(cleanReport({ ...richReport(), applied: opts.apply })),
   });
   expect(await runWnpm(["doctor"], deps)).toBe(10);
   expect(err.join("")).toContain("recommended plan applied");

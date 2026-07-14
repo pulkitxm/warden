@@ -58,7 +58,13 @@ function project(
   const dir = mkdtempSync(join(tmpdir(), "wnpm-e2e-"));
   writeFileSync(
     join(dir, "package.json"),
-    JSON.stringify({ name: "e2e-demo", version: "1.0.0", private: true, scripts, dependencies: deps }),
+    JSON.stringify({
+      name: "e2e-demo",
+      version: "1.0.0",
+      private: true,
+      scripts,
+      dependencies: deps,
+    }),
   );
   writeFileSync(join(dir, "bun.lock"), "");
   for (const [name, version] of Object.entries(installed)) {
@@ -124,7 +130,7 @@ test("vulnerable project: doctor finds, verifies with the project's own tests, a
   const dir = project(
     { "acme-json": "^2.1.0" },
     { "acme-json": "2.1.0" },
-    { test: 'bun -e "require(\'acme-json\')"' },
+    { test: "bun -e \"require('acme-json')\"" },
   );
   const { code, report } = await doctor(dir);
   expect(report.issues.map((i) => [i.name, i.kind, i.fixedIn])).toEqual([
