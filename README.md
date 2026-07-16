@@ -4,10 +4,10 @@ A trust layer that checks a package, or an agent's diff, before it runs. `warden
 
 ## Hackathon submission
 
-- [Live deck](presentation/index.html)
-- [Slide PDF](presentation/warden-deck.pdf)
-- [Demo video](presentation/warden-preview.mp4)
-- [Presentation narrative and speaker notes](presentation/presentation-context.md)
+- [Live deck](https://warden.pulkit.page/presentation/index.html)
+- [Slide PDF](https://warden.pulkit.page/presentation/warden-deck.pdf)
+- [Demo video](https://warden.pulkit.page/presentation/warden-preview.mp4)
+- [Presentation narrative and speaker notes](https://warden.pulkit.page/presentation/presentation-context.md)
 
 ## Try it
 
@@ -24,4 +24,4 @@ Exit codes are `0` allow, `10` warn, `20` block, `30` analysis error.
 
 ## Docs
 
-[Features](docs/features.md) is the full inventory; [functionality](docs/functionality.md) walks through real captured output for every command. [Doctor](docs/doctor.md) and [intent](docs/intent.md) cover those two features in depth. [Offline demo](demo/README.md) runs everything without network access.
+[Features](https://warden.pulkit.page/docs/features.md) is the full inventory; [functionality](https://warden.pulkit.page/docs/functionality.md) walks through real captured output for every command. [Doctor](https://warden.pulkit.page/docs/doctor.md) and [intent](https://warden.pulkit.page/docs/intent.md) cover those two features in depth. [Offline demo](https://warden.pulkit.page/demo/README.md) runs everything without network access.
