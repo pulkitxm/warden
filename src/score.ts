@@ -72,21 +72,23 @@ function decide(signals: Signal[], ctx: ScoreContext): { level: VerdictLevel; re
     };
   }
 
+  const hasLifecycle = signals.some((s) => LIFECYCLE_IDS.has(s.id));
+  const lifecycleSink = signals.find((s) => LIFECYCLE_SINK_IDS.has(s.id));
+  if (hasLifecycle && lifecycleSink) {
+    return {
+      level: "block",
+      reason: `install-time script combined with a ${lifecycleSink.category.replace(/_/g, " ")} sink`,
+    };
+  }
+
+  if (signals.some((s) => s.id === "exfil-shape")) {
+    return {
+      level: "block",
+      reason: "environment variables sent to a hardcoded IP / metadata endpoint",
+    };
+  }
+
   if (!suppressCapabilityBlock) {
-    const hasLifecycle = signals.some((s) => LIFECYCLE_IDS.has(s.id));
-    const lifecycleSink = signals.find((s) => LIFECYCLE_SINK_IDS.has(s.id));
-    if (hasLifecycle && lifecycleSink) {
-      return {
-        level: "block",
-        reason: `install-time script combined with a ${lifecycleSink.category.replace(/_/g, " ")} sink`,
-      };
-    }
-    if (signals.some((s) => s.id === "exfil-shape")) {
-      return {
-        level: "block",
-        reason: "environment variables sent to a hardcoded IP / metadata endpoint",
-      };
-    }
     const hasObfuscation = signals.some(
       (s) => s.category === "obfuscation" && s.id === "obfuscated",
     );

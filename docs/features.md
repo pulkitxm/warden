@@ -28,6 +28,10 @@ Newness and low downloads never block on their own. An optional OpenAI pass (`OP
 - data access: environment variable reads and dumps, sensitive file access, cloud metadata hosts, destructive filesystem calls
 - obfuscation combined with execution or network capability
 
+### Reputation limits
+
+Download popularity lowers uncertainty for *static* capabilities: a bundler shipping minified code with an eval sink is not treated as malware because it is widely used. Popularity never rescues a **behavioural delta**. A newly added or changed lifecycle script combined with a credential read, raw IP, network call, or exec sink blocks whatever the download count says, because that is the shape of the chalk and Shai-Hulud compromises, where popularity increased the blast radius rather than reducing the risk. Name attacks, reverse shells, and the environment-exfiltration shape are likewise never suppressed.
+
 ### Verdicts
 
 Every check returns a versioned JSON verdict (`warden schema` prints the JSON Schema): package, version, integrity, verdict, risk score 0-100, categories, evidence with file locations, and a plain-language summary. Exit codes are stable: `0` allow, `10` warn, `20` block, `30` analysis error. `--allow-risky` deliberately overrides a block and exits `10`.
