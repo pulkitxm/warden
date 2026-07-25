@@ -18,7 +18,12 @@ export function rehypeTerminal() {
       );
       if (!code) return;
       const classes = (code.properties?.className ?? []) as string[];
-      if (!classes.includes("language-term")) return;
+      const isTerminal =
+        classes.includes("language-term") ||
+        classes.includes("language-text") ||
+        classes.includes("language-console") ||
+        classes.includes("language-shell-session");
+      if (!isTerminal) return;
 
       const lines = classifyTerminal(textOf(code));
       const rendered: Element = {
