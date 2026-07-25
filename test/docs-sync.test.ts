@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CHECK_SURFACES } from "../src/cli/commands/check.ts";
 import { COMMAND_REGISTRY } from "../src/cli/registry.ts";
+import { DEFAULT_POLICY } from "../src/policy/compile.ts";
 import { AGENT_NAMES } from "../src/shared/agents.ts";
+import { COVERAGE_MATRIX, UNSUPPORTED_PATHS } from "../src/shim/grammar.ts";
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -72,5 +74,35 @@ test("docs do not claim an unimplemented check surface", () => {
   );
   for (const surface of claimed) {
     expect([...CHECK_SURFACES, "lockfile", "scripts", "config"]).toContain(surface);
+  }
+});
+
+test("every mediated command form appears on the coverage page", () => {
+  for (const row of COVERAGE_MATRIX) {
+    if (row.command.startsWith("<")) continue;
+    expect(siteDocs).toContain(`${row.manager} ${row.command}`);
+  }
+});
+
+test("every unsupported path is named on the site, not only in the binary", () => {
+  for (const entry of UNSUPPORTED_PATHS) {
+    expect(siteDocs).toContain(entry.path);
+  }
+});
+
+test("every policy key the compiler accepts is documented on the site", () => {
+  for (const key of Object.keys(DEFAULT_POLICY)) {
+    expect(siteDocs).toContain(key);
+  }
+});
+
+test("the limitations page states the boundary the report asked for", () => {
+  for (const claim of [
+    "not an operating-system control",
+    "cannot prove that code is safe",
+    "flat: one version per package name",
+    "No model decides a block",
+  ]) {
+    expect(siteDocs).toContain(claim);
   }
 });
