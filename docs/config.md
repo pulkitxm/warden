@@ -65,3 +65,31 @@ Verdicts are keyed by `name@version` plus ruleset version, so CI runs restore `~
 ## Agent context files
 
 Agent context files follow the same cascade: `warden init` offers to write a warden section into the root `CLAUDE.md` (or `AGENTS.md`) and into each package's own file, stating the active policies, the commands that give feedback (`warden ci --reporter agent`), and per-package quirks. Agents then comply with policies before CI has to fail them, and package-local instructions stay next to the code they govern.
+
+## Policy
+
+`warden.config.json` carries a manager-neutral `policy` block:
+
+```json
+{
+  "policy": {
+    "scripts": "approved",
+    "minimumReleaseAgeDays": 1,
+    "exoticSources": "block",
+    "lockfile": "reverify",
+    "downgrades": "block"
+  }
+}
+```
+
+Anything omitted inherits the default shown above. `warden policy` compiles the block into the strongest primitive the detected manager actually provides, and states plainly which intents that manager cannot express natively and how Warden enforces them instead.
+
+| Intent | npm | pnpm | Yarn | Bun |
+| --- | --- | --- | --- | --- |
+| Deny dependency scripts | `ignore-scripts` | `strictDepBuilds`, `allowBuilds` | `enableScripts` | `trustedDependencies` |
+| Minimum release age | `minimum-release-age` | `minimumReleaseAge` | `minimumReleaseAge` | Warden |
+| Block git and url sources | `allow-git`, `allow-remote` | `blockExoticSubdeps` | Warden | Warden |
+| Re-verify the lockfile | Warden | `trustLockfile` | `enableHardenedMode` | Warden |
+| Block downgrades | Warden | `trustPolicy` | Warden | Warden |
+
+Warden orchestrates these controls rather than replacing them. Whatever the manager cannot do, the plan, the approval model, and the CI receipt gate still cover.

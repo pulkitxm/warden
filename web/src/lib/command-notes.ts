@@ -168,6 +168,37 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  policy: {
+    intro:
+      "Package managers have been growing real security controls of their own: npm has script approvals and source restrictions, pnpm 11 has build allowlists and a release age gate, Yarn disables dependency postinstalls by default, Bun runs nothing outside `trustedDependencies`. Warden does not duplicate them. `warden policy` takes one manager-neutral intent and compiles it into the strongest primitive each manager actually has.",
+    whenToUse: [
+      "When adopting Warden in a repository, to see what your package manager can enforce by itself.",
+      "When switching package managers, to see which guarantees you keep and which move to Warden.",
+      "In a setup script, with `--json`, to write the native settings automatically.",
+    ],
+    examples: [
+      {
+        command: "warden policy",
+        description: "Compile for the manager this project actually declares.",
+      },
+      {
+        command: "warden policy --manager pnpm",
+        description: "Compile for a specific manager, whatever the project uses.",
+      },
+      {
+        command: "warden policy --json",
+        description: "The compiled settings, the gaps, and what Warden enforces itself.",
+      },
+    ],
+    behaviour:
+      "The policy has five parts: whether dependency scripts run, a minimum release age, whether git and url sources are allowed, whether the lockfile is re-verified, and whether downgrades are permitted. Each compiles differently. pnpm expresses all five natively. npm covers scripts, release age, and sources. Yarn covers scripts, release age, and hardened mode. Bun covers only scripts. Every intent a manager cannot express is listed explicitly alongside how Warden enforces it instead.",
+    gotchas: [
+      "Compiling prints the settings; it does not write them into your config files. What to change is your decision, and the files often carry unrelated settings.",
+      "Native controls are still evolving across all four managers. A setting listed here reflects the documented behaviour of current releases, not a guarantee about older ones.",
+      "Set the policy under `policy` in `warden.config.json`. Anything you leave out inherits the default, which denies unapproved scripts and gates releases younger than a day.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",
