@@ -1,3 +1,5 @@
+<img src="web/public/logo.svg" alt="" width="72" align="left" />
+
 # Warden
 
 A trust layer that checks a package, or an agent's diff, before it runs. `warden check` / `wnpm install` / `wnpx` vet packages against a deterministic supply-chain engine before install or execution. `wnpm doctor` audits existing dependencies against OSV advisories and applies only a verified fix, rejecting the official patch when the patch itself is malicious. `warden intent check` reads an agent's diff against the prompt it was given and flags dropped requirements, unrequested scope, and calls to APIs that don't exist.

@@ -39,10 +39,12 @@ export function DocsPage({
       <article className="min-w-0 max-w-3xl">
         <Breadcrumbs trail={trail} />
         <p className="text-[13px] font-semibold tracking-[0.16em] text-mint uppercase">{eyebrow}</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
+          {markdownPath ? <PageActions markdownPath={markdownPath} title={title} /> : null}
+        </div>
         <p className="mt-4 text-lg leading-relaxed text-fog">{description}</p>
         <hr className="my-8 border-white/10" />
-        {markdownPath ? <PageActions markdownPath={markdownPath} title={title} /> : null}
 
         {children}
 

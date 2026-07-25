@@ -7,7 +7,7 @@ Part of the [product plan](system-integration.md).
 ## Release workflow
 
 - On tag push, cross-compile `warden`, `wnpm`, `wnpx` with `bun build --compile --target=bun-{linux,darwin}-{x64,arm64}` and upload GitHub Release assets with sha256 checksums.
-- `install.sh` lives at the repo root and always installs the latest release.
+- `install.sh` lives at `web/public/install.sh`, so the website serves it directly at `/install.sh`, and always installs the latest release.
 
 ## install.sh
 

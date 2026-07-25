@@ -64,7 +64,7 @@ export function DocsNav({ pages, commands }: { pages: DocPage[]; commands: Comma
                     className={`block truncate rounded-lg px-3 py-1.5 text-[13.5px] transition ${
                       active
                         ? "bg-white/10 font-medium text-white"
-                        : "text-fog hover:bg-white/5 hover:text-white"
+                        : "text-fog hover:bg-mint/10 hover:text-mint"
                     }`}
                   >
                     {link.label}

@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import ts from "typescript";
 
 const args = process.argv.slice(2);
@@ -607,7 +607,8 @@ function main() {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean)
-    .filter((f) => !/(^|\/)package-lock\.json$/.test(f));
+    .filter((f) => !/(^|\/)package-lock\.json$/.test(f))
+    .filter((f) => existsSync(f));
 
   let changedFiles = 0;
   let totalRemoved = 0;

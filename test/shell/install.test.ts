@@ -15,7 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const installScript = join(import.meta.dir, "../../install.sh");
+const installScript = join(import.meta.dir, "../../web/public/install.sh");
 const shimScript = join(import.meta.dir, "../../scripts/shim.sh");
 const pathLine = 'export PATH="$HOME/.warden/shims:$HOME/.warden/bin:$PATH"';
 const completionLines = {

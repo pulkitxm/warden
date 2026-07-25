@@ -50,7 +50,7 @@ export function Toc({ items }: { items: TocItem[] }) {
               href={`#${item.id}`}
               aria-current={active === item.id ? "location" : undefined}
               className={`block text-[13px] leading-snug transition ${
-                active === item.id ? "font-medium text-white" : "text-fog hover:text-white"
+                active === item.id ? "font-medium text-white" : "text-fog hover:text-mint"
               }`}
             >
               {item.text}
