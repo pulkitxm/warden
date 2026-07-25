@@ -1,4 +1,4 @@
-import { bold, dim } from "../cli/ui.ts";
+import { bold, dim } from "../shared/ansi.ts";
 import type { ClaimRow, IntentReport } from "./types.ts";
 
 function icon(row: ClaimRow): string {

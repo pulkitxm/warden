@@ -22,6 +22,26 @@ bun run build
 
 Exit codes are `0` allow, `10` warn, `20` block, `30` analysis error.
 
+## Layout
+
+```text
+src/
+  bin/        warden, wnpm, wnpx entrypoints
+  cli/        argument parsing, rendering, and command wiring
+    commands/ one module per warden verb
+    help.ts   help and completion rendering, driven by the registry
+    registry.ts  COMMAND_REGISTRY, the single source of verbs
+  shared/     deps interfaces, error envelopes, git helpers, ansi, arg parsing
+  engine.ts   the checkPackage pipeline
+  doctor/     OSV audit, plan, supply-chain gate, isolated verify, apply
+  intent/     prompt-as-spec verification for agent diffs
+  heuristics/ AST capability scan
+  distance/   typosquat scoring against package popularity
+  intel/      curated blocklist and hallucinated-name data
+```
+
+Dependencies point one way: `bin` to `cli` to `shared` and the domain modules. Domain modules never import from `cli`, and `test/cli/layering.test.ts` fails the build if that reverses.
+
 ## Docs
 
 [Features](https://warden.pulkit.page/docs/features.md) is the full inventory; [functionality](https://warden.pulkit.page/docs/functionality.md) walks through real captured output for every command. [Doctor](https://warden.pulkit.page/docs/doctor.md) and [intent](https://warden.pulkit.page/docs/intent.md) cover those two features in depth. [Offline demo](https://warden.pulkit.page/demo/README.md) runs everything without network access.
