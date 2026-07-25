@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { join } from "node:path";
-import { PLAN_DIR, renderPlan, specsFromArgv } from "../../src/cli/commands/plan.ts";
+import {
+  managerFromArgv,
+  PLAN_DIR,
+  renderPlan,
+  specsFromArgv,
+} from "../../src/cli/commands/plan.ts";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
 import type { TransactionPlan } from "../../src/graph/plan.ts";
 import type { Verdict } from "../../src/schema.ts";
@@ -116,6 +121,23 @@ test("a package name after the manager and verb is what gets planned", () => {
 
 test("bare package names work without the manager preamble", () => {
   expect(specsFromArgv(["left-pad", "chalk"])).toEqual(["left-pad", "chalk"]);
+});
+
+test("the manager named in the command is the one the plan is built for", () => {
+  expect(managerFromArgv(["--", "pnpm", "add", "chalk"])).toBe("pnpm");
+  expect(managerFromArgv(["--json", "--", "npm", "install", "left-pad"])).toBe("npm");
+  expect(managerFromArgv(["left-pad"])).toBeUndefined();
+});
+
+test("planning npm install does not report it as a bun install", async () => {
+  const { deps, written } = makeDeps({
+    [join(CWD, "package.json")]: manifest(),
+    [join(CWD, "bun.lock")]: "{}",
+  });
+  expect(await runWarden(["plan", "--", "npm", "install", "left-pad"], deps)).toBe(0);
+  const plan = JSON.parse(Object.values(written)[0] as string) as TransactionPlan;
+  expect(plan.manager).toBe("npm");
+  expect(plan.command).toBe("npm install left-pad");
 });
 
 test("flags never become package specs", () => {

@@ -63,6 +63,8 @@ Every package is vetted in parallel first. If any verdict is \`block\`, nothing 
 wnpx create-some-app
 \`\`\`
 
+Both pick your package manager for you. Name one yourself with \`--npm\`, \`--pnpm\`, \`--yarn\`, or \`--bun\`, described in [package managers](/docs/package-managers).
+
 ## Audit what you already have
 
 \`\`\`sh
@@ -579,6 +581,26 @@ Claim matching is heuristic. Narrow the prompt to the change actually being made
 ## Colour codes in my logs
 
 Warden disables colour when stdout is not a TTY. Force it with \`--no-color\` or \`NO_COLOR=1\`.
+
+## A command looks stuck
+
+It is probably resolving or downloading. \`warden plan\` reads a packument for every requirement in the prospective graph and then vets each added or changed package, which on a large graph is minutes of registry work.
+
+Every long command reports what it is doing on stderr. On a terminal that is one line, rewritten in place, naming the phase, how far through it is, and the package it is on:
+
+\`\`\`text
+⠹ vetting 40 changed packages · 12/40 · fast-jwt@5.0.6: downloading tarball 48.2s
+\`\`\`
+
+When stderr is a pipe, a file, or an agent, there is no spinner. A phase that is still running after two seconds announces itself, repeats every fifteen, and prints a line with its duration when it ends:
+
+\`\`\`text
+  resolving the prospective dependency graph · 61/74 · reading fast-jwt (2.0s)
+ ok resolving the prospective dependency graph · 74/74 12.4s
+  vetting 40 changed packages · 12/40 · fast-jwt@5.0.6: downloading tarball (17.0s)
+\`\`\`
+
+Phases shorter than a second leave nothing behind, so a fast run stays silent. \`--quiet\` silences progress entirely, and \`--json\` is unaffected either way: reports go to stdout, progress goes to stderr.
 
 ## Removing Warden
 
@@ -1621,6 +1643,47 @@ Inside the install branch, \`-g\` or \`--global\` makes it \`global-install\`, o
 \`warden coverage --json\` prints \`{ schema_version: 1, matrix, unsupported }\`, and \`warden shim-plan <manager> <args...>\` prints the \`CommandPlan\` verbatim. For an unknown tool it degrades to a three-field stub, \`{ kind: "passthrough", specs: [], exotic: [] }\`, rather than a full \`CommandPlan\`, so a consumer reading \`manager\` or \`coverage\` off that fallback gets \`undefined\`. \`UNSUPPORTED_PATHS\` holds five documented gaps: absolute executable paths, Corepack-managed shims, package managers run inside containers, arbitrary shell downloads piped to an interpreter, and Windows or PowerShell. The rendered output ends by stating that PATH shims are not an operating-system sandbox. Downstream, \`runWardenShimTransaction\` plans a graph transaction only for \`install\`, \`frozen-install\`, and \`global-install\`; \`exec\`, \`rebuild\`, and \`passthrough\` return a \`skipped\` result.
 `;
 
+const packageManagers = `
+Warden never installs anything itself. Every install and every one-off execution runs through your own package manager, so the first thing each of those commands decides is which manager that is.
+
+## Name one yourself
+
+\`\`\`sh
+wnpm --pnpm install express
+wnpm --yarn install
+wnpx --bun cowsay hello
+warden plan -- pnpm add zod
+\`\`\`
+
+\`--npm\`, \`--pnpm\`, \`--yarn\`, and \`--bun\` work on \`wnpm\` and \`wnpx\`. \`warden plan\` takes the manager from the command you are planning, after \`--\`, which is why the plan echoes back the command you actually typed.
+
+## What Warden picks when you do not say
+
+| Order | Signal | Reported as |
+| --- | --- | --- |
+| 1 | The manager flag, or the manager named after \`--\` | \`invoked\` |
+| 2 | \`packageManager\` in \`package.json\` | \`packageManager\` |
+| 3 | A lockfile: \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\` | \`lockfile\` |
+| 4 | \`packageManager\` in \`warden.config.json\` | \`config\` |
+| 5 | The first of npm, pnpm, Yarn, Bun found on \`PATH\` | \`available\` |
+| 6 | Nothing at all: npm | \`default\` |
+
+\`wnpm install\` prints which one it chose and why before it hands over, and \`warden plan\` records it as \`manager\` in the plan, which is what \`warden apply\` later installs with.
+
+## What the choice changes
+
+| Command | npm | pnpm | Yarn | Bun |
+| --- | --- | --- | --- | --- |
+| \`wnpm install <pkg>\` | \`npm install --ignore-scripts\` | \`pnpm add --ignore-scripts\` | \`yarn add\` | \`bun add\` |
+| \`wnpx <pkg>\` | \`npx\` | \`pnpm dlx\` | \`yarn dlx\` | \`bunx\` |
+
+Yarn and Bun take no \`--ignore-scripts\` argument: they suppress dependency scripts through \`enableScripts\` and \`trustedDependencies\` instead, which is what \`warden policy\` compiles for you. The vetting, the approval model, and the receipt are the same whichever manager runs.
+
+## Which one is in front
+
+The shims decide what \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`npx\`, and \`bunx\` mean on your \`PATH\`; \`warden coverage\` says which of their subcommands are actually mediated. That is [interception](/docs/interception), and it is a separate question from which manager a Warden command chooses to run.
+`;
+
 const PAGES: DocPage[] = [
   {
     slug: "getting-started",
@@ -1629,7 +1692,7 @@ const PAGES: DocPage[] = [
       "Install Warden, vet your first package, audit an existing project, and put the gate in CI.",
     section: "Start",
     body: gettingStarted,
-    related: ["concepts", "cli"],
+    related: ["concepts", "cli", "package-managers"],
   },
   {
     slug: "concepts",
@@ -1764,7 +1827,22 @@ const PAGES: DocPage[] = [
       "How the shims put Warden in front of npm, pnpm, yarn, and Bun, what each decision does to your install, and where interception genuinely ends.",
     section: "Using Warden",
     body: interception,
-    related: ["coverage", "transactions", "limitations", "how-a-plan-is-built"],
+    related: [
+      "coverage",
+      "transactions",
+      "limitations",
+      "package-managers",
+      "how-a-plan-is-built",
+    ],
+  },
+  {
+    slug: "package-managers",
+    title: "Package managers",
+    description:
+      "Choose npm, pnpm, Yarn, or Bun explicitly with --npm, --pnpm, --yarn, and --bun, and see how Warden picks one when you do not.",
+    section: "Using Warden",
+    body: packageManagers,
+    related: ["interception", "policy", "transactions", "troubleshooting"],
   },
   {
     slug: "explain",
@@ -1863,6 +1941,7 @@ const PAGE_ORDER = [
   "concepts",
   "transactions",
   "interception",
+  "package-managers",
   "explain",
   "ci",
   "agents",

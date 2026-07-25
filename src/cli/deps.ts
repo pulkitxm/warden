@@ -3,13 +3,19 @@ import { homedir } from "node:os";
 import { runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import type { RunDeps, WardenDeps } from "../shared/deps.ts";
-import { withoutProgress } from "../shared/progress.ts";
+import { flushProgress, withoutProgress } from "../shared/progress.ts";
 import { selectManagers } from "./managers.ts";
 
 export const defaultDeps: RunDeps = {
   check: checkPackage,
-  stdout: process.stdout.write.bind(process.stdout),
-  stderr: process.stderr.write.bind(process.stderr),
+  stdout: (s) => {
+    flushProgress();
+    return process.stdout.write(s);
+  },
+  stderr: (s) => {
+    flushProgress();
+    return process.stderr.write(s);
+  },
   which: Bun.which,
   spawn: (cmd) =>
     withoutProgress(

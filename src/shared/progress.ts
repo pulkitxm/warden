@@ -114,9 +114,18 @@ export function progressStep(label: string): void {
   if (s.io.tty) paint();
 }
 
-export function progressCount(done: number, total: number): void {
+export function flushProgress(): void {
+  const s = state;
+  if (!s?.step) return;
+  finish(s);
+  s.step = "";
+  s.detail = "";
+  s.count = "";
+}
+
+export function progressCount(done: number, total?: number): void {
   if (!state) return;
-  state.count = `${done}/${total}`;
+  state.count = total === undefined ? `${done}` : `${done}/${total}`;
 }
 
 export function progressDetail(text: string): void {

@@ -67,10 +67,10 @@ async function vet(
   const budget = deps.maxChecks ?? DEFAULT_MAX_CHECKS;
   const artifacts: PlanArtifact[] = [];
   let analyzed = 0;
-  progressStep(`vetting ${Math.min(changes.length, budget)} changed packages`);
+  const vetting = Math.min(changes.length, budget);
+  progressStep(`vetting ${vetting} changed packages`);
   for (const change of changes) {
     const spec = `${change.name}@${change.version}`;
-    progressCount(analyzed, Math.min(changes.length, budget));
     progressDetail(spec);
     if (analyzed >= budget) {
       artifacts.push({
@@ -86,6 +86,7 @@ async function vet(
     let verdict: Verdict;
     try {
       verdict = await deps.check(spec);
+      progressCount(analyzed, vetting);
     } catch (error) {
       artifacts.push({
         package: change.name,

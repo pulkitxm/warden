@@ -158,7 +158,6 @@ export async function resolveGraph(
       continue;
     }
 
-    progressCount(selected.size, selected.size + queue.length + 1);
     progressDetail(`reading ${item.name}`);
     const pack = await load(item.name);
     if (!pack?.versions) {
@@ -198,6 +197,7 @@ export async function resolveGraph(
       platformSpecific: Boolean(meta.os?.length || meta.cpu?.length),
     });
 
+    progressCount(selected.size);
     const label = `${item.name}@${version}`;
     for (const [dep, range] of Object.entries(meta.dependencies ?? {}))
       queue.push({ name: dep, range, depth: item.depth + 1, requiredBy: label, optional: false });
