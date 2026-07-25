@@ -9,6 +9,7 @@ import { bold, c, dim } from "../../shared/ansi.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { isQuiet } from "../../shared/output.ts";
+import { progressCount, progressDetail, progressStep } from "../../shared/progress.ts";
 import { LABEL } from "./verdict-label.ts";
 
 async function metaOrNull(name: string, version: string): Promise<PackageMeta | null> {
@@ -60,7 +61,9 @@ export async function runWardenCompare(argv: string[], deps: WardenDeps): Promis
   }
 
   const rows: ComparisonRow[] = [];
+  progressStep(`comparing ${specs.length} candidates on evidence`);
   for (const spec of specs) {
+    progressCount(rows.length, specs.length);
     const parsed = parseSpec(spec);
     let verdict = null;
     try {
@@ -105,9 +108,12 @@ export async function runWardenScripts(argv: string[], deps: WardenDeps): Promis
   const approvals = collectApprovals(deps, root, deps.home);
   const pending: PendingScript[] = [];
 
+  progressStep(`checking install scripts across ${installed.nodes.size} installed packages`);
   for (const [name, node] of installed.nodes) {
     const hooks = node.hooks ?? [];
     if (!hooks.length) continue;
+    progressCount(pending.length);
+    progressDetail(name);
     const packument = await fetchPackument(name).catch(() => null);
     const meta = packument?.versions?.[node.version];
     const unapproved = hooks.filter(
