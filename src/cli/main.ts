@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
-import { type DoctorOptions, type DoctorReport, runDoctor } from "../doctor/index.ts";
+import { runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import { runIntentPipeline, runWardenIntent } from "../intent/index.ts";
 import { intentSummaryLine } from "../intent/report.ts";
@@ -19,30 +19,15 @@ import {
   VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../schema.ts";
+import { parseArgsSafe } from "../shared/args.ts";
+import type { RunDeps, WardenDeps } from "../shared/deps.ts";
+import { guarded, wardenFailure } from "../shared/errors.ts";
+import { gitResult, resolveMergeBase } from "../shared/git.ts";
 import { bold, dim, renderDoctorReport, renderLine, renderVerdict } from "./ui.ts";
 
-export interface RunDeps {
-  check: (spec: string) => Promise<Verdict>;
-  stdout: (s: string) => unknown;
-  stderr: (s: string) => unknown;
-  which: (cmd: string) => string | null;
-  spawn: (cmd: string[]) => number;
-  readFile: (path: string) => string;
-  doctor?: (dir: string, opts: DoctorOptions) => Promise<DoctorReport>;
-}
-
-export interface WardenDeps extends RunDeps {
-  home: string;
-  mkdir: (path: string) => unknown;
-  writeFile: (path: string, data: string) => unknown;
-  exists: (path: string) => boolean;
-  cwd: () => string;
-  glob: (pattern: string, cwd: string) => string[];
-  git: (args: string[], cwd: string) => { exitCode: number; stdout: string; stderr: string };
-  isTTY: () => boolean;
-  prompt: (question: string) => Promise<string>;
-  selectManagers: (names: string[]) => Promise<string[]>;
-}
+export type { RunDeps, WardenDeps } from "../shared/deps.ts";
+export { wardenFailure } from "../shared/errors.ts";
+export { gitResult, resolveMergeBase } from "../shared/git.ts";
 
 export interface ManagerSelection {
   cursor: number;
@@ -206,19 +191,6 @@ const initialConfig = (): UserConfig => ({
   intercept: { install: true, exec: true },
 });
 
-export function wardenFailure(
-  deps: WardenDeps,
-  json: boolean,
-  kind: "usage" | "analysis" | "config",
-  code: string,
-  reason: string,
-  hint: string,
-): number {
-  if (json) deps.stdout(`${JSON.stringify({ error: { kind, code, reason, hint } })}\n`);
-  else deps.stderr(`warden: ${reason}\nhint: ${hint}\n`);
-  return EXIT.error;
-}
-
 function configPath(deps: WardenDeps): string {
   return `${deps.home}/.warden/config.json`;
 }
@@ -245,15 +217,6 @@ function readConfig(deps: WardenDeps): UserConfig {
 function writeConfig(deps: WardenDeps, config: UserConfig): void {
   deps.mkdir(`${deps.home}/.warden`);
   deps.writeFile(configPath(deps), `${JSON.stringify(config, null, 2)}\n`);
-}
-
-async function guarded(tool: string, deps: RunDeps, fn: () => Promise<number>): Promise<number> {
-  try {
-    return await fn();
-  } catch (e) {
-    deps.stderr(`${tool}: analysis error: ${(e as Error).message}\n`);
-    return EXIT.error;
-  }
 }
 
 function directDeps(deps: RunDeps): string[] {
@@ -312,16 +275,6 @@ doctor flags:
 
 exit codes: 0 clean or fully fixed - 10 unresolved issues - 30 error
 `;
-
-function parseArgsSafe<T extends NonNullable<Parameters<typeof parseArgs>[0]>>(
-  config: T,
-): ReturnType<typeof parseArgs<T>> | null {
-  try {
-    return parseArgs(config);
-  } catch {
-    return null;
-  }
-}
 
 export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
   const parsed = parseArgsSafe({
@@ -1003,22 +956,6 @@ async function runWardenInit(argv: string[], deps: WardenDeps): Promise<number> 
       "fix workspace files and retry warden init",
     );
   }
-}
-
-export function gitResult(deps: WardenDeps, root: string, args: string[]): string {
-  const result = deps.git(args, root);
-  if (result.exitCode !== 0)
-    throw new Error(result.stderr.trim() || `git ${args.join(" ")} failed`);
-  return result.stdout.trim();
-}
-
-export function resolveMergeBase(deps: WardenDeps, root: string, base?: string): string {
-  if (base) return gitResult(deps, root, ["merge-base", "HEAD", base]);
-  for (const candidate of ["origin/main", "main"]) {
-    const result = deps.git(["merge-base", "HEAD", candidate], root);
-    if (result.exitCode === 0) return result.stdout.trim();
-  }
-  throw new Error("neither origin/main nor main is available");
 }
 
 function dependencyMap(pkg: PackageJson): Record<string, string> {
