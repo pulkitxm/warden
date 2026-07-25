@@ -578,3 +578,24 @@ a[href] {
 .code-wrap {
   max-width: 100%;
 }
+
+.docs-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 154, 181, 0.28) transparent;
+}
+.docs-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.docs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.docs-scroll::-webkit-scrollbar-thumb {
+  background: rgba(143, 154, 181, 0.24);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.docs-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(143, 154, 181, 0.42);
+  background-clip: content-box;
+}

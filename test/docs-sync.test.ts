@@ -263,10 +263,19 @@ const webInstalled = existsSync(
 );
 const withWeb = webInstalled ? test : test.skip;
 
+const MARKDOWN_MODULE = new URL("../web/src/lib/markdown.ts", import.meta.url).href;
+
+async function loadRenderMarkdown(): Promise<(body: string) => Promise<string>> {
+  const loaded = (await import(MARKDOWN_MODULE)) as {
+    renderMarkdown: (body: string) => Promise<string>;
+  };
+  return loaded.renderMarkdown;
+}
+
 withWeb(
   "code blocks are wrapped and given a copy button on the server, not on hydration",
   async () => {
-    const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+    const renderMarkdown = await loadRenderMarkdown();
     const html = await renderMarkdown("```sh\nwarden plan\n```\n");
     expect(html).toContain('<div class="code-wrap">');
     expect(html).toContain("copy-button");
@@ -276,7 +285,7 @@ withWeb(
 );
 
 withWeb("terminal output is syntax highlighted whether the fence says term or text", async () => {
-  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const renderMarkdown = await loadRenderMarkdown();
   for (const lang of ["term", "text", "console", "shell-session"]) {
     const html = await renderMarkdown(
       `\`\`\`${lang}\n$ warden benchmark\n  detection 100.0%\n\`\`\`\n`,
@@ -287,14 +296,14 @@ withWeb("terminal output is syntax highlighted whether the fence says term or te
 });
 
 withWeb("a language fence shiki knows is still highlighted by shiki", async () => {
-  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const renderMarkdown = await loadRenderMarkdown();
   const html = await renderMarkdown('```json\n{ "a": 1 }\n```\n');
   expect(html).toContain("shiki");
   expect(html).toContain('<div class="code-wrap">');
 });
 
 withWeb("every fence language used in the docs renders as highlighted output", async () => {
-  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const renderMarkdown = await loadRenderMarkdown();
   const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
   const langs = new Set<string>();
   for (const page of DOC_PAGES) {
@@ -312,5 +321,46 @@ withWeb("every fence language used in the docs renders as highlighted output", a
     const html = await renderMarkdown(`\`\`\`${lang}\n$ warden check left-pad\n\`\`\`\n`);
     const highlighted = html.includes("shiki") || html.includes("terminal-block");
     expect(`${lang}: ${highlighted}`).toBe(`${lang}: true`);
+  }
+});
+
+test("every source path the docs cite actually exists", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  for (const page of DOC_PAGES) {
+    for (const match of page.body.matchAll(
+      /`((?:src|test|scripts|fixtures)\/[A-Za-z0-9_./-]+\.(?:ts|sh|json|mjs))`/g,
+    )) {
+      const path = fileURLToPath(new URL(`../${match[1]}`, import.meta.url));
+      expect(`${page.slug} cites ${match[1]}: ${existsSync(path)}`).toBe(
+        `${page.slug} cites ${match[1]}: true`,
+      );
+    }
+  }
+});
+
+const NOT_IN_SOURCE = new Set(["l0dash", "peerDependencies"]);
+
+test("every code identifier the docs name still exists in the source", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const files = new Bun.Glob("src/**/*.ts").scanSync({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+  let source = "";
+  for (const file of files) {
+    source += readFileSync(fileURLToPath(new URL(`../${file}`, import.meta.url)), "utf8");
+  }
+
+  for (const page of DOC_PAGES) {
+    const cited = new Set<string>();
+    for (const match of page.body.matchAll(/`([a-z][a-zA-Z0-9]{4,})`/g))
+      cited.add(match[1] as string);
+    for (const match of page.body.matchAll(/`([A-Z][A-Z0-9_]{4,})`/g))
+      cited.add(match[1] as string);
+    for (const identifier of cited) {
+      if (NOT_IN_SOURCE.has(identifier)) continue;
+      expect(`${page.slug} names ${identifier}: ${source.includes(identifier)}`).toBe(
+        `${page.slug} names ${identifier}: true`,
+      );
+    }
   }
 });
