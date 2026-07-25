@@ -1,5 +1,6 @@
 import { runWardenApply, runWardenApproveScript } from "./commands/apply.ts";
 import { runWardenPlan } from "./commands/plan.ts";
+import { runWardenPolicy } from "./commands/policy.ts";
 import { runWardenVerify } from "./commands/verify.ts";
 import { type CommandDefinition, helpFlag } from "./help.ts";
 
@@ -51,5 +52,21 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 verified · 20 mismatch · 30 no receipt",
     example: "warden verify",
     run: runWardenVerify,
+  },
+  {
+    name: "policy",
+    description: "compile the repository policy into each package manager's own settings",
+    flags: [
+      {
+        name: "--manager",
+        valueHint: "<npm|pnpm|yarn|bun>",
+        description: "compile for one manager",
+      },
+      { name: "--json", description: "write the compiled policy to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden policy --manager pnpm",
+    run: runWardenPolicy,
   },
 ];
