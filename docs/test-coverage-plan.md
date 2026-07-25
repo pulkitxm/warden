@@ -51,3 +51,41 @@ The suite is offline. `fixtures/registry` serves packuments, tarballs, download 
 ## Keeping it honest
 
 A test that cannot fail is worse than no test. When adding one, break the behaviour on purpose first and confirm the test goes red. Coverage at 100% is a floor that catches deletions, not evidence that the assertions are meaningful.
+
+## Corpora
+
+Three test corpora back the claims the product makes, each in `test/`:
+
+### Canaries (`test/canary/`)
+
+Suppression is a claim about something that does not happen, so it is proved against real npm rather than a mock. A fixture dependency writes a marker file from both `preinstall` and `postinstall`.
+
+1. A plain `npm install` of that dependency writes the marker. This proves the canary works and the test is not vacuously passing.
+2. `applyTransaction` installs the same dependency and the marker is absent, while the package itself lands in `node_modules`.
+3. The marker is still absent when the scripts carry approvals, because approval governs whether a transaction proceeds, not whether Warden executes package code.
+4. A refused transaction runs no package manager command at all.
+
+These skip when npm is not on `PATH` rather than passing quietly.
+
+### Transitive attack corpus (`test/corpus/transitive-attacks.test.ts`)
+
+Fifteen attack shapes driven through the real resolver and plan builder, each documenting the shape it represents:
+
+- malicious grandchild three levels below the typed package
+- transitive `postinstall` where the direct dependency is clean
+- `preinstall` and `prepare`, both of which execute at install time
+- a compromised patch release of a package already trusted
+- a dependency that no longer resolves
+- transitive git and url sources
+- one malicious leaf among twelve clean ones
+- a malicious optional dependency
+- a diamond whose shared package is the compromised one
+- a cycle containing a malicious node
+- deprecated and warned transitives, which must warn rather than block
+- a clean control that must reach a plain allow
+
+Three meta-tests assert that every case documents its shape, that the corpus spans all four outcomes, and that no case expecting `allow` secretly contains a script or a bad verdict.
+
+### Benign compatibility corpus (`test/corpus/benign-compatibility.test.ts`)
+
+False positives are the failure mode that gets a security tool uninstalled. Seven realistic clean project shapes across all four package managers must reach a plain `ALLOW` with no reasons, no unresolved requirements, and full analysis coverage: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, and an unchanged project. A hundred-package graph must resolve without truncation.
