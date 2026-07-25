@@ -13,6 +13,7 @@ import { runWardenFix } from "./commands/fix.ts";
 import { runWardenInit } from "./commands/init.ts";
 import { runWardenIntegrations } from "./commands/integrations.ts";
 import { runWardenLog } from "./commands/log.ts";
+import { runWardenPlan } from "./commands/plan.ts";
 import { runWardenSchema } from "./commands/schema.ts";
 import {
   bashCompletions,
@@ -137,6 +138,15 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",
     example: 'warden intent check --prompt "add rate limiting to the api client"',
     run: runWardenIntent,
+  },
+  {
+    name: "plan",
+    description: "resolve the prospective dependency graph and decide before anything installs",
+    positional: { kind: "[-- <manager> <command>|<pkg>...]" },
+    flags: [{ name: "--json", description: "write the transaction plan to stdout" }, helpFlag],
+    exitCodes: "0 allow · 10 warn or needs approval · 20 block · 30 error",
+    example: "warden plan -- npm install @fastify/jwt",
+    run: runWardenPlan,
   },
   {
     name: "coverage",

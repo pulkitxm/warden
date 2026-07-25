@@ -38,6 +38,10 @@ Every check returns a versioned JSON verdict (`warden schema` prints the JSON Sc
 
 Verdicts are cached in SQLite (`~/.wnpm-cache/verdicts.sqlite`) keyed by tarball integrity and analyzer version, so repeat checks are instant and re-analysis happens automatically when the analyzer changes.
 
+## Dependency transactions
+
+`warden plan` resolves the complete prospective dependency graph, direct and transitive, before anything is installed. It diffs that graph against the one in the lockfile, vets every added or changed package through the same engine as `warden check`, names the install scripts that are new relative to the graph already trusted, and returns one decision for the whole change. Coverage is reported rather than assumed: a truncated graph or an unanalyzed package downgrades the decision to `NEEDS_APPROVAL` instead of allowing. See [transactions](transactions.md).
+
 ## Command coverage
 
 `warden coverage` publishes which package-manager commands are mediated, generated from the same grammar the shim executes. `npm ci`, `npm exec`, `yarn dlx`, `pnpm dlx`, `bun x`, rebuilds, and global installs are all mediated; a no-argument install is treated as a graph transaction and audits the lockfile before delegating. Non-registry sources are blocked rather than skipped, and each unsupported path is listed explicitly. See [command coverage](command-coverage.md).

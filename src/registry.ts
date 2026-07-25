@@ -1,3 +1,5 @@
+import type { Packument as GraphPackument } from "./graph/resolve.ts";
+
 const registryBase = () => process.env.WNPM_REGISTRY ?? "https://registry.npmjs.org";
 const downloadsBase = () =>
   process.env.WNPM_DOWNLOADS ?? "https://api.npmjs.org/downloads/point/last-week";
@@ -90,6 +92,10 @@ function names(list: Array<{ name?: string } | string> | undefined): string[] {
 
 function encodeName(name: string): string {
   return name.startsWith("@") ? `@${encodeURIComponent(name.slice(1))}` : encodeURIComponent(name);
+}
+
+export async function fetchPackument(name: string): Promise<GraphPackument | null> {
+  return getJson<GraphPackument>(`${registryBase()}/${encodeName(name)}`);
 }
 
 export async function resolvePackage(name: string, version = "latest"): Promise<PackageMeta> {
