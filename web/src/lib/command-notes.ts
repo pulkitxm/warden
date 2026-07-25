@@ -52,6 +52,39 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  plan: {
+    intro:
+      "The transaction verb. `warden plan` resolves the complete prospective dependency graph from the registry, without running a single line of package code, diffs it against what is installed today, vets every added or changed package, and returns one decision for the whole change rather than a verdict per package name you happened to type.",
+    whenToUse: [
+      "Before adding a dependency, to see what actually enters the graph rather than only what you asked for.",
+      "In an agent loop, with `--json`, as the gate that decides whether the install proceeds at all.",
+      "When an install feels larger than it should, to see the transitive additions and the install scripts they carry.",
+    ],
+    examples: [
+      {
+        command: "warden plan -- npm install @fastify/jwt",
+        description: "Plan a specific install. The command after `--` is read, not executed.",
+      },
+      {
+        command: "warden plan",
+        description:
+          "Plan the whole manifest as one graph transaction, which is what a bare `npm install` really is.",
+      },
+      {
+        command: "warden plan --json -- pnpm add zod",
+        description: "The machine-readable transaction plan, including both graph digests.",
+      },
+    ],
+    behaviour:
+      "Resolution walks the registry metadata for every requirement, direct and transitive, choosing one version per package. Nothing is downloaded, unpacked, or executed to build the graph. The delta names additions, version moves, removals, the packages that carry install scripts, and specifically which of those scripts are new relative to the graph you already trust. Every added or changed package is then vetted through the same engine as `warden check`. The plan is written to `.warden/plans/` under an id derived from the command and the resulting graph, so the same change always produces the same plan id.",
+    gotchas: [
+      "The decision is `NEEDS_APPROVAL`, not `ALLOW`, whenever new install scripts appear, the graph was truncated, or some changed packages fell outside the analysis budget. Warden reports incomplete coverage rather than implying it checked everything.",
+      "A requirement that does not resolve from the registry blocks the transaction. Failing open on a resolution error would defeat the point of planning.",
+      "Git, URL, file, link, and workspace ranges are outside registry resolution and are reported as unresolved rather than silently trusted.",
+      "The plan describes what the resolver believes will happen. The package manager remains the thing that actually installs, which is why the receipt verified in CI matters.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",
