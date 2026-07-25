@@ -24,6 +24,10 @@ npm run start    # serve the production build
 
 Markdown is rendered at build time through remark and rehype, with syntax highlighting by Shiki. No highlighting JavaScript is shipped to the browser.
 
+## Agent surfaces
+
+Every docs page and CLI reference page has a markdown mirror at the same path with a `.md` suffix, for example `/docs/doctor.md` and `/docs/cli/check.md`. Each page also offers copy-page, view-as-markdown, and open-in-Claude / open-in-ChatGPT actions, and `/llms.txt` indexes every page with its markdown URL.
+
 ## SEO
 
 Every public route has a unique title, description, canonical URL, Open Graph and Twitter card metadata, a dynamically generated 1200x630 Open Graph image, and JSON-LD appropriate to its type. `sitemap.xml`, `robots.txt`, and `llms.txt` are generated from the same content registry, so no route can be orphaned.

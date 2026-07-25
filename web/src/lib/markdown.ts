@@ -1,4 +1,5 @@
 import rehypeShiki from "@shikijs/rehype";
+import rehypeExternalLinks from "rehype-external-links";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import remarkGfm from "remark-gfm";
@@ -13,6 +14,7 @@ const processor = unified()
   .use(remarkGfm)
   .use(remarkRehype)
   .use(rehypeSlug)
+  .use(rehypeExternalLinks, { target: "_blank", rel: ["noreferrer"] })
   .use(rehypeShiki, { theme: SHIKI_THEME })
   .use(rehypeStringify);
 

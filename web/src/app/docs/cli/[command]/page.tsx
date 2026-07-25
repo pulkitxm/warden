@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CodeBlock } from "@/components/code";
 import { DocsPage } from "@/components/docs-page";
 import { COMMANDS, commandBySlug } from "@/lib/docs";
 import { breadcrumbs, JsonLd, pageMetadata, techArticle } from "@/lib/seo";
@@ -114,6 +115,7 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
         title={`warden ${command.name}`}
         description={command.description}
         toc={toc}
+        markdownPath={`/docs/cli/${command.name}.md`}
         previous={
           previous ? { href: `/docs/cli/${previous.name}`, label: `warden ${previous.name}` } : undefined
         }
@@ -124,8 +126,8 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
           <h2 id="usage" className="scroll-mt-24 text-xl font-bold text-white">
             Usage
           </h2>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-white/12 bg-[#070b16] p-4">
-            <pre className="font-mono text-[13px] text-[#d7deef]">{usage}</pre>
+          <div className="mt-3">
+            <CodeBlock code={usage} lang="bash" />
           </div>
         </section>
 
@@ -191,11 +193,8 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
           <h2 id="example" className="scroll-mt-24 text-xl font-bold text-white">
             Example
           </h2>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-white/12 bg-[#070b16] p-4">
-            <pre className="font-mono text-[13px] text-[#d7deef]">
-              <span className="text-fog">$ </span>
-              {command.example}
-            </pre>
+          <div className="mt-3">
+            <CodeBlock code={command.example} lang="bash" />
           </div>
           <p className="mt-4 text-sm text-fog">
             Every verb also accepts{" "}

@@ -5,7 +5,8 @@ export const dynamic = "force-static";
 
 export function GET(): Response {
   const docs = DOC_PAGES.map(
-    (page) => `- [${page.title}](${absolute(`/docs/${page.slug}`)}): ${page.description}`,
+    (page) =>
+      `- [${page.title}](${absolute(`/docs/${page.slug}`)}): ${page.description} Markdown: ${absolute(`/docs/${page.slug}.md`)}`,
   ).join("\n");
   const cli = COMMANDS.map(
     (command) =>

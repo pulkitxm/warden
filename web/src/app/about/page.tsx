@@ -88,7 +88,12 @@ export default async function AboutPage() {
             install it
           </Link>
           . Source on{" "}
-          <a href={site.repo} className="text-mint hover:text-white">
+          <a
+            href={site.repo}
+            target="_blank"
+            rel="noreferrer"
+            className="text-mint hover:text-white"
+          >
             GitHub
           </a>
           .

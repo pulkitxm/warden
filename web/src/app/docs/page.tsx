@@ -5,7 +5,7 @@ import { breadcrumbs, collectionPage, JsonLd, pageMetadata } from "@/lib/seo";
 
 const title = "Documentation";
 const description =
-  "Everything Warden does: getting started, concepts, the CLI reference, doctor, intent, CI, check surfaces, agent integration, and the threat model behind each rule.";
+  "Everything Warden does: getting started, concepts, the CLI reference, doctor, intent, CI, check surfaces, agents, and the threat model behind each rule.";
 
 export const metadata = pageMetadata({ title, description, path: "/docs" });
 
