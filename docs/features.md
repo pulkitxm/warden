@@ -49,7 +49,19 @@ See [interception](interception.md).
 
 Before changing the project, doctor copies it to an isolated workspace, installs with lifecycle scripts disabled, and runs any present `test`, `typecheck`, and `build` scripts. By default it pins the recommended verified versions in `package.json` and reinstalls them. `wnpm doctor --no-apply` produces the report without changing the project; `--dir <path>` targets another workspace. The JSON report records issues, rejected candidates, plans, verification steps, and whether a plan was applied.
 
+`warden doctor` and `wnpm doctor` are the same core with identical flags, report, and exit codes. `warden schema doctor` prints the report schema.
+
 See [docs/doctor.md](doctor.md) for the full reference.
+
+## Check surfaces
+
+A package check reads a published tarball. Three surfaces live in your repository instead, and `warden check lockfile`, `warden check scripts`, and `warden check config` audit them offline without executing anything.
+
+- **Lockfile**: off-registry and impersonating hosts, plaintext transport, missing or weak integrity, git and file dependencies. Reads npm, pnpm, and yarn lockfiles.
+- **Scripts**: the five npm lifecycle hooks across the installed tree, flagging pipe-to-shell, raw IP endpoints, base64 payloads, credential paths, and environment exfiltration.
+- **Config**: `.npmrc` in the project and home directory, flagging lookalike registries, plaintext tokens, and disabled TLS. Values are never echoed back.
+
+See [check surfaces](check-surfaces.md) for the rule tables.
 
 ## Intent verification
 
@@ -68,14 +80,16 @@ See [detection and init](detection-and-init.md).
 
 ## CI
 
-`warden ci` checks only what changed: it diffs dependency manifests against the merge base (`--base <ref>` to override) and vets the additions. Reporters: `summary` for humans, `json` for machines, `github` for workflow annotations, and `agent` for coding agents. Exit codes match `check`, so a block fails the pipeline.
+`warden ci` checks only what changed: it diffs dependency manifests against the merge base (`--base <ref>` to override) and vets the additions. It also audits a surface when that surface changed in the diff, so a pull request that bumps no version but repoints a lockfile or adds a `preinstall` hook still fails. Reporters: `summary` for humans, `json` for machines, `github` for workflow annotations, `agent` for coding agents, and `sarif` for GitHub code scanning. Exit codes match `check`, so a block fails the pipeline.
 
 ## Agent-first CLI
 
 See [agent-first CLI](agent-first-cli.md).
 
 - Structured everything: `--json` on every verb, published schemas via `warden schema`, and typed JSON error envelopes (kind, code, reason, hint) instead of free-text errors.
-- `warden fix` hands the last failing check to your coding agent with full context.
+- Registry-authored strings are quarantined under an `untrusted` key in verdict JSON, stripped of ANSI, zero-width, bidi, and control characters, so Warden cannot become a prompt-injection vector.
+- Global flags on every verb: `--json`, `--no-color`, `--quiet`, `--verbose`, `-h`, `-v`. An unknown verb suggests the closest real one.
+- `warden fix` hands the last failing check to your coding agent with full context, using the adapter chosen by `warden config agent <name>`.
 - An agent skill file and offline simulation live in `demo/`.
 
 ## Shell experience

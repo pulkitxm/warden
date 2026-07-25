@@ -249,7 +249,7 @@ It resolves the merge base, then checks what actually changed.
 
 | Changed file | Audit that runs |
 | --- | --- |
-| \`package-lock.json\`, \`npm-shrinkwrap.json\` | [lockfile](/docs/check-surfaces) |
+| \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\` | [lockfile](/docs/check-surfaces) |
 | \`package.json\` | [install scripts](/docs/check-surfaces) |
 | \`.npmrc\` | [registry config](/docs/check-surfaces) |
 
@@ -265,6 +265,7 @@ The reported verdict is the worst of the three.
 - \`json\` for a bare finding array
 - \`github\` for workflow annotations on the exact file and line
 - \`agent\` for a single object carrying findings, intent, verdict, and exit code
+- \`sarif\` for GitHub code scanning, uploadable with \`github/codeql-action/upload-sarif\`
 
 Every run also writes \`.warden/last-run.json\`, which is what \`warden fix\` hands to a coding agent.
 
@@ -413,7 +414,7 @@ No surface check touches the network or executes any code. Exit codes match a pa
 
 ## Lockfile
 
-Reads \`package-lock.json\` or \`npm-shrinkwrap.json\`. Other formats are reported as unsupported in \`notes\` rather than being treated as clean.
+Reads \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, and \`yarn.lock\` (classic and berry). Bun lockfiles are reported as unsupported in \`notes\` rather than treated as clean. One rule table covers every format, so a repointed \`resolved\` URL is caught whichever package manager wrote the file.
 
 | Rule | Level |
 | --- | --- |
@@ -468,9 +469,10 @@ const configuration = `
 warden config
 warden config mode brief
 warden config intercept off
+warden config agent codex
 \`\`\`
 
-\`mode\` is one of \`verbose\`, \`brief\`, \`block\`, or \`log\`. \`intercept\` controls whether the shims vet installs and executions.
+\`mode\` is one of \`verbose\`, \`brief\`, \`block\`, or \`log\`. \`intercept\` controls whether the shims vet installs and executions. \`agent\` selects which coding agent [\`warden fix\`](/docs/cli/fix) hands off to: \`claude\`, \`cursor\`, \`codex\`, \`copilot\`, \`gemini\`, \`aider\`, or \`opencode\`.
 
 ## Project config
 
@@ -481,6 +483,21 @@ warden config intercept off
 \`\`\`
 
 \`ci.failOn\` accepts \`block\` (default) or \`warn\`. With \`warn\`, warnings become blocking in [\`warden ci\`](/docs/ci).
+
+## Global flags
+
+Every verb accepts these:
+
+| Flag | Effect |
+| --- | --- |
+| \`--json\` | Write the structured report to stdout. Human text stays on stderr. |
+| \`--no-color\` | Disable ANSI, the same as setting \`NO_COLOR\`. |
+| \`--quiet\` | Suppress the human report. Errors, JSON, and exit codes are unaffected. |
+| \`--verbose\` | Print every evidence signal instead of the first six. |
+| \`-h\`, \`--help\` | Show help for the verb, including a link to its documentation. |
+| \`-v\`, \`--version\` | Print the analyzer version. |
+
+\`--quiet\` is the one to reach for in CI when you only want the exit code, and \`--verbose\` when a verdict looks wrong and you want the full signal list.
 
 ## Environment
 

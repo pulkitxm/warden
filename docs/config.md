@@ -20,6 +20,17 @@ Same model as CLAUDE.md files: one `warden.config.json` at the repo root sets th
 - `warden ci` and the policy engine resolve config per finding location, so `apps/api` can forbid comments while `packages/legacy` only warns.
 - User-level `~/.warden/config.json` stays separate: it holds machine behavior (mode, intercept, cache dir, agent) and is never versioned; repo configs hold policy and CI behavior and always are.
 
+The user-level file is managed through the CLI rather than edited by hand:
+
+```sh
+warden config                      # print current settings
+warden config mode brief           # verbose | brief | block | log
+warden config intercept off        # or: intercept install off
+warden config agent codex          # claude | cursor | codex | copilot | gemini | aider | opencode
+```
+
+`agent` selects the adapter `warden fix` launches. An unknown name is rejected and the known ones are listed.
+
 Root sketch:
 
 ```json
