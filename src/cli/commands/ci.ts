@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import type { AuditFinding } from "../../audit/types.ts";
 import { runIntentPipeline } from "../../intent/index.ts";
 import { intentSummaryLine } from "../../intent/report.ts";
 import type { IntentReport } from "../../intent/types.ts";
@@ -7,6 +8,7 @@ import { type CiFinding, exitCodeFor, SCHEMA_VERSION, type Verdict } from "../..
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { gitResult, resolveMergeBase } from "../../shared/git.ts";
+import { type CheckSurface, runSurfaceAudit } from "./check.ts";
 import { jsonFile, type PackageJson } from "./detect.ts";
 
 function dependencyMap(pkg: PackageJson): Record<string, string> {
@@ -29,6 +31,31 @@ function findingFor(
     level,
     evidence: verdict.evidence.map((item) => item.detail).join("; ") || verdict.summary,
     fix: `replace or remove ${name}, then reinstall dependencies`,
+    verify: "warden ci --reporter agent",
+    seen_before: false,
+  };
+}
+
+const SURFACE_TRIGGERS: Array<{ surface: CheckSurface; matches: (file: string) => boolean }> = [
+  {
+    surface: "lockfile",
+    matches: (file) => /(^|\/)(package-lock\.json|npm-shrinkwrap\.json)$/.test(file),
+  },
+  { surface: "scripts", matches: (file) => /(^|\/)package\.json$/.test(file) },
+  { surface: "config", matches: (file) => /(^|\/)\.npmrc$/.test(file) },
+];
+
+function surfaceFinding(finding: AuditFinding, failOn: string): CiFinding {
+  const level = failOn === "warn" && finding.level === "warn" ? "block" : finding.level;
+  return {
+    schema_version: SCHEMA_VERSION,
+    rule: finding.rule,
+    package: finding.target,
+    file: finding.file,
+    ...(finding.line ? { line: finding.line } : {}),
+    level,
+    evidence: finding.evidence,
+    fix: finding.fix,
     verify: "warden ci --reporter agent",
     seen_before: false,
   };
@@ -95,7 +122,7 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         work.push({ name, version, file, ...(line ? { line } : {}) });
       }
     }
-    const findings = (
+    const findings: CiFinding[] = (
       await Promise.all(
         work.map(async (item) => {
           const verdict = await deps.check(`${item.name}@${item.version}`);
@@ -105,6 +132,12 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         }),
       )
     ).filter((finding): finding is CiFinding => finding !== null);
+    for (const trigger of SURFACE_TRIGGERS) {
+      if (!changedFiles.some((file) => trigger.matches(file))) continue;
+      const report = runSurfaceAudit(trigger.surface, root, deps);
+      for (const item of report.findings)
+        if (item.level !== "allow") findings.push(surfaceFinding(item, failOn));
+    }
     const promptPath = join(root, ".warden", "prompt.txt");
     const intentPrompt =
       values["intent-prompt"] ??

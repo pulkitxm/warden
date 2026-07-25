@@ -93,8 +93,14 @@ export function auditScripts(root: string, fs: AuditFs): AuditReport {
   const findings: AuditFinding[] = [];
   let scanned = 0;
 
-  const manifests = ["package.json", ...fs.glob("node_modules/**/package.json", root)];
-  if (manifests.length === 1)
+  let installed: string[] = [];
+  try {
+    installed = fs.glob("node_modules/**/package.json", root);
+  } catch (e) {
+    notes.push(`node_modules could not be listed (${(e as Error).message}); scan is incomplete`);
+  }
+  const manifests = ["package.json", ...installed];
+  if (!installed.length && !notes.length)
     notes.push("node_modules not installed; only the root manifest was scanned");
 
   for (const rel of manifests) {
