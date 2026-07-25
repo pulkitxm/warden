@@ -14,7 +14,7 @@ No surface check contacts the network, and none of them execute project or packa
 
 ## check lockfile
 
-Reads `package-lock.json` or `npm-shrinkwrap.json`. Other lockfile formats are reported as unsupported in `notes` rather than being silently treated as clean.
+Reads `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, and `yarn.lock` (classic and berry). Bun lockfiles are reported as unsupported in `notes` rather than being silently treated as clean. One rule table covers every format, so a repointed `resolved` URL is caught whichever package manager wrote the file.
 
 | Rule | Level | What it means |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ A package check reads a published tarball. These three surfaces are where trust 
 
 ## In CI
 
-`warden ci` runs a surface audit when that surface changed in the diff: a `package-lock.json` change triggers the lockfile audit, a `package.json` change triggers the scripts audit, and an `.npmrc` change triggers the config audit. Untouched surfaces are not scanned, so the gate stays scoped to the pull request.
+`warden ci` runs a surface audit when that surface changed in the diff: a `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock` change triggers the lockfile audit, a `package.json` change triggers the scripts audit, and an `.npmrc` change triggers the config audit. Untouched surfaces are not scanned, so the gate stays scoped to the pull request.
 
 This closes the gap where a pull request changes no dependency version, and so passes a version-diff check, while rewriting where those dependencies resolve from or what runs at install time. Surface findings merge into the same finding list, honour `ci.failOn`, appear in `--reporter github` annotations, and are written to `.warden/last-run.json` for `warden fix`.
 

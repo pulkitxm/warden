@@ -15,6 +15,9 @@ These are hard rules, not polish:
 - **Every finding teaches the fix.** A finding is never just "this is bad": it carries `evidence`, `fix` (concrete next action), and `verify` (the command that confirms the fix).
 - **Untrusted text is quarantined.** Registry-sourced strings (package descriptions, script bodies, README excerpts) are attacker-controlled and warden pipes them to agents. Every such string in verdict JSON is carried under the optional `untrusted` key and sanitized of ANSI escapes, zero-width characters, bidi overrides, and control characters, then truncated to 400 characters. A security tool must not be a prompt-injection vector.
 - **Stable exit codes.** 0 allow, 10 warn, 20 block, 30 analysis error, on every verb, forever.
+- **Global flags on every verb.** `--json`, `--no-color`, `--quiet` (suppress the human report, keep JSON and exit codes), `--verbose` (print every evidence signal instead of the first six), `-h`, and `-v`.
+- **Typos are recoverable.** An unknown verb names the closest real one in both the human error and the JSON envelope hint.
+- **Help links out.** Every verb's help ends with a `learn more` URL pointing at its page on the documentation site.
 
 Help output sketch:
 
