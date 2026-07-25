@@ -100,7 +100,7 @@ export function collectIntegrations(deps: WardenDeps): IntegrationsReport {
   checks.push({
     name: "agent adapter",
     status: config?.agent?.name ? "ok" : "info",
-    detail: config?.agent?.name ?? "not set; warden fix defaults to claude",
+    detail: config?.agent?.name ?? "not set; warden handoff defaults to claude",
     ...(config?.agent?.name ? {} : { fix: "warden config agent <name>" }),
   });
 

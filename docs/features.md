@@ -107,7 +107,7 @@ See [agent-first CLI](agent-first-cli.md).
 - Structured everything: `--json` on every verb, published schemas via `warden schema`, and typed JSON error envelopes (kind, code, reason, hint) instead of free-text errors.
 - Registry-authored strings are quarantined under an `untrusted` key in verdict JSON, stripped of ANSI, zero-width, bidi, and control characters, so Warden cannot become a prompt-injection vector.
 - Global flags on every verb: `--json`, `--no-color`, `--quiet`, `--verbose`, `-h`, `-v`. An unknown verb suggests the closest real one.
-- `warden fix` hands the last failing check to your coding agent with full context, using the adapter chosen by `warden config agent <name>`.
+- `warden handoff` hands the last failing check to your coding agent with full context, using the adapter chosen by `warden config agent <name>`.
 - An agent skill file and offline simulation live in `demo/`.
 
 ## Shell experience

@@ -29,7 +29,7 @@ warden config intercept off        # or: intercept install off
 warden config agent codex          # claude | cursor | codex | copilot | gemini | aider | opencode
 ```
 
-`agent` selects the adapter `warden fix` launches. An unknown name is rejected and the known ones are listed.
+`agent` selects the adapter `warden handoff` launches. An unknown name is rejected and the known ones are listed.
 
 Root sketch:
 

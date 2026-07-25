@@ -42,8 +42,8 @@
     "flags": [
       {
         "name": "--reporter",
-        "description": "select human, JSON, workflow, or agent output",
-        "valueHint": "<summary|json|github|agent>"
+        "description": "select human, JSON, workflow, agent, or SARIF output",
+        "valueHint": "<summary|json|github|agent|sarif>"
       },
       {
         "name": "--base",
@@ -54,6 +54,11 @@
         "name": "--intent-prompt",
         "description": "also verify the diff against this prompt",
         "valueHint": "<text>"
+      },
+      {
+        "name": "--require-transaction-receipt",
+        "description": "fail when the dependency graph changed without a valid warden receipt",
+        "valueHint": null
       },
       {
         "name": "--help",
@@ -130,6 +135,340 @@
     "example": "warden intent check --prompt \"add rate limiting to the api client\""
   },
   {
+    "name": "plan",
+    "description": "resolve the prospective dependency graph and decide before anything installs",
+    "positional": {
+      "kind": "[-- <manager> <command>|<pkg>...]"
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the transaction plan to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 allow · 10 warn or needs approval · 20 block · 30 error",
+    "example": "warden plan -- npm install @fastify/jwt"
+  },
+  {
+    "name": "apply",
+    "description": "install a planned transaction with scripts suppressed, then verify it",
+    "positional": {
+      "kind": "<plan-id>"
+    },
+    "flags": [
+      {
+        "name": "--no-verify",
+        "description": "skip the project verification steps",
+        "valueHint": null
+      },
+      {
+        "name": "--allow-unapproved",
+        "description": "install even when scripts are unapproved",
+        "valueHint": null
+      },
+      {
+        "name": "--json",
+        "description": "write the transaction receipt to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 applied · 20 refused · 30 rolled back or error",
+    "example": "warden apply wtxn_0a1b2c3d"
+  },
+  {
+    "name": "approve-script",
+    "description": "approve one lifecycle script, bound to its version, integrity, and body",
+    "positional": {
+      "kind": "<pkg@version>"
+    },
+    "flags": [
+      {
+        "name": "--hook",
+        "description": "the lifecycle hook being approved",
+        "valueHint": "<name>"
+      },
+      {
+        "name": "--scope",
+        "description": "where the approval is recorded",
+        "valueHint": "<repo|user>"
+      },
+      {
+        "name": "--integrity",
+        "description": "pin a specific tarball",
+        "valueHint": "<sha512-...>"
+      },
+      {
+        "name": "--note",
+        "description": "why this script was approved",
+        "valueHint": "<text>"
+      },
+      {
+        "name": "--json",
+        "description": "write the approval record to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 approved · 30 error",
+    "example": "warden approve-script esbuild@0.25.8 --hook postinstall"
+  },
+  {
+    "name": "verify",
+    "description": "check that the installed graph is the one a receipt was issued for",
+    "positional": {
+      "kind": "[transaction-id]"
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the verification report to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 verified · 20 mismatch · 30 no receipt",
+    "example": "warden verify"
+  },
+  {
+    "name": "policy",
+    "description": "compile the repository policy into each package manager's own settings",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--manager",
+        "description": "compile for one manager",
+        "valueHint": "<npm|pnpm|yarn|bun>"
+      },
+      {
+        "name": "--json",
+        "description": "write the compiled policy to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden policy --manager pnpm"
+  },
+  {
+    "name": "explain",
+    "description": "explain one verdict: what changed, why it matters, and what to do next",
+    "positional": {
+      "kind": "<pkg[@version]>"
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the explanation to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 allow · 10 warn · 20 block · 30 error",
+    "example": "warden explain left-pad@1.3.0"
+  },
+  {
+    "name": "history",
+    "description": "show how a package's releases changed publisher, provenance, and scripts",
+    "positional": {
+      "kind": "<pkg>"
+    },
+    "flags": [
+      {
+        "name": "--tail",
+        "description": "show only the last N releases",
+        "valueHint": "N"
+      },
+      {
+        "name": "--json",
+        "description": "write the release history to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden history left-pad --tail 5"
+  },
+  {
+    "name": "compare",
+    "description": "compare candidate packages on evidence rather than on preference",
+    "positional": {
+      "kind": "<pkg> <pkg> [pkg...]"
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the comparison to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden compare jscodeshift react-codemod"
+  },
+  {
+    "name": "scripts",
+    "description": "list install scripts in the current graph and which still need approval",
+    "positional": {
+      "kind": "[pending]",
+      "values": [
+        "pending"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the script inventory to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 all approved · 10 approvals pending · 30 error",
+    "example": "warden scripts pending"
+  },
+  {
+    "name": "agent",
+    "description": "set up and check the coding-agent adapters, and print the MCP tool manifest",
+    "positional": {
+      "kind": "[doctor|setup|mcp] [name]"
+    },
+    "flags": [
+      {
+        "name": "--all",
+        "description": "set up every known agent adapter",
+        "valueHint": null
+      },
+      {
+        "name": "--yes",
+        "description": "write the adapter files instead of only planning them",
+        "valueHint": null
+      },
+      {
+        "name": "--json",
+        "description": "write the adapter report to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden agent setup claude --yes"
+  },
+  {
+    "name": "baseline",
+    "description": "show and record the trusted version a release should be compared against",
+    "positional": {
+      "kind": "[list|record] [pkg@version]",
+      "values": [
+        "list",
+        "record"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--note",
+        "description": "why this version is trusted",
+        "valueHint": "<text>"
+      },
+      {
+        "name": "--json",
+        "description": "write the baselines to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden baseline record left-pad@1.3.0"
+  },
+  {
+    "name": "coverage",
+    "description": "print which package-manager commands warden mediates",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the coverage matrix to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success",
+    "example": "warden coverage --json"
+  },
+  {
+    "name": "integrations",
+    "description": "check that the shims, agents, and CI wiring actually work",
+    "positional": {
+      "kind": "[doctor]",
+      "values": [
+        "doctor"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the integrations report to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 healthy · 30 a check failed",
+    "example": "warden integrations doctor"
+  },
+  {
     "name": "detect",
     "description": "classify the workspace (framework, role, tooling per package)",
     "positional": null,
@@ -173,7 +512,7 @@
     "example": "warden init --yes"
   },
   {
-    "name": "fix",
+    "name": "handoff",
     "description": "hand the last failing check to your coding agent",
     "positional": null,
     "flags": [
@@ -189,13 +528,18 @@
       }
     ],
     "exitCodes": "0 success · 30 error",
-    "example": "warden fix"
+    "example": "warden handoff"
   },
   {
     "name": "config",
     "description": "read or set user-level settings (mode, intercept, agent)",
     "positional": {
-      "kind": "[mode|intercept] [value...]"
+      "kind": "[mode|intercept|agent] [value...]",
+      "values": [
+        "mode",
+        "intercept",
+        "agent"
+      ]
     },
     "flags": [
       {

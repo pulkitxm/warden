@@ -5,7 +5,7 @@ import type { WardenDeps } from "../shared/deps.ts";
 import { wardenFailure } from "../shared/errors.ts";
 import { setVerbosity } from "../shared/output.ts";
 import { defaultWardenDeps } from "./deps.ts";
-import { renderCommandHelp, renderWardenHelp } from "./help.ts";
+import { matchesVerb, renderCommandHelp, renderWardenHelp } from "./help.ts";
 import { COMMAND_REGISTRY, runWardenVersion } from "./registry.ts";
 
 export type { RunDeps, WardenDeps } from "../shared/deps.ts";
@@ -55,7 +55,7 @@ export async function runWarden(
     deps.stderr(renderWardenHelp(COMMAND_REGISTRY));
     return EXIT.allow;
   }
-  const command = COMMAND_REGISTRY.find((candidate) => candidate.name === argv[0]);
+  const command = COMMAND_REGISTRY.find((entry) => matchesVerb(entry, argv[0] as string));
   if (command) {
     if (argv.includes("--help") || argv.includes("-h")) {
       deps.stderr(renderCommandHelp(command));

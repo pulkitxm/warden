@@ -193,11 +193,12 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     run: runWardenInit,
   },
   {
-    name: "fix",
+    name: "handoff",
+    aliases: ["fix"],
     description: "hand the last failing check to your coding agent",
     flags: [{ name: "--json", description: "write typed errors to stdout" }, helpFlag],
     exitCodes: "0 success · 30 error",
-    example: "warden fix",
+    example: "warden handoff",
     run: runWardenFix,
   },
   {

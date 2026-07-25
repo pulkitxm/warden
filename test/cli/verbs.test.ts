@@ -471,3 +471,34 @@ test("fix writes a handoff, selects the configured adapter, and handles empty or
     expect(JSON.parse(state.out[0]!).error.code).toBe("WARDEN_FIX_ERROR");
   });
 });
+
+test("warden fix still works as an alias for the renamed handoff verb", async () => {
+  await inTemp(async (root) => {
+    write(root, "package.json", packageJson({}));
+    const viaFix = makeDeps(root);
+    const viaHandoff = makeDeps(root);
+    const fixCode = await runWarden(["fix"], viaFix.deps);
+    const handoffCode = await runWarden(["handoff"], viaHandoff.deps);
+    expect(fixCode).toBe(handoffCode);
+    expect(viaFix.err.join("")).toBe(viaHandoff.err.join(""));
+  });
+});
+
+test("the alias reaches the same help as the verb it points at", async () => {
+  await inTemp(async (root) => {
+    const viaFix = makeDeps(root);
+    const viaHandoff = makeDeps(root);
+    expect(await runWarden(["fix", "--help"], viaFix.deps)).toBe(0);
+    await runWarden(["handoff", "--help"], viaHandoff.deps);
+    expect(viaFix.err.join("")).toBe(viaHandoff.err.join(""));
+    expect(viaFix.err.join("")).toContain("usage: warden handoff");
+  });
+});
+
+test("an alias is not listed as a separate verb in the help", async () => {
+  const state = makeDeps(process.cwd());
+  await runWarden([], state.deps);
+  const text = state.err.join("");
+  expect(text).toContain("handoff");
+  expect(text.split("\n").filter((line) => line.trim().startsWith("fix "))).toEqual([]);
+});

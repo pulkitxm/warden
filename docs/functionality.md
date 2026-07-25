@@ -322,7 +322,7 @@ The hallucination scan only covers a small curated set of packages plus whatever
 
 ## Agent-first output
 
-Every verb supports `--json`, errors are typed JSON envelopes (kind, code, reason, hint), and `warden fix` hands the last failing check to your configured coding agent with full context. `warden schema` prints the verdict schema:
+Every verb supports `--json`, errors are typed JSON envelopes (kind, code, reason, hint), and `warden handoff` hands the last failing check to your configured coding agent with full context. `warden schema` prints the verdict schema:
 
 ```
 $ warden schema | head -12

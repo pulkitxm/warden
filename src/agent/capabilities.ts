@@ -129,7 +129,7 @@ Never run a package manager install directly. A dependency change is a transacti
 2. Read the decision. \`ALLOW\` means proceed. \`BLOCK\` means do not install; run \`warden explain <package>@<version>\` and \`warden compare <package> <alternative>\` to find something established instead.
 3. \`NEEDS_APPROVAL\` means the change introduces install scripts or the analysis was incomplete. Report exactly which package and hook to the human and ask for \`warden approve-script <pkg>@<version> --hook <hook>\`. Do not approve on the human's behalf.
 4. Apply it: \`warden apply <plan-id>\`. This installs with lifecycle scripts suppressed and runs the project's own tests.
-5. If a check fails, \`warden fix\` produces a bundle carrying both a fix and the command that verifies it.
+5. If a check fails, \`warden handoff\` produces a bundle carrying both a fix and the command that verifies it.
 
 Exit codes are the contract: 0 allow, 10 warn or needs approval, 20 block, 30 analysis error. Parse the JSON, not the human text.
 `;
