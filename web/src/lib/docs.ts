@@ -168,7 +168,7 @@ wnpm doctor   [--dir <path>] [--json] [--no-apply] [--no-verify]
 
 This is the case doctor exists for. Against the offline fixture registry:
 
-\`\`\`text
+\`\`\`term
 2 issue(s) found, 2 affect production
   critical  acme-http@1.0.0 [GHSA-ACME-HTTP-0001]
     request smuggling via keep-alive header handling (fixed in 1.0.1)

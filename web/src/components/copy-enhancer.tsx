@@ -16,7 +16,7 @@ export function CopyEnhancer() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const blocks = document.querySelectorAll<HTMLPreElement>("pre.shiki");
+    const blocks = document.querySelectorAll<HTMLPreElement>("pre.shiki, pre.terminal");
     const timers: number[] = [];
 
     for (const pre of blocks) {

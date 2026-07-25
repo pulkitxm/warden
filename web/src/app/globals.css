@@ -468,3 +468,58 @@ body {
     opacity: 1;
   }
 }
+
+.terminal-block {
+  background: #070b16;
+}
+pre.terminal {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: #c3cbdf;
+}
+pre.terminal code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+pre.terminal .line {
+  display: block;
+}
+pre.terminal .t-block {
+  color: var(--color-coral);
+  font-weight: 600;
+}
+pre.terminal .t-allow {
+  color: var(--color-mint);
+  font-weight: 600;
+}
+pre.terminal .t-warn {
+  color: #edbd55;
+  font-weight: 600;
+}
+pre.terminal .t-critical {
+  color: #ff8a7d;
+  font-weight: 600;
+}
+pre.terminal .t-head {
+  color: #fff;
+  font-weight: 600;
+}
+pre.terminal .t-pkg {
+  color: #fff;
+}
+pre.terminal .t-dim {
+  color: #7c87a3;
+}
+pre.terminal .t-prompt {
+  color: var(--color-mint);
+}
+.prose-warden .terminal-block {
+  border-radius: 0.75rem;
+}

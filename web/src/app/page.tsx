@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Checkpoint } from "@/components/checkpoint";
 import { CodeBlock } from "@/components/code";
+import { Terminal } from "@/components/terminal";
 import { Reveal } from "@/components/reveal";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -257,7 +258,7 @@ export default function HomePage() {
             </Link>
           </Reveal>
           <Reveal delay={120}>
-            <CodeBlock code={doctorSample} lang="text" />
+            <Terminal output={doctorSample} />
           </Reveal>
         </div>
       </section>
