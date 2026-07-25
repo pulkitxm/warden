@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Checkpoint } from "@/components/checkpoint";
 import { CodeBlock } from "@/components/code";
 import { Terminal } from "@/components/terminal";
+import { TryIt } from "@/components/try-it";
 import { Reveal } from "@/components/reveal";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -179,6 +180,21 @@ export default function HomePage() {
             </Reveal>
           ))}
         </div>
+      </section>
+
+      <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8">
+        <Reveal>
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Try a verdict
+          </h2>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-fog">
+            Real verdicts from the offline fixture registry the test suite runs against. Nothing
+            here contacts npm, and no live malware is involved.
+          </p>
+          <div className="mt-6 max-w-3xl">
+            <TryIt />
+          </div>
+        </Reveal>
       </section>
 
       <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8">
