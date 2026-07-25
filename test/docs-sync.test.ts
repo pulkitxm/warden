@@ -257,3 +257,52 @@ test("the sitemap lists every standalone page, not only the docs", async () => {
     expect(sitemap).toContain(`"${path}"`);
   }
 });
+
+test("code blocks are wrapped and given a copy button on the server, not on hydration", async () => {
+  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const html = await renderMarkdown("```sh\nwarden plan\n```\n");
+  expect(html).toContain('<div class="code-wrap">');
+  expect(html).toContain("copy-button");
+  expect(html).toContain('data-copy="idle"');
+  expect(html).not.toContain('code-wrap"><div class="code-wrap');
+});
+
+test("terminal output is syntax highlighted whether the fence says term or text", async () => {
+  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  for (const lang of ["term", "text", "console", "shell-session"]) {
+    const html = await renderMarkdown(
+      `\`\`\`${lang}\n$ warden benchmark\n  detection 100.0%\n\`\`\`\n`,
+    );
+    expect(`${lang}: ${html.includes("terminal-block")}`).toBe(`${lang}: true`);
+    expect(`${lang}: ${html.includes("t-prompt")}`).toBe(`${lang}: true`);
+  }
+});
+
+test("a language fence shiki knows is still highlighted by shiki", async () => {
+  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const html = await renderMarkdown('```json\n{ "a": 1 }\n```\n');
+  expect(html).toContain("shiki");
+  expect(html).toContain('<div class="code-wrap">');
+});
+
+test("every fence language used in the docs renders as highlighted output", async () => {
+  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const langs = new Set<string>();
+  for (const page of DOC_PAGES) {
+    let open = false;
+    for (const line of page.body.split("\n")) {
+      if (!line.startsWith("```")) continue;
+      if (!open) {
+        langs.add(line.slice(3).trim() || "(none)");
+        open = true;
+      } else open = false;
+    }
+  }
+  expect(langs.has("(none)")).toBe(false);
+  for (const lang of langs) {
+    const html = await renderMarkdown(`\`\`\`${lang}\n$ warden check left-pad\n\`\`\`\n`);
+    const highlighted = html.includes("shiki") || html.includes("terminal-block");
+    expect(`${lang}: ${highlighted}`).toBe(`${lang}: true`);
+  }
+});

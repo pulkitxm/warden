@@ -72,12 +72,26 @@ body {
 }
 .prose-warden code {
   font-family: var(--font-mono);
-  font-size: 0.875em;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 0.375rem;
-  padding: 0.1rem 0.35rem;
-  color: #ffd9d3;
+  font-size: 0.855em;
+  background: rgba(79, 209, 165, 0.1);
+  border: 0;
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.32rem;
+  color: #a9e3cc;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.prose-warden a code {
+  background: rgba(79, 209, 165, 0.18);
+  color: var(--color-mint);
+}
+.prose-warden h2 code,
+.prose-warden h3 code {
+  font-size: 0.9em;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
 }
 .prose-warden pre {
   background: #070b16;
