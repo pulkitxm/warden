@@ -20,7 +20,7 @@ bun run build
 ./dist/warden intent check --prompt "add rate limiting to the api client"
 ```
 
-Exit codes are `0` allow, `10` warn, `20` block, `30` analysis error.
+Exit codes are `0` allow, `10` warn, `20` block, `30` analysis error. `--json` writes machine-readable output to stdout on every verb that has a report, `warden schema list` names them, and `--no-color` disables ANSI.
 
 ## Layout
 

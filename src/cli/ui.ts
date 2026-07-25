@@ -11,6 +11,21 @@ function badge(v: Verdict["verdict"], s: string): string {
   return c("32", s);
 }
 
+const HEADLINE_CATEGORIES: Array<{ category: Verdict["categories"][number]; note: string }> = [
+  {
+    category: "provenance_downgrade",
+    note: "provenance downgrade: this release abandoned the trusted publisher flow the previous one used",
+  },
+  {
+    category: "known_malware",
+    note: "known malware: this exact version appears on the compromised-release blocklist",
+  },
+  {
+    category: "slopsquat",
+    note: "slopsquat: this name matches a known LLM hallucination, not a real package",
+  },
+];
+
 export function renderVerdict(v: Verdict): string {
   const lines: string[] = [""];
   const tag = badge(v.verdict, v.verdict.toUpperCase());
@@ -18,6 +33,9 @@ export function renderVerdict(v: Verdict): string {
     `${tag}  ${bold(`${v.package}@${v.version}`)}  ${dim(`risk ${v.risk_score}/100 · ${v.source}`)}`,
   );
   if (v.categories.length) lines.push(dim(`  categories: ${v.categories.join(", ")}`));
+  for (const headline of HEADLINE_CATEGORIES) {
+    if (v.categories.includes(headline.category)) lines.push(`  ${c("31", headline.note)}`);
+  }
   for (const e of v.evidence.slice(0, 6)) {
     lines.push(
       `  ${badge(v.verdict, "•")} ${e.detail}${e.file && e.file !== "-" ? dim(` (${e.file})`) : ""}`,
