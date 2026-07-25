@@ -75,6 +75,32 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  integrations: {
+    intro:
+      "Answers whether Warden is actually in the path of your installs, rather than merely present on disk. Every claim a security tool makes is worthless if the shim is behind the real binary on PATH, so this verb checks the wiring and tells you how to repair each part of it.",
+    whenToUse: [
+      "Straight after installing, to confirm the shims are in front of your package managers.",
+      "When a command you expected Warden to vet went through untouched.",
+      "In a setup script or a machine image build, with `--json`, to fail the build on a broken install.",
+    ],
+    examples: [
+      {
+        command: "warden integrations doctor",
+        description: "The full report: shims, PATH precedence, per-tool interception, agent adapter, project manager, and CI workflow.",
+      },
+      {
+        command: "warden integrations doctor --json",
+        description: "The machine-readable report, including how many command forms are mediated and how many documented paths are not.",
+      },
+    ],
+    behaviour:
+      "Each check reports ok, warn, info, or fail, and every non-ok check carries the command that fixes it. Only a fail is fatal: the verb exits `30` when something is actively broken, such as the shim directory being absent from PATH, and `0` otherwise. Tools that are merely not shimmed are reported as information rather than treated as failures.",
+    gotchas: [
+      "PATH precedence is read from the current process, so a shell that has not been restarted since installation reports the state of that shell rather than of a fresh one.",
+      "A healthy report means the wiring is correct, not that every command form is covered. Run `warden coverage` for the boundary of what the shim mediates at all.",
+    ],
+  },
+
   ci: {
     intro:
       "One command for a pull request. `warden ci` resolves the merge base, looks at what actually changed, and gates on it. It is the only verb designed to be the single required check in a workflow.",

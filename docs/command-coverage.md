@@ -44,3 +44,7 @@ These are documented rather than quietly claimed:
 - Windows and PowerShell
 
 PATH shims are not an operating-system sandbox. Where interception can be bypassed, CI is the backstop: `warden ci` audits the lockfile, install scripts, and registry config on the merge-base diff regardless of how the change was produced.
+
+## Verifying the wiring
+
+Coverage describes which command forms the shim mediates. It does not prove the shim is in front of your package manager on this machine. `warden integrations doctor` answers that second question, and reports `PATH` precedence, per-tool interception, and the repair command for each problem it finds.
