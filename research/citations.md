@@ -1,4 +1,4 @@
-# WNPM — Verified Citations (deck / research)
+# WNPM Verified Citations (deck / research)
 
 Every claim below was checked against a primary or vendor source on 2026-07-04.
 "Verified" = corroborated by the linked source. Use these exact numbers in the
@@ -38,7 +38,7 @@ deck; where a source refines the plan's figure, the refined number is noted.
   **576,000 samples across 16 LLMs; 19.7% of recommended packages were
   hallucinations; 205,474 unique fake names.** Range 5.2% (commercial) to 21.7%
   (open-source). **43% of hallucinated names recurred on all 10 reruns, 58% on
-  more than one** — the repeatability that makes pre-registration viable.
+  more than one**, the repeatability that makes pre-registration viable.
   https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen
   https://github.com/Spracks/PackageHallucination
 
@@ -81,7 +81,7 @@ deck; where a source refines the plan's figure, the refined number is noted.
   https://cloud.google.com/blog/topics/threat-intelligence/north-korea-threat-actor-targets-axios-npm-package
   https://www.cisa.gov/news-events/alerts/2026/04/20/supply-chain-compromise-impacts-axios-node-package-manager
 
-## react-codeshift slopsquat (Jan 2026) — the headline agent beat
+## react-codeshift slopsquat (Jan 2026): the headline agent beat
 
 - Discovered by Aikido's Charlie Eriksen: **react-codeshift**, a plausible
   conflation of real tools **jscodeshift + react-codemod**, name never existed.

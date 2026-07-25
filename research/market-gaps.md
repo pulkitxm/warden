@@ -65,13 +65,13 @@ Snyk shipping `agent-scan` in 2026 confirms the direction of travel: agent compo
 
 | Pain | Who feels it | Existing Warden coverage | Proposed command or gap | Priority | Test strategy |
 | --- | --- | --- | --- | --- | --- |
-| "The advisory's fixed version is itself compromised" | Human, CI | `doctor` gate + isolated verify | Shipped | — | Fixture where the official fix is blocked and the dep is reported UNFIXABLE |
-| "`npm audit fix --force` broke my app" | Human | `doctor` verify in an isolated workspace, rollback on failed apply | Shipped | — | Apply-rollback test; verify-failure test |
-| "CI was green but the lockfile was repointed" | CI | `check lockfile` + `ci` surface gate | Shipped | — | Hostile lockfile fixtures per rule; CI gate fires only when the surface is in the diff |
-| "CI was green but install ran malware" | CI | `check scripts` + `ci` surface gate | Shipped | — | Pipe-to-shell, raw IP, base64, credential-path fixtures |
-| "A lookalike registry harvested our token" | Human, CI | `check config` | Shipped | — | `npmjs.help` and `npm-js.org` cases; assert the secret is never echoed |
-| "My agent installed a package that does not exist" | Agent | `slopsquat`, hallucinated intel, `wnpx` refusal | Shipped | — | Curated-name fixtures |
-| "Did the agent do what I asked?" | Agent, reviewer | `intent check` | Shipped | — | Dropped-claim and scope-creep fixtures |
+| "The advisory's fixed version is itself compromised" | Human, CI | `doctor` gate + isolated verify | Shipped | n/a | Fixture where the official fix is blocked and the dep is reported UNFIXABLE |
+| "`npm audit fix --force` broke my app" | Human | `doctor` verify in an isolated workspace, rollback on failed apply | Shipped | n/a | Apply-rollback test; verify-failure test |
+| "CI was green but the lockfile was repointed" | CI | `check lockfile` + `ci` surface gate | Shipped | n/a | Hostile lockfile fixtures per rule; CI gate fires only when the surface is in the diff |
+| "CI was green but install ran malware" | CI | `check scripts` + `ci` surface gate | Shipped | n/a | Pipe-to-shell, raw IP, base64, credential-path fixtures |
+| "A lookalike registry harvested our token" | Human, CI | `check config` | Shipped | n/a | `npmjs.help` and `npm-js.org` cases; assert the secret is never echoed |
+| "My agent installed a package that does not exist" | Agent | `slopsquat`, hallucinated intel, `wnpx` refusal | Shipped | n/a | Curated-name fixtures |
+| "Did the agent do what I asked?" | Agent, reviewer | `intent check` | Shipped | n/a | Dropped-claim and scope-creep fixtures |
 | pnpm / yarn lockfiles unparsed | Human, CI | Reported as unsupported in `notes` | **Add pnpm and yarn lockfile parsers**; CVE-2026-50021 is a pnpm bug | **High** | Reuse the existing rule table against parsed entries; same fixtures per format |
 | Provenance downgrade is buried in JSON | Human | `provenance_downgrade` category | Surface it prominently in human verdict output | Medium | Snapshot the rendered verdict for a downgraded package |
 | Hallucinated-name intel goes stale | Agent | Static curated list | Documented refresh process with tests | Medium | Schema test over the intel file; freshness metadata |

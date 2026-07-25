@@ -29,7 +29,7 @@ export function renderIntentReport(report: IntentReport): string {
   }
   for (const row of report.scope_creep) {
     lines.push(
-      `  ⚠️ SCOPE CREEP: ${row.file} — ${row.added_lines} lines changed, never requested  ${dim(
+      `  ⚠️ SCOPE CREEP: ${row.file}, ${row.added_lines} lines changed, never requested  ${dim(
         `[${row.file}:${row.line_start}-${row.line_end}]`,
       )}`,
     );

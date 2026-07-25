@@ -44,7 +44,7 @@ export function renderVerdict(v: Verdict): string {
   lines.push("");
   lines.push(`  ${bold("verdict:")} ${v.summary}`);
   if (v.verdict === "block")
-    lines.push(dim("  blocked before any script ran — override with --allow-risky"));
+    lines.push(dim("  blocked before any script ran, override with --allow-risky"));
   lines.push("");
   return lines.join("\n");
 }
@@ -61,7 +61,7 @@ function severityBadge(severity: string | undefined): string {
 }
 
 export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): string {
-  const lines: string[] = ["", bold(`Warden doctor — ${r.project}`), ""];
+  const lines: string[] = ["", bold(`Warden doctor: ${r.project}`), ""];
 
   const incomplete = `  audit incomplete: ${r.skipped} of ${r.audited + r.skipped} dependencies could not be audited`;
   if (!r.issues.length && r.skipped === 0) {
@@ -70,7 +70,7 @@ export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): strin
     lines.push(c("33", incomplete), "");
   } else {
     const prod = r.issues.filter((i) => i.group === "prod").length;
-    lines.push(bold(`  ${r.issues.length} issue(s) found — ${prod} affect production`));
+    lines.push(bold(`  ${r.issues.length} issue(s) found, ${prod} affect production`));
     for (const i of r.issues) {
       const where = i.installed ? `${i.name}@${i.installed}` : i.name;
       const tag =
@@ -99,13 +99,13 @@ export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): strin
   }
 
   for (const u of r.unfixable) {
-    lines.push(`  ${c("31", "UNFIXABLE")} ${bold(u.name)} — ${u.reason}`);
+    lines.push(`  ${c("31", "UNFIXABLE")} ${bold(u.name)}: ${u.reason}`);
   }
   if (r.unfixable.length) lines.push("");
 
   for (const p of r.plans) {
     const mark = p.id === r.recommended ? c("32", "▸ recommended") : dim("candidate");
-    lines.push(`  ${bold(`plan ${p.id}`)} — ${p.label}  ${mark}`);
+    lines.push(`  ${bold(`plan ${p.id}`)}: ${p.label}  ${mark}`);
     for (const ch of p.changes) {
       const scope = ch.inRange ? "in range" : "out of range";
       lines.push(`    ${ch.name} ${ch.from} -> ${bold(ch.to)}  ${dim(`${ch.level}, ${scope}`)}`);
@@ -115,7 +115,7 @@ export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): strin
         .map((s) => `${s.name} ${s.ok ? c("32", "ok") : c("31", "fail")} ${dim(`${s.ms}ms`)}`)
         .join(" · ");
       const status = p.verification.passed ? c("32", "passed") : c("31", "failed");
-      lines.push(`    verification: ${steps} — ${status}`);
+      lines.push(`    verification: ${steps} (${status})`);
     }
     lines.push("");
   }
@@ -133,16 +133,14 @@ export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): strin
 }
 
 export function renderAuditReport(r: AuditReport): string {
-  const lines: string[] = ["", bold(`Warden check ${r.surface} — ${r.root}`), ""];
+  const lines: string[] = ["", bold(`Warden check ${r.surface}: ${r.root}`), ""];
 
   if (!r.findings.length) {
     lines.push(c("32", `  no ${r.surface} issues across ${r.scanned} entr(ies)`), "");
   } else {
     const blocking = r.findings.filter((f) => f.level === "block").length;
     lines.push(
-      bold(
-        `  ${r.findings.length} finding(s) across ${r.scanned} entr(ies) — ${blocking} blocking`,
-      ),
+      bold(`  ${r.findings.length} finding(s) across ${r.scanned} entr(ies), ${blocking} blocking`),
       "",
     );
     for (const f of r.findings) {

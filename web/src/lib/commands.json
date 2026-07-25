@@ -1,0 +1,312 @@
+[
+  {
+    "name": "check",
+    "description": "vet packages, the lockfile, install scripts, or registry config",
+    "positional": {
+      "kind": "<pkg[@version]... | lockfile | scripts | config>",
+      "values": [
+        "lockfile",
+        "scripts",
+        "config"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write verdict JSON to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--allow-risky",
+        "description": "permit blocked packages and exit 10",
+        "valueHint": null
+      },
+      {
+        "name": "--dir",
+        "description": "directory to audit for a surface check",
+        "valueHint": "<path>"
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 allow · 10 warn · 20 block · 30 error",
+    "example": "warden check lockfile --json"
+  },
+  {
+    "name": "ci",
+    "description": "run all checks against the merge-base diff",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--reporter",
+        "description": "select human, JSON, workflow, or agent output",
+        "valueHint": "<summary|json|github|agent>"
+      },
+      {
+        "name": "--base",
+        "description": "compare against this git ref",
+        "valueHint": "<ref>"
+      },
+      {
+        "name": "--intent-prompt",
+        "description": "also verify the diff against this prompt",
+        "valueHint": "<text>"
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 clean · 10 warn · 20 block · 30 error",
+    "example": "warden ci --reporter github --base origin/main"
+  },
+  {
+    "name": "doctor",
+    "description": "audit dependencies for CVEs, gate the fixes, verify, and apply",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--dir",
+        "description": "project directory (default .)",
+        "valueHint": "<path>"
+      },
+      {
+        "name": "--json",
+        "description": "write the doctor report JSON to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--no-apply",
+        "description": "report and plan only, do not modify package.json",
+        "valueHint": null
+      },
+      {
+        "name": "--no-verify",
+        "description": "skip isolated-workspace verification of plans",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 clean or fully fixed · 10 unresolved issues · 30 error",
+    "example": "warden doctor --no-apply --json"
+  },
+  {
+    "name": "intent",
+    "description": "verify the diff does what the prompt asked",
+    "positional": {
+      "kind": "[check|extract|diff|symbols|schema]"
+    },
+    "flags": [
+      {
+        "name": "--prompt",
+        "description": "the instruction the agent was given",
+        "valueHint": "<text>"
+      },
+      {
+        "name": "--base",
+        "description": "compare against this git ref",
+        "valueHint": "<ref>"
+      },
+      {
+        "name": "--json",
+        "description": "write the intent report JSON to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",
+    "example": "warden intent check --prompt \"add rate limiting to the api client\""
+  },
+  {
+    "name": "detect",
+    "description": "classify the workspace (framework, role, tooling per package)",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the detection manifest to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden detect --json"
+  },
+  {
+    "name": "init",
+    "description": "onboard a repo: config, workflow, hooks, agent context",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--yes",
+        "description": "accept every offered file change",
+        "valueHint": null
+      },
+      {
+        "name": "--json",
+        "description": "write typed errors to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden init --yes"
+  },
+  {
+    "name": "fix",
+    "description": "hand the last failing check to your coding agent",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write typed errors to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden fix"
+  },
+  {
+    "name": "config",
+    "description": "read or set user-level settings (mode, intercept, agent)",
+    "positional": {
+      "kind": "[mode|intercept] [value...]"
+    },
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write config JSON to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden config intercept off"
+  },
+  {
+    "name": "uninstall",
+    "description": "remove Warden, its shims, config, cache, and shell setup",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden uninstall"
+  },
+  {
+    "name": "log",
+    "description": "render recorded verdicts from ~/.warden/log.jsonl",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--tail",
+        "description": "show only the last N entries",
+        "valueHint": "N"
+      },
+      {
+        "name": "--json",
+        "description": "write raw JSON objects to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden log --tail 20"
+  },
+  {
+    "name": "schema",
+    "description": "print the JSON schema for structured output",
+    "positional": {
+      "kind": "[check|ci|audit|doctor|intent|list]",
+      "values": [
+        "check",
+        "ci",
+        "audit",
+        "doctor",
+        "intent",
+        "list"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden schema doctor"
+  },
+  {
+    "name": "completions",
+    "description": "print a shell completion script",
+    "positional": {
+      "kind": "<bash|zsh|fish>",
+      "values": [
+        "bash",
+        "zsh",
+        "fish"
+      ]
+    },
+    "flags": [
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success · 30 error",
+    "example": "warden completions zsh"
+  },
+  {
+    "name": "version",
+    "description": "print the warden version",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 success",
+    "example": "warden --version"
+  }
+]
