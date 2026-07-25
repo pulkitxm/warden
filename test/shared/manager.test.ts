@@ -105,6 +105,14 @@ test("an empty package list installs the manifest", () => {
 test("script suppression uses the native flag where one exists", () => {
   expect(installCommand("npm", ["x"], true)).toContain("--ignore-scripts");
   expect(installCommand("pnpm", ["x"], true)).toContain("--ignore-scripts");
+  expect(installCommand("bun", ["x"], true)).toContain("--ignore-scripts");
   expect(installCommand("yarn", ["x"], true)).not.toContain("--ignore-scripts");
-  expect(installCommand("bun", ["x"], true)).not.toContain("--ignore-scripts");
+});
+
+test("yarn is the only manager whose suppression is not a flag on the install command", () => {
+  const flagged = (["npm", "pnpm", "bun"] as const).every((manager) =>
+    installCommand(manager, ["x"], true).includes("--ignore-scripts"),
+  );
+  expect(flagged).toBe(true);
+  expect(installCommand("yarn", ["x"], true)).not.toContain("--ignore-scripts");
 });

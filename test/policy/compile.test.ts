@@ -44,7 +44,7 @@ for (const manager of MANAGERS) {
     const compiled = compilePolicy(manager, undefined);
     const keys = compiled.settings.map((entry) => entry.key);
     const scriptKey = keys.some((key) =>
-      ["ignore-scripts", "allowBuilds", "enableScripts", "trustedDependencies"].includes(key),
+      ["ignore-scripts", "allowBuilds", "enableScripts", "install.ignoreScripts"].includes(key),
     );
     expect(scriptKey).toBe(true);
   });
@@ -54,7 +54,7 @@ for (const manager of MANAGERS) {
     const keys = compiled.settings.map((entry) => entry.key);
     expect(
       keys.some((key) =>
-        ["ignore-scripts", "allowBuilds", "enableScripts", "trustedDependencies"].includes(key),
+        ["ignore-scripts", "allowBuilds", "enableScripts", "install.ignoreScripts"].includes(key),
       ),
     ).toBe(false);
   });
@@ -67,8 +67,8 @@ for (const manager of MANAGERS) {
   });
 }
 
-test("npm compiles the release age gate into minutes, which is the unit npm takes", () => {
-  expect(setting("npm", { minimumReleaseAgeDays: 3 }, "minimum-release-age")?.value).toBe("4320");
+test("npm compiles the release age gate into days, which is the unit npm takes", () => {
+  expect(setting("npm", { minimumReleaseAgeDays: 3 }, "min-release-age")?.value).toBe("3");
 });
 
 test("npm blocks git and remote sources when exotic sources are blocked", () => {
@@ -90,12 +90,14 @@ test("npm admits it has no downgrade policy rather than pretending", () => {
 
 test("pnpm uses strict dep builds so an unapproved build fails rather than being skipped", () => {
   expect(setting("pnpm", undefined, "strictDepBuilds")?.value).toBe("true");
-  expect(setting("pnpm", undefined, "allowBuilds")?.value).toBe("[]");
+  expect(setting("pnpm", undefined, "allowBuilds")?.value).toBe("{}");
 });
 
-test("pnpm expresses every part of the default policy natively", () => {
+test("pnpm expresses nearly every part of the default policy natively", () => {
   const compiled = compilePolicy("pnpm", undefined);
-  expect(compiled.unsupported).toEqual([]);
+  expect(compiled.unsupported.map((entry) => entry.intent)).toEqual([
+    "block semantic version downgrades",
+  ]);
   expect(compiled.settings.map((entry) => entry.key)).toEqual([
     "strictDepBuilds",
     "allowBuilds",
@@ -124,10 +126,10 @@ test("yarn records that warden itself blocks exotic sources", () => {
   expect(compiled.enforcedByWarden.join(" ")).toContain("blocked by the shim");
 });
 
-test("bun sets trustedDependencies and admits the rest is warden's job", () => {
+test("bun denies every script and admits the rest is warden's job", () => {
   const compiled = compilePolicy("bun", undefined);
   expect(compiled.settings).toHaveLength(1);
-  expect(compiled.settings[0]?.key).toBe("trustedDependencies");
+  expect(compiled.settings[0]?.key).toBe("install.ignoreScripts");
   expect(compiled.unsupported).toHaveLength(4);
   expect(compiled.enforcedByWarden.join(" ")).toContain("younger than 1 day");
 });
@@ -151,5 +153,56 @@ test("every compiled setting names the file it belongs in and explains itself", 
       expect(entry.file).not.toBe("");
       expect(entry.note.length).toBeGreaterThan(10);
     }
+  }
+});
+
+test("npm settings match npm's documented contract, not an invented one", () => {
+  const compiled = compilePolicy("npm", { minimumReleaseAgeDays: 3 });
+  const age = compiled.settings.find((entry) => entry.key === "min-release-age");
+  expect(age?.value).toBe("3");
+  expect(compiled.settings.map((entry) => entry.key)).not.toContain("minimum-release-age");
+
+  const sources = compiled.settings.filter((entry) => entry.key.startsWith("allow-"));
+  expect(sources.map((entry) => entry.key).sort()).toEqual([
+    "allow-directory",
+    "allow-file",
+    "allow-git",
+    "allow-remote",
+  ]);
+  for (const source of sources) expect(source.value).toBe("none");
+});
+
+test("pnpm allowBuilds is a map, because pnpm rejects an array", () => {
+  expect(setting("pnpm", undefined, "allowBuilds")?.value).toBe("{}");
+});
+
+test("pnpm trustPolicy is not sold as a semver downgrade rule", () => {
+  const compiled = compilePolicy("pnpm", undefined);
+  expect(setting("pnpm", undefined, "trustPolicy")?.note).toContain("trust evidence");
+  expect(compiled.unsupported.map((entry) => entry.intent)).toContain(
+    "block semantic version downgrades",
+  );
+});
+
+test("yarn uses its own age-gate key and duration syntax", () => {
+  const gate = setting("yarn", { minimumReleaseAgeDays: 2 }, "npmMinimalAgeGate");
+  expect(gate?.value).toBe('"2d"');
+  expect(compilePolicy("yarn", undefined).settings.map((entry) => entry.key)).not.toContain(
+    "minimumReleaseAge",
+  );
+});
+
+test("bun uses the primitive that actually denies every script", () => {
+  const compiled = compilePolicy("bun", undefined);
+  expect(setting("bun", undefined, "install.ignoreScripts")?.value).toBe("true");
+  expect(compiled.settings.map((entry) => entry.key)).not.toContain("trustedDependencies");
+});
+
+test("no compiled value is a bare boolean where the manager expects an enum", () => {
+  const sources = compilePolicy("npm", undefined).settings.filter((entry) =>
+    entry.key.startsWith("allow-"),
+  );
+  for (const source of sources) {
+    expect(["all", "none", "root"]).toContain(source.value);
   }
 });

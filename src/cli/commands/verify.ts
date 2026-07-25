@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { digestGraph } from "../../graph/delta.ts";
 import { readInstalledGraph } from "../../graph/installed.ts";
+import type { TransactionPlan } from "../../graph/plan.ts";
 import type { TransactionReceipt } from "../../graph/receipt.ts";
 import { policyDigest } from "../../graph/receipt.ts";
 import { EXIT } from "../../schema.ts";
@@ -54,12 +55,12 @@ export function verifyReceipt(receipt: TransactionReceipt, deps: WardenDeps): Ve
   const plan = readPlan(deps, root, receipt.plan_id);
   checks.push({
     name: "policy digest",
-    ok: !plan || policyDigest(plan) === receipt.policy_digest,
+    ok: Boolean(plan) && policyDigest(plan as TransactionPlan) === receipt.policy_digest,
     detail: plan
       ? policyDigest(plan) === receipt.policy_digest
         ? "the receipt was issued under the plan still on disk"
         : "the plan on disk no longer matches the policy the receipt records"
-      : "the plan is not on disk, so only the graph could be compared",
+      : `plan ${receipt.plan_id} is not on disk, so the policy behind this receipt cannot be confirmed`,
   });
 
   checks.push({

@@ -98,6 +98,6 @@ export function installCommand(
   const verb = manager === "npm" || !packages.length ? "install" : "add";
   const args = [manager, verb, ...packages];
   if (!suppressScripts) return args;
-  if (manager === "npm" || manager === "pnpm") args.push("--ignore-scripts");
+  if (manager === "npm" || manager === "pnpm" || manager === "bun") args.push("--ignore-scripts");
   return args;
 }

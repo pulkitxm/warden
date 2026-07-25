@@ -81,11 +81,28 @@ test("the human report names the intent, the native settings, and the gaps", asy
   expect(text).toContain("Enforced by warden regardless");
 });
 
-test("a manager with no gaps prints no gap section", async () => {
+test("a policy with nothing left to enforce prints no gap section", async () => {
+  setColor(false);
+  const { deps, err } = makeDeps({
+    [join(CWD, "warden.config.json")]: JSON.stringify({
+      policy: {
+        scripts: "allow",
+        minimumReleaseAgeDays: 0,
+        exoticSources: "allow",
+        lockfile: "trust",
+        downgrades: "allow",
+      },
+    }),
+  });
+  await runWarden(["policy", "--manager", "pnpm"], deps);
+  expect(err.join("")).not.toContain("Not natively supported");
+});
+
+test("pnpm now declares the one intent it cannot express, rather than implying full coverage", async () => {
   setColor(false);
   const { deps, err } = makeDeps();
   await runWarden(["policy", "--manager", "pnpm"], deps);
-  expect(err.join("")).not.toContain("Not natively supported");
+  expect(err.join("")).toContain("block semantic version downgrades");
 });
 
 test("a policy with nothing to compile says so instead of printing an empty list", async () => {

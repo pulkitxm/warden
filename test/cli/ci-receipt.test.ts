@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
+import type { TransactionPlan } from "../../src/graph/plan.ts";
 import type { TransactionReceipt } from "../../src/graph/receipt.ts";
 import type { CiFinding } from "../../src/schema.ts";
 
@@ -113,9 +114,42 @@ test("a receipt matching the installed graph passes the gate", async () => {
   const { verifyReceipt } = await import("../../src/cli/commands/verify.ts");
   const digest = verifyReceipt(receipt(), probe).installed_digest;
 
+  const matching = receipt({ graph_after: digest });
+  const { policyDigest } = await import("../../src/graph/receipt.ts");
+  const plan: TransactionPlan = {
+    schema_version: 1,
+    plan_id: matching.plan_id,
+    command: matching.command,
+    manager: "npm",
+    root: ROOT,
+    direct: [],
+    graph_before: matching.graph_before,
+    graph_after: matching.graph_after,
+    delta: {
+      added: [],
+      changed: [],
+      removed: [],
+      unchanged: 0,
+      scriptSurface: [],
+      newScriptSurface: [],
+      platformArtifacts: [],
+      deprecatedIntroduced: [],
+    },
+    artifacts: matching.artifacts,
+    unresolved: [],
+    conflicts: [],
+    truncated: false,
+    coverage: { analyzed: 1, changed: 1, ratio: 1 },
+    decision: "allow",
+    reasons: [],
+    next_actions: [],
+  };
+  matching.policy_digest = policyDigest(plan);
+
   const { deps } = makeDeps(["package-lock.json"], {
     [join(ROOT, "package-lock.json")]: LOCK,
-    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(receipt({ graph_after: digest })),
+    [join(ROOT, ".warden", "plans", `${matching.plan_id}.json`)]: JSON.stringify(plan),
+    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(matching),
   });
   expect(await runWarden(["ci", "--reporter", "json", "--require-transaction-receipt"], deps)).toBe(
     0,
