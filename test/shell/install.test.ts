@@ -90,9 +90,35 @@ exit 0
   spawn(commandPath("tar"), ["-czf", join(fixtures, "missing.tar.gz"), "warden", "wnpm"], dist);
   const checksumTool = Bun.which("shasum") ?? Bun.which("sha256sum");
   if (!checksumTool) throw new Error("missing checksum utility");
-  const checksumArgs = checksumTool.endsWith("shasum") ? ["-a", "256", asset] : [asset];
-  const hash = spawn(checksumTool, checksumArgs).split(/[ \t]/)[0];
-  writeFileSync(join(fixtures, "sha256sums.txt"), `${hash}  warden-linux-x64.tar.gz\n`);
+  const digest = (path: string) =>
+    spawn(checksumTool, checksumTool.endsWith("shasum") ? ["-a", "256", path] : [path]).split(
+      /[ \t]/,
+    )[0] as string;
+  const hash = digest(asset);
+  copyFileSync(installScript, join(fixtures, "install.sh"));
+  copyFileSync(shimScript, join(fixtures, "shim.sh"));
+  writeFileSync(
+    join(fixtures, "sha256sums.txt"),
+    [
+      `${hash}  warden-linux-x64.tar.gz`,
+      `${digest(join(fixtures, "install.sh"))}  install.sh`,
+      `${digest(join(fixtures, "shim.sh"))}  shim.sh`,
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(fixtures, "tampered-sha256sums.txt"),
+    [
+      `${hash}  warden-linux-x64.tar.gz`,
+      `${"0".repeat(64)}  install.sh`,
+      `${digest(join(fixtures, "shim.sh"))}  shim.sh`,
+      "",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(fixtures, "unlisted-support-sha256sums.txt"),
+    `${hash}  warden-linux-x64.tar.gz\n`,
+  );
   writeFileSync(join(fixtures, "missing-sha256sums.txt"), `${hash}  another-asset.tar.gz\n`);
   writeFileSync(
     join(fixtures, "corrupt-sha256sums.txt"),
@@ -145,8 +171,9 @@ done
 case "$url" in
   */latest/download/*) cp "$CURL_TARBALL" "$output" ;;
   */sha256sums.txt) cp "$CURL_SUMS" "$output" ;;
-  */scripts/shim.sh) cp "$CURL_SOURCE/scripts/shim.sh" "$output" ;;
-  */install.sh) cp "$CURL_SOURCE/install.sh" "$output" ;;
+  */releases/download/*/shim.sh) cp "$CURL_SOURCE/scripts/shim.sh" "$output" ;;
+  */releases/download/*/install.sh) cp "$CURL_SOURCE/install.sh" "$output" ;;
+  *raw.githubusercontent.com*) printf 'installer fetched executable content from a mutable ref\n' >&2; exit 77 ;;
   *) exit 22 ;;
 esac
 if [ "$effective" = true ]; then printf 'https://github.com/pulkitxm/warden/releases/download/v9.9.9/warden-linux-x64.tar.gz'; fi
@@ -465,12 +492,53 @@ test("download install verifies with sha256sum and extracts all binaries", () =>
     }
   }));
 
+test("the installer never fetches executable content from a mutable ref", () => {
+  const text = readFileSync(installScript, "utf8");
+  expect(text).not.toContain("raw.githubusercontent.com");
+  expect(text).not.toContain("/main/");
+});
+
+test("install.sh and shim.sh come from the same release tag as the binaries", () =>
+  inSandbox(["npm"], (sandbox) => {
+    checksumPath(sandbox, "sha256sum");
+    const result = run(sandbox, [], { local: false, answer: "2\n" });
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(join(sandbox.home, ".warden", "install.sh"))).toBe(true);
+    expect(existsSync(join(sandbox.home, ".warden", "shims", "npm"))).toBe(true);
+  }));
+
+test("a tampered install.sh in the release fails the install rather than being executed later", () =>
+  inSandbox(["npm"], (sandbox) => {
+    checksumPath(sandbox, "sha256sum");
+    const result = run(sandbox, [], {
+      local: false,
+      answer: "2\n",
+      env: { CURL_SUMS: join(fixtures, "tampered-sha256sums.txt") },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(output(result)).toContain("install.sh failed checksum verification");
+  }));
+
+test("a release that does not list the support files is refused, not trusted", () =>
+  inSandbox(["npm"], (sandbox) => {
+    checksumPath(sandbox, "sha256sum");
+    const result = run(sandbox, [], {
+      local: false,
+      answer: "2\n",
+      env: { CURL_SUMS: join(fixtures, "unlisted-support-sha256sums.txt") },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(output(result)).toContain("checksum missing for install.sh");
+  }));
+
 test("download install verifies with shasum fallback", () =>
   inSandbox([], (sandbox) => {
     checksumPath(sandbox, "shasum");
-    const hash = readFileSync(join(fixtures, "sha256sums.txt"), "utf8").split(/[ \t]/)[0];
     const sums = join(sandbox.root, "star-sha256sums.txt");
-    writeFileSync(sums, `${hash} *warden-linux-x64.tar.gz\n`);
+    writeFileSync(
+      sums,
+      readFileSync(join(fixtures, "sha256sums.txt"), "utf8").replace(/ {2}/g, " *"),
+    );
     const result = run(sandbox, [], { local: false, env: { CURL_SUMS: sums } });
     expect(result.exitCode).toBe(0);
     expect(output(result)).toContain("sha256 verified");

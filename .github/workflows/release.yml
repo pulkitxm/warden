@@ -34,13 +34,20 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
-      - run: cd release && sha256sum *.tar.gz > sha256sums.txt
+      - name: Stage the executable support files alongside the binaries
+        run: |
+          cp web/public/install.sh release/install.sh
+          cp scripts/shim.sh release/shim.sh
+      - run: cd release && sha256sum *.tar.gz install.sh shim.sh > sha256sums.txt
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             release/*.tar.gz
+            release/install.sh
+            release/shim.sh
             release/sha256sums.txt
