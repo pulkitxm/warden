@@ -415,6 +415,7 @@ body {
 
 .code-wrap {
   position: relative;
+  overflow: visible;
 }
 .code-wrap:not(:first-child) {
   margin-top: 1.15rem;
@@ -422,17 +423,22 @@ body {
 .prose-warden .code-wrap + * {
   margin-top: 1.15rem;
 }
+.code-wrap pre {
+  padding-right: 4.75rem;
+}
 .copy-button {
   position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   padding: 0.3rem 0.55rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 0.5rem;
-  background: rgba(11, 16, 32, 0.9);
+  background: rgba(11, 16, 32, 0.96);
+  backdrop-filter: blur(6px);
   color: var(--color-fog);
   font-family: var(--font-sans);
   font-size: 11.5px;
@@ -453,6 +459,7 @@ body {
 .copy-button:focus-visible {
   outline: 2px solid var(--color-mint);
   outline-offset: 2px;
+  opacity: 1;
 }
 .copy-button.is-done {
   color: var(--color-mint);

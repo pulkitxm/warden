@@ -11,6 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/docs", priority: 0.9 },
     { path: "/docs/cli", priority: 0.9 },
     { path: "/install", priority: 0.9 },
+    { path: "/benchmark", priority: 0.8 },
     { path: "/hack", priority: 0.7 },
     { path: "/about", priority: 0.6 },
     { path: "/contact", priority: 0.5 },

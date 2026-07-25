@@ -39,6 +39,12 @@ const PATHS = [
     note: "What a decision means, how to wire up Claude Code or Codex, and how a block becomes a next action.",
   },
   {
+    who: "I want to know exactly how it decides",
+    minutes: 16,
+    steps: ["how-a-verdict-is-reached", "signals-and-scoring", "how-a-plan-is-built"],
+    note: "The real code paths, named functions, thresholds, and orderings. Written against the source and fact-checked against it.",
+  },
+  {
     who: "I am deciding whether to trust it",
     minutes: 9,
     steps: ["coverage", "limitations", "benchmark"],

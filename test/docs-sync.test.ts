@@ -227,3 +227,33 @@ test("a reader can reach every verb from the docs, not only from --help", async 
     expect(`${command.name}: ${documented}`).toBe(`${command.name}: true`);
   }
 });
+
+test("no doc page is an orphan that nothing else links to", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  for (const page of DOC_PAGES) {
+    const linked = DOC_PAGES.some((other) => (other.related ?? []).includes(page.slug));
+    expect(`${page.slug} is linked from somewhere: ${linked}`).toBe(
+      `${page.slug} is linked from somewhere: true`,
+    );
+  }
+});
+
+test("llms.txt groups the docs by section and states the reading paths", async () => {
+  const route = readFileSync(
+    fileURLToPath(new URL("../web/src/app/llms.txt/route.ts", import.meta.url)),
+    "utf8",
+  );
+  expect(route).toContain("DOC_SECTIONS");
+  expect(route).toContain("Reading paths");
+  expect(route).toContain("/benchmark");
+});
+
+test("the sitemap lists every standalone page, not only the docs", async () => {
+  const sitemap = readFileSync(
+    fileURLToPath(new URL("../web/src/app/sitemap.ts", import.meta.url)),
+    "utf8",
+  );
+  for (const path of ["/", "/docs", "/docs/cli", "/install", "/benchmark", "/hack", "/changelog"]) {
+    expect(sitemap).toContain(`"${path}"`);
+  }
+});
