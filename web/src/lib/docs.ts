@@ -595,6 +595,305 @@ warden schema audit
 Agents should read these schemas rather than parsing human output. See [agents](/docs/agents).
 `;
 
+
+const transactions = `
+A package name is not a dependency change. Typing \`npm install @fastify/jwt\` adds one name to a manifest and, moments later, an entire resolved subgraph to \`node_modules\`. Vetting only the name that was typed leaves every transitive addition unexamined, and a transitive addition is exactly where a compromised release hides.
+
+Warden treats the whole change as one transaction: plan, approve, apply, verify, receipt.
+
+## Plan
+
+\`\`\`sh
+warden plan -- npm install @fastify/jwt
+warden plan
+warden plan --json -- pnpm add zod
+\`\`\`
+
+Planning resolves the complete prospective graph from registry metadata, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. The graph is diffed against the one in your lockfile, and every added or changed package goes through the same engine as \`warden check\`.
+
+\`\`\`text
+WARDEN PLAN  npm install @fastify/jwt
+
+Direct changes
+  + @fastify/jwt 9.1.0
+
+Graph changes
+  + 7 transitive packages
+  ~ 2 existing packages resolved to a different version
+  - 0 packages no longer required
+  = 214 unchanged
+
+Execution surface
+  1 changed packages carry an install script
+  1 of those are new relative to the current graph
+  1 platform-specific artifacts will be added
+  0 requirements did not resolve from the registry
+
+Analysis coverage
+  9 of 9 changed packages analyzed (100%)
+
+Decision: NEEDS_APPROVAL
+  fast-jwt@5.0.6 has a postinstall script
+
+Next action
+  warden approve-script fast-jwt@5.0.6 --hook postinstall --plan wtxn_0a1b2c3d
+\`\`\`
+
+## The decision
+
+| Decision | Exit | Meaning |
+| --- | --- | --- |
+| \`ALLOW\` | 0 | Every changed package was analyzed and none raised a finding. |
+| \`WARN\` | 10 | Findings worth reading, but nothing that stops the change. |
+| \`NEEDS_APPROVAL\` | 10 | New install scripts, a truncated graph, or packages left unanalyzed. |
+| \`BLOCK\` | 20 | A changed package is malicious or unanalyzable, or a requirement did not resolve. |
+| error | 30 | The transaction could not be planned at all. |
+
+\`NEEDS_APPROVAL\` exists so incomplete coverage is never reported as safety. Every plan carries a \`coverage\` object naming how many changed packages were actually analyzed, and a truncated or partially analyzed plan cannot reach \`ALLOW\`.
+
+## Narrow approvals
+
+\`\`\`sh
+warden approve-script esbuild@0.25.8 --hook postinstall
+warden approve-script sharp@0.33.5 --hook install --scope user
+\`\`\`
+
+An approval binds the package name, the exact version, the tarball integrity, the hook, and a hash of the normalized script body. Change any one of those and it no longer applies. Repo approvals live in \`.warden/approvals.json\` and are meant to be committed, so a decision reviewed once covers the whole team.
+
+This replaces the pattern of a single broad override. A bypass scoped to exactly what was reviewed can be audited later; one that means "allow risk" cannot.
+
+## Apply
+
+\`\`\`sh
+warden apply wtxn_0a1b2c3d
+\`\`\`
+
+Applying refuses a blocked plan outright, refuses while any new install script is unapproved, installs through your own package manager with lifecycle scripts suppressed by that manager's native mechanism, runs your \`test\`, \`typecheck\`, and \`build\` scripts in that order, restores \`package.json\` on any failure, and writes a receipt.
+
+Scripts stay suppressed for the entire install, including for approved packages. Approval governs whether the transaction may proceed, not whether Warden hands execution to package code mid-install.
+
+## Verify
+
+\`\`\`sh
+warden verify
+warden ci --require-transaction-receipt
+\`\`\`
+
+The receipt records both graph digests, the policy digest, every artifact verdict, every approval, every suppressed script, and the verification result. \`warden verify\` compares the graph digest of the committed lockfile against the one the receipt was issued for.
+
+This is the honest answer to the fact that PATH shims can be bypassed. The local shim is convenience. CI receipt verification is the control that catches a developer or an agent installing outside Warden, without pretending the shim was ever a sandbox.
+
+See [command coverage](/docs/coverage) for exactly which commands the shim mediates, and [limitations](/docs/limitations) for what none of this covers.
+`;
+
+const policy = `
+Package managers have grown real security controls of their own. npm has script approvals, source restrictions, and a release age gate. pnpm 11 has build allowlists, a one-day default \`minimumReleaseAge\`, \`trustPolicy\`, and \`blockExoticSubdeps\`. Yarn disables dependency postinstalls by default from 4.14 and has hardened mode. Bun runs nothing outside \`trustedDependencies\`.
+
+Warden does not duplicate them. It compiles one manager-neutral policy into the strongest primitive each manager actually has, and states plainly what a given manager cannot express.
+
+## The policy
+
+\`\`\`json
+{
+  "policy": {
+    "scripts": "approved",
+    "minimumReleaseAgeDays": 1,
+    "exoticSources": "block",
+    "lockfile": "reverify",
+    "downgrades": "block"
+  }
+}
+\`\`\`
+
+This lives under \`policy\` in \`warden.config.json\`. Anything you leave out inherits the default shown above.
+
+## What each manager can enforce
+
+| Intent | npm | pnpm | Yarn | Bun |
+| --- | --- | --- | --- | --- |
+| Deny dependency scripts | \`ignore-scripts\` | \`strictDepBuilds\`, \`allowBuilds\` | \`enableScripts\` | \`trustedDependencies\` |
+| Minimum release age | \`minimum-release-age\` | \`minimumReleaseAge\` | \`minimumReleaseAge\` | Warden |
+| Block git and url sources | \`allow-git\`, \`allow-remote\` | \`blockExoticSubdeps\` | Warden | Warden |
+| Re-verify the lockfile | Warden | \`trustLockfile\` | \`enableHardenedMode\` | Warden |
+| Block downgrades | Warden | \`trustPolicy\` | Warden | Warden |
+
+## Compiling
+
+\`\`\`sh
+warden policy
+warden policy --manager pnpm
+warden policy --json
+\`\`\`
+
+\`\`\`text
+Policy compiled for bun
+
+  Native settings
+    package.json           trustedDependencies = []
+      bun runs no dependency lifecycle script outside this list
+
+  Not natively supported
+    enforce a minimum release age
+      bun has no native setting; warden enforces this itself
+
+  Enforced by warden regardless
+    every added or changed package is vetted before the install runs
+    install scripts require an approval bound to version, integrity, hook, and script body
+    a release younger than 1 day(s) is reported as a risk
+\`\`\`
+
+Compiling prints the settings; it does not write them into your config files. What to change is your decision, and those files usually carry unrelated settings.
+
+Whatever a manager cannot enforce, the plan, the approval model, and the CI receipt gate still cover.
+`;
+
+const limitations = `
+A security tool earns trust by being explicit about its boundary. Everything below is a real limit of what Warden does today.
+
+## PATH shims are not a sandbox
+
+The installer places shims in front of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`npx\`, and \`bunx\`. That is a convenience mechanism, not an operating-system control. Each of these bypasses it, and each is listed rather than quietly ignored:
+
+- calling a package manager by its absolute path
+- a container or CI image where the shims are not installed
+- a remote agent or build machine outside your shell
+- Corepack resolving a manager binary directly
+- a shell script that downloads and runs code without any package manager involved
+
+Run \`warden coverage\` for the full matrix of what is mediated, and \`warden integrations doctor\` to check that the shims are actually in front of your tools on this machine.
+
+The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fails a pull request whose dependency graph changed without a receipt that verifies against the committed lockfile. That check does not depend on anything having worked locally.
+
+## Analysis has limits
+
+- Static analysis reads JavaScript and TypeScript. A native binary, a WebAssembly module, or a compiled artifact is not analyzed the way source is.
+- Sufficiently determined obfuscation can hide behaviour from an AST scan. Warden treats heavy obfuscation as a signal in itself, which is a heuristic, not a proof.
+- Warden evaluates risk signals and policy. It cannot prove that code is safe. An allow means no rule fired, not that the package is trustworthy.
+
+## Resolution has limits
+
+- Graph resolution is flat: one version per package name. That matches how a hoisting installer usually lands, but a real installer can nest two versions of the same package where Warden reports a conflict instead.
+- Git, URL, file, link, workspace, and portal ranges are outside registry resolution. They are reported as unresolved rather than trusted.
+- Resolution stops at a node budget and analysis stops at a check budget. Both are reported on the plan, and either one prevents a confident allow.
+- The plan describes what the resolver believes will happen. Your package manager remains the thing that actually installs.
+
+## Baselines and history
+
+The comparison baseline is the immediately previous published release. An attacker who publishes two bad releases in a row moves the baseline along with them. Trusted baselines drawn from a known-good release are the better answer and are not implemented yet.
+
+## Scores
+
+The 0 to 100 number is a weighted sum of heuristic signals. It is labelled a heuristic score everywhere it appears, and it is deliberately not the headline. The decision, the confidence, and the reason code are the parts to act on. The score has not been calibrated against a published benchmark corpus.
+
+## Model use
+
+A model can help extract claims from a prompt and rank alternatives. No model decides a block. The enforcement core is deterministic, and every model-assisted step reports when it degraded to the deterministic path.
+
+Instructions, skills, and MCP tools improve how well an agent cooperates with Warden. They are not enforcement by themselves; an agent that ignores them is caught by the shim, and an agent that bypasses the shim is caught in CI.
+`;
+
+
+const coverage = `
+A security tool earns trust through verifiable coverage, not through a claim. Every row below comes from the same command grammar the shim consults at runtime, so this page cannot drift from behaviour. Run \`warden coverage --json\` to get the same matrix from the binary you have installed.
+
+## What the categories mean
+
+- **install** the command adds or changes packages. Named specs are vetted; a no-argument install is treated as a graph transaction and the lockfile is audited.
+- **frozen-install** the command materialises an existing lockfile. Nothing is named on the command line, so the whole graph is the transaction.
+- **exec** the command downloads and runs a package. The package it would execute is vetted before it runs.
+- **rebuild** the command re-runs build scripts for packages already on disk.
+- **passthrough** the command changes nothing about trust and runs untouched.
+
+## Mediated commands
+
+### npm
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`npm install\` | protected | install |
+| \`npm i\` | protected | install |
+| \`npm add\` | protected | install |
+| \`npm update\` | protected | install |
+| \`npm up\` | protected | install |
+| \`npm upgrade\` | protected | install |
+| \`npm ci\` | protected | frozen-install |
+| \`npm clean-install\` | protected | frozen-install |
+| \`npm install-ci-test\` | protected | frozen-install |
+| \`npm cit\` | protected | frozen-install |
+| \`npm exec\` | protected | exec |
+| \`npm x\` | protected | exec |
+| \`npm rebuild\` | protected | rebuild |
+
+### pnpm
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`pnpm install\` | protected | install |
+| \`pnpm i\` | protected | install |
+| \`pnpm add\` | protected | install |
+| \`pnpm update\` | protected | install |
+| \`pnpm up\` | protected | install |
+| \`pnpm install --frozen-lockfile\` | protected | frozen-install |
+| \`pnpm dlx\` | protected | exec |
+| \`pnpm exec\` | protected | exec |
+| \`pnpm rebuild\` | protected | rebuild |
+| \`pnpm approve-builds\` | protected | rebuild |
+
+### yarn
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`yarn install\` | protected | install |
+| \`yarn i\` | protected | install |
+| \`yarn add\` | protected | install |
+| \`yarn up\` | protected | install |
+| \`yarn upgrade\` | protected | install |
+| \`yarn install --immutable\` | protected | frozen-install |
+| \`yarn dlx\` | protected | exec |
+| \`yarn exec\` | protected | exec |
+| \`yarn rebuild\` | protected | rebuild |
+
+### bun
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`bun install\` | protected | install |
+| \`bun i\` | protected | install |
+| \`bun add\` | protected | install |
+| \`bun update\` | protected | install |
+| \`bun install --frozen-lockfile\` | protected | frozen-install |
+| \`bun x\` | protected | exec |
+| \`bun create\` | protected | exec |
+| \`bun pm\` | protected | rebuild |
+
+### npx
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`npx <package>\` | protected | exec |
+
+### bunx
+
+| Command | Coverage | Treated as |
+| --- | --- | --- |
+| \`bunx <package>\` | protected | exec |
+
+## Not mediated by the shim
+
+- **absolute executable paths, for example /usr/local/bin/npm install** PATH shims are not on the resolution path when a manager is invoked by absolute path
+- **Corepack-managed shims** Corepack resolves its own binaries; run warden integrations doctor to see whether the shim wins
+- **package managers invoked inside a container or devcontainer** the container has its own PATH; install Warden inside the image to mediate it
+- **arbitrary shell downloads piped to an interpreter** outside the package-manager grammar entirely; CI receipt verification is the backstop
+- **Windows and PowerShell** the installer and shims target macOS and Linux shells today
+
+
+## The honest part
+
+PATH shims are a convenience mechanism, not an operating-system sandbox. An absolute path, a container, Corepack, or a remote build machine can all bypass them. That is why \`warden ci --require-transaction-receipt\` exists: it fails a pull request whose dependency graph changed without a verified receipt, and it does not depend on anything having worked locally.
+
+Run \`warden integrations doctor\` to confirm the shims are actually first on your \`PATH\` on this machine, and read [limitations](/docs/limitations) for the rest of the boundary.
+`;
+
 export const DOC_PAGES: DocPage[] = [
   {
     slug: "getting-started",
@@ -651,6 +950,24 @@ export const DOC_PAGES: DocPage[] = [
     related: ["ci", "security"],
   },
   {
+    slug: "transactions",
+    title: "Transactions",
+    description:
+      "Plan the complete prospective graph, approve exactly what needs approving, apply with scripts suppressed, and leave a receipt CI can verify.",
+    section: "Guides",
+    body: transactions,
+    related: ["policy", "coverage", "limitations"],
+  },
+  {
+    slug: "policy",
+    title: "Policy",
+    description:
+      "One manager-neutral policy compiled into npm, pnpm, Yarn, and Bun's own controls, with every gap named.",
+    section: "Guides",
+    body: policy,
+    related: ["transactions", "configuration"],
+  },
+  {
     slug: "agents",
     title: "Agents",
     description:
@@ -667,6 +984,24 @@ export const DOC_PAGES: DocPage[] = [
     section: "Reference",
     body: security,
     related: ["doctor", "check-surfaces"],
+  },
+  {
+    slug: "coverage",
+    title: "Command coverage",
+    description:
+      "Exactly which package-manager commands the shims mediate, generated from the same grammar the shim executes.",
+    section: "Reference",
+    body: coverage,
+    related: ["limitations", "transactions"],
+  },
+  {
+    slug: "limitations",
+    title: "Limitations",
+    description:
+      "What Warden does not cover: shim bypasses, analysis limits, flat resolution, baselines, and what a score is not.",
+    section: "Reference",
+    body: limitations,
+    related: ["security", "coverage", "transactions"],
   },
   {
     slug: "configuration",

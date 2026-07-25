@@ -75,6 +75,52 @@ const facts = [
   { value: ">99%", label: "of open-source malware is on npm", source: "Sonatype, 2026" },
 ];
 
+const planSample = `WARDEN PLAN  npm install @fastify/jwt
+
+Direct changes
+  + @fastify/jwt 9.1.0
+
+Graph changes
+  + 7 transitive packages
+  ~ 2 existing packages resolved to a different version
+  = 214 unchanged
+
+Execution surface
+  1 changed packages carry an install script
+  1 of those are new relative to the current graph
+
+Analysis coverage
+  9 of 9 changed packages analyzed (100%)
+
+Decision: NEEDS_APPROVAL
+  fast-jwt@5.0.6 has a postinstall script
+
+Next action
+  warden approve-script fast-jwt@5.0.6 --hook postinstall`;
+
+const transactionSteps = [
+  {
+    step: "01",
+    command: "warden plan -- npm install @fastify/jwt",
+    body: "Resolve the complete prospective graph from registry metadata. Nothing is downloaded, unpacked, or executed to build it. Every added or changed package is vetted, transitive ones included.",
+  },
+  {
+    step: "02",
+    command: "warden approve-script fast-jwt@5.0.6 --hook postinstall",
+    body: "One transitive package wants to run code at install time. Approve that exact hook, bound to the version, the tarball integrity, and a hash of the script body. Any of those changing voids it.",
+  },
+  {
+    step: "03",
+    command: "warden apply wtxn_0a1b2c3d",
+    body: "Install through your own package manager with lifecycle scripts suppressed natively, run your tests, typecheck, and build, and roll the manifest back if anything fails.",
+  },
+  {
+    step: "04",
+    command: "warden ci --require-transaction-receipt",
+    body: "The receipt records both graph digests and every verdict. CI fails a pull request whose dependency graph changed without a receipt that verifies against the committed lockfile.",
+  },
+];
+
 const doctorSample = `2 issue(s) found, 2 affect production
   critical  acme-http@1.0.0 [GHSA-ACME-HTTP-0001]
     request smuggling via keep-alive handling (fixed in 1.0.1)
@@ -101,17 +147,17 @@ export default function HomePage() {
             <div>
               <p className="inline-flex items-center gap-2 text-[12.5px] font-semibold tracking-[0.16em] text-mint uppercase">
                 <span className="block h-1.5 w-1.5 rounded-full bg-mint" />
-                Package trust, before execution
+                Plan, approve, install, verify
               </p>
               <h1 className="mt-5 text-4xl leading-[1.05] font-bold tracking-tight text-white sm:text-5xl lg:text-[3.4rem]">
-                Nothing runs
+                Safe dependency changes
                 <br />
-                without a <em className="text-coral not-italic">verdict.</em>
+                for humans and <em className="text-coral not-italic">coding agents.</em>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-fog">
-                Warden checks a package before it installs or executes. It verifies the artifact,
-                reads what changed between versions, scans the code, and stops a risky release
-                before a lifecycle script ever gets control.
+                Warden previews the complete package graph, blocks unapproved install scripts and
+                suspicious releases, verifies the project, and gives Claude Code or Codex an
+                actionable path forward.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -128,7 +174,11 @@ export default function HomePage() {
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2.5 text-[13px] text-fog">
-                {["Deterministic verdicts", "Stable exit codes", "Evidence in every result"].map(
+                {[
+                  "Complete graph delta, not only the name you typed",
+                  "Same policy in your terminal, agent, and CI",
+                  "Narrow approvals and verified receipts",
+                ].map(
                   (item) => (
                     <span key={item} className="flex items-center gap-2">
                       <span className="block h-1 w-1 rounded-full bg-mint" />
@@ -155,6 +205,64 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-white/10 bg-navy-soft/30">
+        <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8">
+          <Reveal>
+            <p className="text-[12.5px] font-semibold tracking-[0.16em] text-mint uppercase">
+              Every dependency change is a transaction
+            </p>
+            <h2 className="mt-4 max-w-3xl text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              You typed one package name. Seven more arrived with it, and one of them wanted to run
+              code.
+            </h2>
+            <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
+              Checking only the name on the command line leaves the rest of the graph unexamined.
+              Warden plans the whole change, then makes you approve exactly the part that executes.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-start">
+            <div className="flex flex-col gap-4">
+              {transactionSteps.map((entry, position) => (
+                <Reveal key={entry.step} delay={position * 80}>
+                  <article className="rounded-2xl border border-white/12 bg-navy-soft/50 p-5">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-mono text-[12px] text-mint">{entry.step}</span>
+                      <code className="font-mono text-[13px] break-all text-white">
+                        {entry.command}
+                      </code>
+                    </div>
+                    <p className="mt-2.5 text-[14.5px] leading-relaxed text-fog">{entry.body}</p>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={140}>
+              <Terminal output={planSample} />
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link
+                  href="/docs/transactions"
+                  className="text-sm font-medium text-mint transition hover:text-white"
+                >
+                  How transactions work →
+                </Link>
+                <Link
+                  href="/docs/coverage"
+                  className="text-sm font-medium text-mint transition hover:text-white"
+                >
+                  What is actually protected →
+                </Link>
+                <Link
+                  href="/docs/limitations"
+                  className="text-sm font-medium text-mint transition hover:text-white"
+                >
+                  What this does not cover →
+                </Link>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
