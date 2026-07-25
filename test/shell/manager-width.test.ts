@@ -39,6 +39,16 @@ printf '\n' >> "$MANAGER_LOG"
 exit "\${MANAGER_EXIT:-0}"
 `;
   const wardenStub = `#!/bin/sh
+if [ "$1" = "shim-transaction" ]; then
+  if [ -n "$WARDEN_TRANSACTION" ]; then
+    printf '%s
+' "$WARDEN_TRANSACTION"
+  else
+    printf '{"decision":"allow","exit":0,"pendingScripts":[],"reasons":[]}
+'
+  fi
+  exit 0
+fi
 if [ "$1" = "shim-plan" ]; then
   printf '%s\n' "$WARDEN_PLAN"
   exit 0

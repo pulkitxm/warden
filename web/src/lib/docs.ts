@@ -760,7 +760,7 @@ The installer places shims in front of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`n
 - Corepack resolving a manager binary directly
 - a shell script that downloads and runs code without any package manager involved
 
-Run \`warden coverage\` for the full matrix of what is mediated, and \`warden integrations doctor\` to check that the shims are actually in front of your tools on this machine.
+Run \`warden coverage\` for the full matrix of what is mediated, and \`warden integrations doctor\` to check that the shims are actually in front of your tools on this machine. When a shim does mediate a command, it gates the whole prospective graph rather than only the package names you typed, so a malicious transitive dependency is caught at the same point a direct one is.
 
 The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fails a pull request whose dependency graph changed without a receipt that verifies against the committed lockfile. That check does not depend on anything having worked locally.
 
