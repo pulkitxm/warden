@@ -10,9 +10,11 @@ import type { IntentReport } from "../intent/types.ts";
 import {
   ANALYZER_VERSION,
   type CiFinding,
+  DOCTOR_JSON_SCHEMA,
   EXIT,
   exitCodeFor,
   FINDINGS_JSON_SCHEMA,
+  INTENT_JSON_SCHEMA,
   SCHEMA_VERSION,
   VERDICT_JSON_SCHEMA,
   type Verdict,
@@ -266,18 +268,27 @@ function directDeps(deps: RunDeps): string[] {
   }
 }
 
+const DOCTOR_OPTIONS = {
+  json: { type: "boolean" },
+  "no-apply": { type: "boolean" },
+  "no-verify": { type: "boolean" },
+  dir: { type: "string" },
+  help: { type: "boolean" },
+} as const;
+
 async function runDoctorCommand(
+  tool: string,
   values: { json?: boolean; "no-apply"?: boolean; "no-verify"?: boolean; dir?: string },
   deps: RunDeps,
 ): Promise<number> {
-  return guarded("wnpm doctor", deps, async () => {
+  return guarded(tool, deps, async () => {
     const doctor = deps.doctor ?? runDoctor;
     const report = await doctor(values.dir ?? ".", {
       apply: !values["no-apply"],
       ...(values["no-verify"] ? { verify: false } : {}),
     });
     if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
-    else deps.stderr(renderDoctorReport(report));
+    else deps.stderr(renderDoctorReport(report, tool));
     if (!report.issues.length) {
       return report.audited === 0 && report.skipped > 0 ? EXIT.error : 0;
     }
@@ -338,7 +349,7 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     deps.stderr(WNPM_HELP);
     return 0;
   }
-  if (verb === "doctor") return runDoctorCommand(values, deps);
+  if (verb === "doctor") return runDoctorCommand("wnpm doctor", values, deps);
   if (verb && !["install", "add", "i"].includes(verb)) {
     deps.stderr(`wnpm: unknown command "${verb}"\n`);
     return 2;
@@ -803,12 +814,24 @@ function renderDetection(manifest: DetectionManifest): string {
   return `${heading} · ${manager} · ${manifest.topology.runtime} · ${manifest.packages.length} package${manifest.packages.length === 1 ? "" : "s"}\n\n${rows}\n\nevidence:\n  topology     ${manifest.topology.evidence.join(", ")}\n${evidence}\n`;
 }
 
+const SCHEMAS: Record<string, unknown> = {
+  check: VERDICT_JSON_SCHEMA,
+  ci: FINDINGS_JSON_SCHEMA,
+  doctor: DOCTOR_JSON_SCHEMA,
+  intent: INTENT_JSON_SCHEMA,
+};
+
+const SCHEMA_VERBS = Object.keys(SCHEMAS);
+
 function runWardenSchema(argv: string[], deps: WardenDeps): number {
   const verb = argv[0] ?? "check";
-  if (verb === "check" || verb === "ci") {
-    deps.stdout(
-      `${JSON.stringify(verb === "check" ? VERDICT_JSON_SCHEMA : FINDINGS_JSON_SCHEMA, null, 2)}\n`,
-    );
+  if (verb === "list") {
+    deps.stdout(`${JSON.stringify({ schema_version: SCHEMA_VERSION, schemas: SCHEMA_VERBS })}\n`);
+    return EXIT.allow;
+  }
+  const schema = SCHEMAS[verb];
+  if (schema) {
+    deps.stdout(`${JSON.stringify(schema, null, 2)}\n`);
     return EXIT.allow;
   }
   return wardenFailure(
@@ -817,7 +840,7 @@ function runWardenSchema(argv: string[], deps: WardenDeps): number {
     "usage",
     "WARDEN_UNKNOWN_SCHEMA",
     `no schema for verb "${verb}"`,
-    "run warden schema --help",
+    `known schemas: ${SCHEMA_VERBS.join(", ")}`,
   );
 }
 
@@ -1394,6 +1417,21 @@ async function runWardenSelectManagers(argv: string[], deps: WardenDeps): Promis
   }
 }
 
+async function runWardenDoctor(argv: string[], deps: WardenDeps): Promise<number> {
+  const parsed = parseArgsSafe({ args: argv, options: DOCTOR_OPTIONS, allowPositionals: true });
+  if (!parsed || parsed.positionals.length) {
+    return wardenFailure(
+      deps,
+      argv.includes("--json"),
+      "usage",
+      "WARDEN_DOCTOR_USAGE",
+      "doctor takes no positional arguments",
+      "run warden doctor --help",
+    );
+  }
+  return runDoctorCommand("warden doctor", parsed.values, deps);
+}
+
 function runWardenVersion(_argv: string[], deps: WardenDeps): number {
   deps.stdout(`${ANALYZER_VERSION}\n`);
   return EXIT.allow;
@@ -1437,6 +1475,20 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 clean · 10 warn · 20 block · 30 error",
     example: "warden ci --reporter github --base origin/main",
     run: runWardenCi,
+  },
+  {
+    name: "doctor",
+    description: "audit dependencies for CVEs, gate the fixes, verify, and apply",
+    flags: [
+      { name: "--dir", valueHint: "<path>", description: "project directory (default .)" },
+      { name: "--json", description: "write the doctor report JSON to stdout" },
+      { name: "--no-apply", description: "report and plan only, do not modify package.json" },
+      { name: "--no-verify", description: "skip isolated-workspace verification of plans" },
+      helpFlag,
+    ],
+    exitCodes: "0 clean or fully fixed · 10 unresolved issues · 30 error",
+    example: "warden doctor --no-apply --json",
+    run: runWardenDoctor,
   },
   {
     name: "intent",
@@ -1512,10 +1564,13 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   {
     name: "schema",
     description: "print the JSON schema for structured output",
-    positional: { kind: "[check|ci]" },
+    positional: {
+      kind: "[check|ci|doctor|intent|list]",
+      values: ["check", "ci", "doctor", "intent", "list"],
+    },
     flags: [helpFlag],
-    exitCodes: "0 success",
-    example: "warden schema ci",
+    exitCodes: "0 success · 30 error",
+    example: "warden schema doctor",
     run: runWardenSchema,
   },
   {
