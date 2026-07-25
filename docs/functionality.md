@@ -34,7 +34,7 @@ docs: https://github.com/pulkitxm/warden
 `install.sh` detects the OS, architecture, and shell, finds the package managers on PATH, installs the three binaries to `~/.warden/bin`, copies shims over the managers you have, wires PATH and completions into the shell rc, and links into `/usr/local/bin` when it can. It prompts once for the protection mode.
 
 ```
-$ sh install.sh
+$ sh web/public/install.sh
 
 warden installer
 

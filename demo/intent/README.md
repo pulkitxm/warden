@@ -9,7 +9,7 @@ A three-minute demo of `warden intent`, verifying that an agent's diff actually 
 
 ## Run it
 
-Needs `warden` on your `PATH` (`sh install.sh`), or run the commands below via `./dist/warden` from the repo root after `bun run build`.
+Needs `warden` on your `PATH` (`sh web/public/install.sh`), or run the commands below via `./dist/warden` from the repo root after `bun run build`.
 
 ```sh
 sh demo/intent/setup.sh
