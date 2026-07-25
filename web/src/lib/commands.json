@@ -426,6 +426,25 @@
     "example": "warden baseline record left-pad@1.3.0"
   },
   {
+    "name": "benchmark",
+    "description": "measure detection and false positives against the published corpora",
+    "positional": null,
+    "flags": [
+      {
+        "name": "--json",
+        "description": "write the benchmark report to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 every case matched · 20 a case regressed",
+    "example": "warden benchmark --json"
+  },
+  {
     "name": "coverage",
     "description": "print which package-manager commands warden mediates",
     "positional": null,
