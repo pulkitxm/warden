@@ -85,6 +85,89 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  apply: {
+    intro:
+      "Executes a plan that has already been decided. `warden apply` installs with lifecycle scripts suppressed at the package manager level, refuses to proceed while any new install script is unapproved, runs the project's own verification, rolls back on failure, and writes a transaction receipt.",
+    whenToUse: [
+      "After `warden plan` returned a decision you accept.",
+      "In an agent loop, as the only step permitted to change the dependency graph.",
+      "When you want an installation whose outcome is recorded rather than assumed.",
+    ],
+    examples: [
+      { command: "warden apply wtxn_0a1b2c3d", description: "Apply a plan by its id." },
+      {
+        command: "warden apply wtxn_0a1b2c3d --no-verify",
+        description: "Install without running the project's test, typecheck, and build scripts.",
+      },
+      {
+        command: "warden apply wtxn_0a1b2c3d --json",
+        description: "The receipt on stdout, for CI or an agent to store.",
+      },
+    ],
+    behaviour:
+      "Scripts stay suppressed for the whole install, including for packages whose scripts are approved: approval governs whether the transaction may proceed, not whether Warden hands execution to arbitrary code mid-install. Suppression uses each manager's own mechanism. After a successful install the project's `test`, `typecheck`, and `build` scripts run in that order, stopping at the first failure, and any failure restores `package.json`. The receipt lands in `.warden/receipts/` and is mirrored to `.warden/last-receipt.json`.",
+    gotchas: [
+      "A blocked plan is refused outright. There is no flag that turns a block into an install.",
+      "`--allow-unapproved` proceeds past missing script approvals, but the receipt still records every suppressed script, so the bypass is visible afterwards.",
+      "The plan must still be on disk. Re-run `warden plan` if `.warden/plans/` was cleaned.",
+    ],
+  },
+
+  "approve-script": {
+    intro:
+      "A narrow, revocable approval for exactly one lifecycle script. It replaces the blunt instrument of allowing risk in general with a record of what was reviewed: this package, at this version, from this tarball, at this hook, with this script body.",
+    whenToUse: [
+      "When a plan reports `NEEDS_APPROVAL` and you have read the script it names.",
+      "For a build tool your project genuinely needs to compile a native binary at install time.",
+      "In a repository where the same approvals should apply to every contributor, using the repo scope.",
+    ],
+    examples: [
+      {
+        command: "warden approve-script esbuild@0.25.8 --hook postinstall",
+        description: "Approve one hook of one exact version for this repository.",
+      },
+      {
+        command: "warden approve-script sharp@0.33.5 --hook install --scope user",
+        description: "Approve for your machine rather than for the repository.",
+      },
+      {
+        command: 'warden approve-script esbuild@0.25.8 --hook postinstall --note "reviewed in PR 412"',
+        description: "Record why the approval exists, which is what makes it auditable later.",
+      },
+    ],
+    behaviour:
+      "The approval binds the package name, exact version, tarball integrity, hook name, and a hash of the normalized script body. Any change to any of those voids it, so a version bump or a republished tarball asks again rather than inheriting trust. Repo approvals live in `.warden/approvals.json` and are meant to be committed; user approvals live under your home directory.",
+    gotchas: [
+      "Approval is not execution. Warden still installs with scripts suppressed; the approval is what allows the transaction to proceed at all.",
+      "Only an exact published version can be approved. A range would defeat the point.",
+      "Re-approving the same package and hook replaces the previous record rather than stacking a second one.",
+    ],
+  },
+
+  verify: {
+    intro:
+      "Checks that the dependency graph sitting in the repository is the one a Warden transaction actually produced. This is the backstop for the honest admission that PATH shims can be bypassed: whatever happened locally, CI can still ask whether the committed graph carries a valid receipt.",
+    whenToUse: [
+      "In CI, through `warden ci --require-transaction-receipt`, on every pull request that touches dependencies.",
+      "After pulling a branch, to see whether its lockfile matches a recorded transaction.",
+      "When auditing a change after the fact and the local history is gone.",
+    ],
+    examples: [
+      { command: "warden verify", description: "Verify the most recent receipt." },
+      {
+        command: "warden verify wtxn_0a1b2c3d",
+        description: "Verify one specific transaction by id.",
+      },
+      { command: "warden verify --json", description: "The machine-readable verification report." },
+    ],
+    behaviour:
+      "The installed graph is digested from the lockfile and compared against the digest in the receipt. The policy digest is compared against the plan still on disk when one is present. The receipt's own result and verification steps are checked, and any artifact that was never analyzed fails coverage. All five checks must hold for the transaction to verify.",
+    gotchas: [
+      "A verified receipt says the committed graph matches a recorded, analyzed transaction. It does not prove that nothing ran outside Warden on the developer's machine.",
+      "Exit `20` means a mismatch, which is deliberately the same code as a blocked package: both mean do not merge this.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",

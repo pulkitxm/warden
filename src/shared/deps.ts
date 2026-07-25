@@ -12,6 +12,7 @@ export interface RunDeps {
 }
 
 export interface WardenDeps extends RunDeps {
+  spawnIn: (cmd: string[], cwd: string) => number;
   home: string;
   mkdir: (path: string) => unknown;
   writeFile: (path: string, data: string) => unknown;

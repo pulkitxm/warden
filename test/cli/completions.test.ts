@@ -46,7 +46,9 @@ test("bash completions define verb, flag, and shell completion", async () => {
   expect(script).toContain("COMP_CWORD == 1");
   expect(script).toContain("complete -F _warden warden");
   expect(script).toContain("bash zsh fish --help");
-  expect(script).toContain("--reporter --base --intent-prompt --help");
+  expect(script).toContain(
+    "--reporter --base --intent-prompt --require-transaction-receipt --help",
+  );
   expect(script).toContain("complete -F _wnpm wnpm");
   expect(script).toContain("--no-apply");
 });

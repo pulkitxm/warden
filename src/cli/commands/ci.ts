@@ -12,6 +12,7 @@ import { isQuiet } from "../../shared/output.ts";
 import { toSarif } from "../../shared/sarif.ts";
 import { type CheckSurface, runSurfaceAudit } from "./check.ts";
 import { jsonFile, type PackageJson } from "./detect.ts";
+import { readReceipt, verifyReceipt } from "./verify.ts";
 
 function dependencyMap(pkg: PackageJson): Record<string, string> {
   return { ...pkg.dependencies, ...pkg.devDependencies };
@@ -79,6 +80,44 @@ function annotationValue(value: string): string {
   return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 }
 
+const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock"];
+
+function receiptFindings(root: string, deps: WardenDeps, graphFiles: string[]): CiFinding[] {
+  const level = "block";
+  const file = graphFiles[0] as string;
+  const receipt = readReceipt(deps, root);
+  if (!receipt) {
+    return [
+      {
+        schema_version: SCHEMA_VERSION,
+        rule: "transaction-receipt",
+        package: "",
+        file,
+        level,
+        evidence: "the dependency graph changed but no warden transaction receipt was committed",
+        fix: "run warden plan and warden apply so the change carries a receipt",
+        verify: "warden verify",
+        seen_before: false,
+      },
+    ];
+  }
+  const report = verifyReceipt(receipt, deps);
+  if (report.verified) return [];
+  return report.checks
+    .filter((check) => !check.ok)
+    .map((check) => ({
+      schema_version: SCHEMA_VERSION,
+      rule: "transaction-receipt",
+      package: "",
+      file,
+      level,
+      evidence: `${check.name}: ${check.detail}`,
+      fix: "re-run warden plan and warden apply against the current graph",
+      verify: "warden verify",
+      seen_before: false,
+    }));
+}
+
 export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   const jsonReporter = argv.some(
     (arg, index) =>
@@ -94,6 +133,7 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         reporter: { type: "string", default: "summary" },
         base: { type: "string" },
         "intent-prompt": { type: "string" },
+        "require-transaction-receipt": { type: "boolean", default: false },
       },
     });
     if (
@@ -143,6 +183,12 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
       const report = runSurfaceAudit(trigger.surface, root, deps);
       for (const item of report.findings)
         if (item.level !== "allow") findings.push(surfaceFinding(item, failOn));
+    }
+    if (values["require-transaction-receipt"]) {
+      const graphFiles = changedFiles.filter(
+        (file) => file === "package.json" || LOCKFILES.some((lock) => file.endsWith(lock)),
+      );
+      if (graphFiles.length) findings.push(...receiptFindings(root, deps, graphFiles));
     }
     const promptPath = join(root, ".warden", "prompt.txt");
     const intentPrompt =

@@ -18,6 +18,8 @@ export const defaultDeps: RunDeps = {
 export const defaultWardenDeps: WardenDeps = {
   ...defaultDeps,
   home: homedir(),
+  spawnIn: (cmd: string[], cwd: string) =>
+    Bun.spawnSync(cmd, { cwd, stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
   mkdir: (path) => mkdirSync(path, { recursive: true }),
   writeFile: writeFileSync,
   exists: existsSync,
