@@ -1,10 +1,8 @@
 import type { DoctorReport } from "../doctor/index.ts";
 import type { Verdict } from "../schema.ts";
+import { bold, c, dim } from "../shared/ansi.ts";
 
-const color = process.stderr.isTTY && !process.env.NO_COLOR;
-const c = (code: string, s: string) => (color ? `\x1b[${code}m${s}\x1b[0m` : s);
-export const bold = (s: string) => c("1", s);
-export const dim = (s: string) => c("2", s);
+export { bold, dim } from "../shared/ansi.ts";
 
 function badge(v: Verdict["verdict"], s: string): string {
   if (v === "block") return c("31", s);

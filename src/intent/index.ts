@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { gitResult, resolveMergeBase, type WardenDeps, wardenFailure } from "../cli/main.ts";
 import { EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
+import type { WardenDeps } from "../shared/deps.ts";
+import { wardenFailure } from "../shared/errors.ts";
+import { gitResult, resolveMergeBase } from "../shared/git.ts";
 import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
 import { extractClaims } from "./extract.ts";
 import { decide, keywordPass, llmPass } from "./match.ts";
