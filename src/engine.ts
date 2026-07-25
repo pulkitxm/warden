@@ -8,6 +8,7 @@ import { explain } from "./llm.ts";
 import { fetchTarball, resolvePackage } from "./registry.ts";
 import { ANALYZER_VERSION, SCHEMA_VERSION, type Verdict } from "./schema.ts";
 import { score } from "./score.ts";
+import { quarantine } from "./shared/untrusted.ts";
 import { readTgz } from "./tar.ts";
 
 export interface EngineDeps {
@@ -152,7 +153,15 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
   });
 
   const { summary } = await explain(base);
-  const verdict: Verdict = { ...base, summary };
+  const untrusted = quarantine({
+    description: meta.description,
+    deprecated_message: meta.deprecatedMessage,
+    maintainers: meta.maintainers.join(", "),
+    install_scripts: Object.entries(meta.scripts ?? {})
+      .map(([hook, command]) => `${hook}: ${command}`)
+      .join(" | "),
+  });
+  const verdict: Verdict = { ...base, summary, ...(untrusted ? { untrusted } : {}) };
 
   if (integrity) cache.set(integrity, verdict, Date.now());
   return verdict;

@@ -86,6 +86,7 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   },
   {
     name: "ci",
+    learnMore: "ci",
     description: "run all checks against the merge-base diff",
     flags: [
       {
@@ -107,6 +108,7 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   },
   {
     name: "doctor",
+    learnMore: "doctor",
     description: "audit dependencies for CVEs, gate the fixes, verify, and apply",
     flags: [
       { name: "--dir", valueHint: "<path>", description: "project directory (default .)" },
@@ -121,6 +123,7 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   },
   {
     name: "intent",
+    learnMore: "intent",
     description: "verify the diff does what the prompt asked",
     positional: { kind: "[check|extract|diff|symbols|schema]" },
     flags: [
@@ -163,6 +166,7 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   },
   {
     name: "config",
+    learnMore: "configuration",
     description: "read or set user-level settings (mode, intercept, agent)",
     positional: { kind: "[mode|intercept] [value...]" },
     flags: [{ name: "--json", description: "write config JSON to stdout" }, helpFlag],
@@ -192,6 +196,7 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   },
   {
     name: "schema",
+    learnMore: "schemas",
     description: "print the JSON schema for structured output",
     positional: {
       kind: "[check|ci|audit|doctor|intent|list]",

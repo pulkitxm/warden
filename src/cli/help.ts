@@ -9,6 +9,7 @@ export interface CommandFlag {
 export interface CommandDefinition {
   name: string;
   description: string;
+  learnMore?: string;
   flags: readonly CommandFlag[];
   positional?: { kind: string; values?: readonly string[] };
   exitCodes: string;
@@ -16,6 +17,8 @@ export interface CommandDefinition {
   hidden?: boolean;
   run: (argv: string[], deps: WardenDeps) => number | Promise<number>;
 }
+
+export const DOCS_BASE = "https://warden.pulkit.page/docs";
 
 const visible = (commands: readonly CommandDefinition[]) =>
   commands.filter((command) => !command.hidden);
@@ -27,7 +30,7 @@ export function renderWardenHelp(commands: readonly CommandDefinition[]): string
   const rows = visible(commands)
     .map((command) => `  ${command.name.padEnd(width)}  ${command.description}`)
     .join("\n");
-  return `warden: vets packages and enforces repo policy before code runs\n\nusage: warden <verb> [flags]\n\n${rows}\n\nexit codes: 0 allow · 10 warn · 20 block · 30 error\ndocs: https://github.com/pulkitxm/warden\n`;
+  return `warden: vets packages and enforces repo policy before code runs\n\nusage: warden <verb> [flags]\n\n${rows}\n\nglobal flags: --json  --no-color  --quiet  --verbose  -h  -v\n\nexit codes: 0 allow · 10 warn · 20 block · 30 error\ndocs: https://warden.pulkit.page/docs\n`;
 }
 
 export function renderCommandHelp(command: CommandDefinition): string {
@@ -46,7 +49,8 @@ export function renderCommandHelp(command: CommandDefinition): string {
       return `  ${label.padEnd(width)}  ${flag.description}`;
     })
     .join("\n");
-  return `warden ${command.name}: ${command.description}\n\n${usage}\n\n${flags}\n\nexit codes: ${command.exitCodes}\nexample: ${command.example}\n`;
+  const learnMore = `${DOCS_BASE}/${command.learnMore ?? `cli/${command.name}`}`;
+  return `warden ${command.name}: ${command.description}\n\n${usage}\n\n${flags}\n\nexit codes: ${command.exitCodes}\nexample: ${command.example}\nlearn more: ${learnMore}\n`;
 }
 
 const WNPM_COMPLETIONS = [

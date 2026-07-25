@@ -24,11 +24,14 @@ export interface PackageMeta {
   previousTarballUrl?: string;
   scripts?: Record<string, string>;
   previousScripts?: Record<string, string>;
+  description?: string;
+  deprecatedMessage?: string;
 }
 
 interface PackVersion {
   version: string;
   scripts?: Record<string, string>;
+  description?: string;
   deprecated?: string;
   dist?: { tarball?: string; integrity?: string; attestations?: unknown };
   _npmUser?: { name?: string; email?: string };
@@ -36,6 +39,7 @@ interface PackVersion {
 }
 interface Packument {
   name: string;
+  description?: string;
   "dist-tags"?: Record<string, string>;
   time?: Record<string, string>;
   versions?: Record<string, PackVersion>;
@@ -136,6 +140,8 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
     weeklyDownloads: weekly.value,
     downloadsUnknown: weekly.unknown,
     deprecated: Boolean(vd.deprecated),
+    description: vd.description ?? pack.description,
+    deprecatedMessage: typeof vd.deprecated === "string" ? vd.deprecated : undefined,
     tarballUrl: vd.dist?.tarball,
     integrity: vd.dist?.integrity,
     previousTarballUrl: prevData?.dist?.tarball,

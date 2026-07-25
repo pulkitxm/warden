@@ -13,7 +13,7 @@ These are hard rules, not polish:
 - **Typed error envelopes.** Failures emit `{ "error": { "kind", "code", "reason", "hint" } }` so agents branch on `error.kind`, never on parsed English.
 - **Self-describing schemas.** `wnpx --schema` exists; extend to `warden schema <verb>` with a `schema_version` field so agents detect breaking changes.
 - **Every finding teaches the fix.** A finding is never just "this is bad": it carries `evidence`, `fix` (concrete next action), and `verify` (the command that confirms the fix).
-- **Untrusted text is quarantined.** Registry-sourced strings (package descriptions, script bodies, README excerpts) are attacker-controlled and warden pipes them to agents. Every such string in JSON output is carried under an `untrusted` key and sanitized of ANSI, zero-width, and bidi characters. A security tool must not be a prompt-injection vector.
+- **Untrusted text is quarantined.** Registry-sourced strings (package descriptions, script bodies, README excerpts) are attacker-controlled and warden pipes them to agents. Every such string in verdict JSON is carried under the optional `untrusted` key and sanitized of ANSI escapes, zero-width characters, bidi overrides, and control characters, then truncated to 400 characters. A security tool must not be a prompt-injection vector.
 - **Stable exit codes.** 0 allow, 10 warn, 20 block, 30 analysis error, on every verb, forever.
 
 Help output sketch:

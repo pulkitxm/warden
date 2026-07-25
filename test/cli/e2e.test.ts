@@ -79,7 +79,9 @@ function expectEvidenceShape(evidence: Evidence) {
 }
 
 function expectVerdictShape(value: Verdict) {
-  expect(Object.keys(value).sort()).toEqual([...VERDICT_JSON_SCHEMA.required].sort());
+  for (const key of VERDICT_JSON_SCHEMA.required) expect(value).toHaveProperty(key);
+  const allowed = Object.keys(VERDICT_JSON_SCHEMA.properties);
+  for (const key of Object.keys(value)) expect(allowed).toContain(key);
   expect(value.schema_version).toBe(VERDICT_JSON_SCHEMA.properties.schema_version.const);
   expect(typeof value.package).toBe("string");
   expect(typeof value.version).toBe("string");

@@ -3,6 +3,7 @@ import { EXIT } from "../schema.ts";
 import { setColor } from "../shared/ansi.ts";
 import type { WardenDeps } from "../shared/deps.ts";
 import { wardenFailure } from "../shared/errors.ts";
+import { setVerbosity } from "../shared/output.ts";
 import { defaultWardenDeps } from "./deps.ts";
 import { renderCommandHelp, renderWardenHelp } from "./help.ts";
 import { COMMAND_REGISTRY, runWardenVersion } from "./registry.ts";
@@ -46,6 +47,9 @@ export async function runWarden(
     setColor(false);
     argv = argv.filter((arg) => arg !== "--no-color");
   }
+  if (argv.includes("--quiet")) setVerbosity("quiet");
+  else if (argv.includes("--verbose")) setVerbosity("verbose");
+  argv = argv.filter((arg) => arg !== "--quiet" && arg !== "--verbose");
   if (argv[0] === "--version" || argv[0] === "-v") return runWardenVersion(argv.slice(1), deps);
   if (!argv.length || argv[0] === "--help" || argv[0] === "help" || argv[0] === "-h") {
     deps.stderr(renderWardenHelp(COMMAND_REGISTRY));

@@ -24,7 +24,14 @@ test("Verdict type keys match JSON Schema required keys", () => {
   const typeKeys = Object.keys(sample).sort();
   const schemaKeys = [...VERDICT_JSON_SCHEMA.required].sort();
   expect(typeKeys).toEqual(schemaKeys);
-  expect(Object.keys(VERDICT_JSON_SCHEMA.properties).sort()).toEqual(schemaKeys);
+  expect(Object.keys(VERDICT_JSON_SCHEMA.properties).sort()).toEqual(
+    [...schemaKeys, "untrusted"].sort(),
+  );
+});
+
+test("untrusted is optional so the verdict contract stays backwards compatible", () => {
+  expect([...VERDICT_JSON_SCHEMA.required]).not.toContain("untrusted");
+  expect(VERDICT_JSON_SCHEMA.properties.untrusted.additionalProperties.type).toBe("string");
 });
 
 test("category enum in schema matches CATEGORIES", () => {
