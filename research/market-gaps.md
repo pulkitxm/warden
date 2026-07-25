@@ -16,7 +16,7 @@ The remediation the field converged on is exactly a diff-scoped registry-policy 
 
 **Warden coverage:** shipped. `warden check lockfile` flags `lockfile_missing_integrity` (block), `lockfile_lookalike_registry` (block), `lockfile_off_registry_host` (block), `lockfile_insecure_transport` (block), plus `sha1` and git/file-path warnings. `warden ci` runs it automatically when a lockfile appears in the merge-base diff. Warden reads npm-format lockfiles today and says so in `notes` for other formats rather than reporting a clean result it did not earn.
 
-**Remaining gap:** pnpm and yarn lockfile parsing. Given CVE-2026-50021 is a *pnpm* bug, this is the highest-value next parser, not a nice-to-have.
+**Update:** pnpm and yarn parsing shipped, so CVE-2026-50021's precondition is now detectable in the format it actually affects. Bun lockfiles remain unsupported and say so in `notes`.
 
 ### Agents do one check: does the name resolve
 
@@ -72,7 +72,7 @@ Snyk shipping `agent-scan` in 2026 confirms the direction of travel: agent compo
 | "A lookalike registry harvested our token" | Human, CI | `check config` | Shipped | n/a | `npmjs.help` and `npm-js.org` cases; assert the secret is never echoed |
 | "My agent installed a package that does not exist" | Agent | `slopsquat`, hallucinated intel, `wnpx` refusal | Shipped | n/a | Curated-name fixtures |
 | "Did the agent do what I asked?" | Agent, reviewer | `intent check` | Shipped | n/a | Dropped-claim and scope-creep fixtures |
-| pnpm / yarn lockfiles unparsed | Human, CI | Reported as unsupported in `notes` | **Add pnpm and yarn lockfile parsers**; CVE-2026-50021 is a pnpm bug | **High** | Reuse the existing rule table against parsed entries; same fixtures per format |
+| pnpm / yarn lockfiles unparsed | Human, CI | `check lockfile` parses npm, pnpm, and yarn | Shipped; Bun lockfiles remain unsupported and are noted | n/a | Real lockfile fixtures per format against the shared rule table |
 | Provenance downgrade is buried in JSON | Human | `provenance_downgrade` category | Surface it prominently in human verdict output | Medium | Snapshot the rendered verdict for a downgraded package |
 | Hallucinated-name intel goes stale | Agent | Static curated list | Documented refresh process with tests | Medium | Schema test over the intel file; freshness metadata |
 | Unknown verb is a dead end | Human | Error names the verb only | Suggest the closest verb | Medium | Table of typos to expected suggestion |
