@@ -7,6 +7,7 @@ import { worstLevel } from "../../audit/types.ts";
 import { exitCodeFor } from "../../schema.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
+import { isQuiet } from "../../shared/output.ts";
 import { renderAuditReport, renderLine, renderVerdict } from "../ui.ts";
 
 export const CHECK_SURFACES = ["lockfile", "scripts", "config"] as const;
@@ -50,7 +51,7 @@ export async function runWardenCheck(argv: string[], deps: WardenDeps): Promise<
       }
       const report = runSurfaceAudit(surface, values.dir ?? deps.cwd(), deps);
       if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
-      else deps.stderr(renderAuditReport(report));
+      else if (!isQuiet()) deps.stderr(renderAuditReport(report));
       const level = worstLevel(report.findings);
       return exitCodeFor(level === "block" && values["allow-risky"] ? "warn" : level);
     }
@@ -67,10 +68,9 @@ export async function runWardenCheck(argv: string[], deps: WardenDeps): Promise<
     const verdicts = await Promise.all(positionals.map((spec) => deps.check(spec)));
     if (values.json) {
       deps.stdout(`${JSON.stringify(verdicts.length === 1 ? verdicts[0] : verdicts)}\n`);
-    } else if (verdicts.length === 1) {
-      deps.stderr(renderVerdict(verdicts[0]!));
-    } else {
-      for (const verdict of verdicts) deps.stderr(`${renderLine(verdict)}\n`);
+    } else if (!isQuiet()) {
+      if (verdicts.length === 1) deps.stderr(renderVerdict(verdicts[0]!));
+      else for (const verdict of verdicts) deps.stderr(`${renderLine(verdict)}\n`);
     }
     const level = verdicts.some((v) => v.verdict === "block")
       ? "block"

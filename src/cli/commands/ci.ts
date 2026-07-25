@@ -8,6 +8,7 @@ import { type CiFinding, exitCodeFor, SCHEMA_VERSION, type Verdict } from "../..
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { gitResult, resolveMergeBase } from "../../shared/git.ts";
+import { isQuiet } from "../../shared/output.ts";
 import { type CheckSurface, runSurfaceAudit } from "./check.ts";
 import { jsonFile, type PackageJson } from "./detect.ts";
 
@@ -175,8 +176,10 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         `${JSON.stringify({ findings, ...(intent ? { intent } : {}), verdict: level, exit })}\n`,
       );
     else {
-      deps.stderr(ciSummary(findings, mergeBase.slice(0, 12), work.length));
-      if (intent) deps.stderr(`  intent  ${intentSummaryLine(intent)}\n`);
+      if (!isQuiet()) {
+        deps.stderr(ciSummary(findings, mergeBase.slice(0, 12), work.length));
+        if (intent) deps.stderr(`  intent  ${intentSummaryLine(intent)}\n`);
+      }
       if (values.reporter === "github") {
         for (const finding of findings) {
           const command = finding.level === "block" ? "error" : "warning";

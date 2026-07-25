@@ -3,6 +3,7 @@ import { EXIT } from "../../schema.ts";
 import { parseArgsSafe } from "../../shared/args.ts";
 import type { RunDeps, WardenDeps } from "../../shared/deps.ts";
 import { guarded, wardenFailure } from "../../shared/errors.ts";
+import { isQuiet } from "../../shared/output.ts";
 import { renderDoctorReport } from "../ui.ts";
 
 const DOCTOR_OPTIONS = {
@@ -25,7 +26,7 @@ export async function runDoctorCommand(
       ...(values["no-verify"] ? { verify: false } : {}),
     });
     if (values.json) deps.stdout(`${JSON.stringify(report)}\n`);
-    else deps.stderr(renderDoctorReport(report, tool));
+    else if (!isQuiet()) deps.stderr(renderDoctorReport(report, tool));
     if (!report.issues.length) {
       return report.audited === 0 && report.skipped > 0 ? EXIT.error : 0;
     }

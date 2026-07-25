@@ -2,6 +2,7 @@ import type { AuditReport } from "../audit/types.ts";
 import type { DoctorReport } from "../doctor/index.ts";
 import type { Verdict } from "../schema.ts";
 import { bold, c, dim } from "../shared/ansi.ts";
+import { isVerbose } from "../shared/output.ts";
 
 export { bold, dim } from "../shared/ansi.ts";
 
@@ -36,11 +37,13 @@ export function renderVerdict(v: Verdict): string {
   for (const headline of HEADLINE_CATEGORIES) {
     if (v.categories.includes(headline.category)) lines.push(`  ${c("31", headline.note)}`);
   }
-  for (const e of v.evidence.slice(0, 6)) {
+  for (const e of isVerbose() ? v.evidence : v.evidence.slice(0, 6)) {
     lines.push(
       `  ${badge(v.verdict, "•")} ${e.detail}${e.file && e.file !== "-" ? dim(` (${e.file})`) : ""}`,
     );
   }
+  if (!isVerbose() && v.evidence.length > 6)
+    lines.push(dim(`  ${v.evidence.length - 6} more signal(s), rerun with --verbose`));
   lines.push("");
   lines.push(`  ${bold("verdict:")} ${v.summary}`);
   if (v.verdict === "block")
