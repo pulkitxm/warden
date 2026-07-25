@@ -16,7 +16,6 @@
     "check-comments": "bun scripts/strip-comments.mjs --check",
     "format": "biome format --write .",
     "lint": "biome check --error-on-warnings .",
-    "record:presentation": "bun scripts/record-presentation.ts",
     "test": "bun test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
