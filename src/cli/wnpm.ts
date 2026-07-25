@@ -2,9 +2,19 @@ import { EXIT, exitCodeFor, VERDICT_JSON_SCHEMA, type Verdict } from "../schema.
 import { parseArgsSafe } from "../shared/args.ts";
 import type { RunDeps } from "../shared/deps.ts";
 import { guarded } from "../shared/errors.ts";
+import { detectManager, installCommand } from "../shared/manager.ts";
 import { runDoctorCommand } from "./commands/doctor.ts";
 import { defaultDeps } from "./deps.ts";
 import { bold, dim, renderLine, renderVerdict } from "./ui.ts";
+
+function existsFor(deps: RunDeps, path: string): boolean {
+  try {
+    deps.readFile(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function directDeps(deps: RunDeps): string[] {
   try {
@@ -106,40 +116,54 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
       return EXIT.block;
     }
 
-    const pm = ["pnpm", "bun", "npm"].find((p) => deps.which(p)) ?? "npm";
-    const installArgs =
-      pm === "bun" ? ["install", ...explicit] : ["install", "--ignore-scripts", ...explicit];
-    deps.stderr(dim(`\nvetted; installing via ${pm} with lifecycle scripts disabled...\n`));
-    return deps.spawn([pm, ...installArgs]);
+    const detection = detectManager(
+      { readFile: deps.readFile, exists: (path) => existsFor(deps, path), which: deps.which },
+      ".",
+    );
+    const command = installCommand(detection.manager, explicit, true);
+    deps.stderr(
+      dim(
+        `\nvetted; installing via ${detection.manager} (${detection.evidence}) with lifecycle scripts disabled...\n`,
+      ),
+    );
+    return deps.spawn(command);
   });
 }
 
 export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const parsed = parseArgsSafe({
-    args: argv,
-    options: {
-      json: { type: "boolean" },
-      "allow-risky": { type: "boolean" },
-      schema: { type: "boolean" },
-    },
-    allowPositionals: true,
-  });
-  if (!parsed) {
-    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
-    return 2;
+  const own = new Set(["--json", "--allow-risky", "--schema"]);
+  const values = { json: false, "allow-risky": false, schema: false };
+  let specIndex = -1;
+
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index] as string;
+    if (!arg.startsWith("-")) {
+      if (specIndex === -1) specIndex = index;
+      continue;
+    }
+    if (own.has(arg)) {
+      if (arg === "--json") values.json = true;
+      if (arg === "--allow-risky") values["allow-risky"] = true;
+      if (arg === "--schema") values.schema = true;
+      continue;
+    }
+    if (specIndex === -1) {
+      deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+      return 2;
+    }
   }
-  const { values, positionals } = parsed;
 
   if (values.schema) {
     deps.stdout(`${JSON.stringify(VERDICT_JSON_SCHEMA, null, 2)}\n`);
     return 0;
   }
 
-  const spec = positionals[0];
+  const spec = specIndex === -1 ? undefined : (argv[specIndex] as string);
   if (!spec) {
     deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
     return 2;
   }
+  const positionals = argv.slice(specIndex).filter((arg) => !own.has(arg));
 
   return guarded("wnpx", deps, async () => {
     const verdict = await deps.check(spec);
@@ -156,7 +180,9 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
       );
       return EXIT.block;
     }
-    deps.stderr(dim(`(would execute: npx ${spec})\n`));
-    return exitCodeFor(verdict.verdict === "block" ? "warn" : verdict.verdict);
+    const runner = deps.which("npx") ? "npx" : "bunx";
+    const passthrough = positionals.slice(1);
+    deps.stderr(dim(`vetted; executing via ${runner}...\n`));
+    return deps.spawn([runner, spec, ...passthrough]);
   });
 }

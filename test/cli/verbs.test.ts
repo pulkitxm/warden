@@ -279,9 +279,13 @@ test("init writes accepted files, reruns idempotently, and reports errors", asyn
       policies: {},
       ci: { reporters: ["summary"], failOn: "block" },
     });
-    expect(readFileSync(join(root, ".github/workflows/warden.yml"), "utf8")).toContain(
-      "./dist/warden ci --reporter github",
+    const workflow = readFileSync(join(root, ".github/workflows/warden.yml"), "utf8");
+    expect(workflow).toContain(
+      `warden ci --reporter github --base "origin/\${{ github.base_ref }}"`,
     );
+    expect(workflow).toContain("fetch-depth: 0");
+    expect(workflow.indexOf("Install Warden")).toBeLessThan(workflow.indexOf("warden ci"));
+    expect(workflow).not.toContain("bun install");
     expect(readFileSync(join(root, "CLAUDE.md"), "utf8")).toContain("warden ci --reporter agent");
     expect(readFileSync(join(root, ".gitignore"), "utf8")).toBe("node_modules/\n.warden/\n");
     const before = readFileSync(join(root, "AGENTS.md"), "utf8");

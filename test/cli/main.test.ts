@@ -260,19 +260,34 @@ test("wnpx --json block exits 20", async () => {
   expect((JSON.parse(out[0]!) as Verdict).verdict).toBe("block");
 });
 
-test("wnpx human allow renders the report and exits 0", async () => {
-  const { deps, out, err } = makeDeps();
+test("wnpx allow actually executes the package rather than describing it", async () => {
+  const { deps, out, err, spawns } = makeDeps({ which: () => "/usr/bin/npx" });
   expect(await runWnpx(["left-pad"], deps)).toBe(0);
   expect(out).toEqual([]);
   expect(err.join("")).toContain("ALLOW");
-  expect(err.join("")).toContain("(would execute: npx left-pad)");
+  expect(err.join("")).toContain("executing via npx");
+  expect(spawns).toEqual([["npx", "left-pad"]]);
 });
 
-test("wnpx human warn exits 10", async () => {
-  const { deps } = makeDeps({
+test("wnpx forwards arguments to the executed package", async () => {
+  const { deps, spawns } = makeDeps({ which: () => "/usr/bin/npx" });
+  await runWnpx(["create-vite", "my-app", "--template", "react"], deps);
+  expect(spawns).toEqual([["npx", "create-vite", "my-app", "--template", "react"]]);
+});
+
+test("wnpx falls back to bunx when npx is absent", async () => {
+  const { deps, spawns } = makeDeps({ which: (p) => (p === "bunx" ? "/usr/bin/bunx" : null) });
+  await runWnpx(["cowsay"], deps);
+  expect(spawns).toEqual([["bunx", "cowsay"]]);
+});
+
+test("wnpx warn still executes, and the exit code comes from the runner", async () => {
+  const { deps, spawns } = makeDeps({
     check: () => Promise.resolve(verdict({ verdict: "warn", risk_score: 40 })),
+    which: () => "/usr/bin/npx",
   });
-  expect(await runWnpx(["shady"], deps)).toBe(10);
+  expect(await runWnpx(["shady"], deps)).toBe(0);
+  expect(spawns).toEqual([["npx", "shady"]]);
 });
 
 test("wnpx human block refuses and exits 20", async () => {
@@ -283,10 +298,23 @@ test("wnpx human block refuses and exits 20", async () => {
   expect(err.join("")).toContain("refusing to run a blocked package");
 });
 
-test("wnpx block with --allow-risky proceeds but exits as warn (10)", async () => {
-  const { deps, err } = makeDeps({ check: () => Promise.resolve(verdict({ verdict: "block" })) });
-  expect(await runWnpx(["evil", "--allow-risky"], deps)).toBe(10);
-  expect(err.join("")).toContain("(would execute: npx evil)");
+test("wnpx block with --allow-risky executes after the override", async () => {
+  const { deps, err, spawns } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block" })),
+    which: () => "/usr/bin/npx",
+  });
+  expect(await runWnpx(["evil", "--allow-risky"], deps)).toBe(0);
+  expect(err.join("")).toContain("executing via npx");
+  expect(spawns).toEqual([["npx", "evil"]]);
+});
+
+test("wnpx block without an override never spawns anything", async () => {
+  const { deps, spawns } = makeDeps({
+    check: () => Promise.resolve(verdict({ verdict: "block" })),
+    which: () => "/usr/bin/npx",
+  });
+  expect(await runWnpx(["evil"], deps)).toBe(20);
+  expect(spawns).toEqual([]);
 });
 
 test("wnpx analysis error exits 30", async () => {
@@ -310,10 +338,17 @@ test("wnpm with nothing to install exits 2 (missing or empty package.json)", asy
   expect(await runWnpm([], empty.deps)).toBe(2);
 });
 
-test("wnpm falls back to package.json direct deps and installs via pnpm", async () => {
+test("wnpm falls back to package.json direct deps and preserves the project manager", async () => {
   const { deps, err, spawns } = makeDeps({
-    readFile: () =>
-      JSON.stringify({ dependencies: { "left-pad": "^1.3.0" }, devDependencies: { chalk: "^5" } }),
+    readFile: (path) => {
+      if (String(path).endsWith("package.json"))
+        return JSON.stringify({
+          packageManager: "pnpm@9.0.0",
+          dependencies: { "left-pad": "^1.3.0" },
+          devDependencies: { chalk: "^5" },
+        });
+      throw new Error("ENOENT");
+    },
     which: (p) => (p === "pnpm" ? "/usr/bin/pnpm" : null),
   });
   expect(await runWnpm(["install"], deps)).toBe(0);
@@ -322,10 +357,23 @@ test("wnpm falls back to package.json direct deps and installs via pnpm", async 
   expect(spawns).toEqual([["pnpm", "install", "--ignore-scripts"]]);
 });
 
-test("wnpm via bun omits --ignore-scripts (bun disables scripts by default)", async () => {
+test("wnpm via bun omits --ignore-scripts, because bun disables scripts by default", async () => {
   const { deps, spawns } = makeDeps({ which: (p) => (p === "bun" ? "/usr/bin/bun" : null) });
   expect(await runWnpm(["add", "left-pad"], deps)).toBe(0);
-  expect(spawns).toEqual([["bun", "install", "left-pad"]]);
+  expect(spawns).toEqual([["bun", "add", "left-pad"]]);
+});
+
+test("wnpm never silently switches a project to a different manager", async () => {
+  const { deps, spawns } = makeDeps({
+    readFile: (path) => {
+      if (String(path).endsWith("package.json"))
+        return JSON.stringify({ packageManager: "yarn@4.1.0", dependencies: { a: "1" } });
+      throw new Error("ENOENT");
+    },
+    which: () => "/usr/bin/pnpm",
+  });
+  await runWnpm(["install"], deps);
+  expect(spawns[0]?.[0]).toBe("yarn");
 });
 
 test("wnpm falls back to npm when no manager is on PATH, propagating its exit code", async () => {
@@ -337,7 +385,7 @@ test("wnpm falls back to npm when no manager is on PATH, propagating its exit co
     },
   });
   expect(await runWnpm(["i", "left-pad"], deps)).toBe(7);
-  expect(calls).toEqual([["npm", "install", "--ignore-scripts", "left-pad"]]);
+  expect(calls).toEqual([["npm", "install", "left-pad", "--ignore-scripts"]]);
 });
 
 test("wnpm --json emits the verdict array on stdout, in input order (bounded pool)", async () => {
@@ -385,10 +433,16 @@ test("wnpm analysis error exits 30", async () => {
   expect(err.join("")).toContain("wnpm: analysis error: boom");
 });
 
-test("wnpx unknown flags print usage and exit 2 instead of crashing", async () => {
+test("an unknown flag before the package is a usage error", async () => {
   const { deps, err } = makeDeps();
-  expect(await runWnpx(["left-pad", "--bogus"], deps)).toBe(2);
+  expect(await runWnpx(["--bogus", "left-pad"], deps)).toBe(2);
   expect(err.join("")).toContain("usage: wnpx");
+});
+
+test("a flag after the package belongs to the package and is forwarded", async () => {
+  const { deps, spawns } = makeDeps({ which: () => "/usr/bin/npx" });
+  expect(await runWnpx(["create-vite", "--template", "react"], deps)).toBe(0);
+  expect(spawns).toEqual([["npx", "create-vite", "--template", "react"]]);
 });
 
 test("defaultDeps: spawn returns the command's exit code, readFile reads files", () => {

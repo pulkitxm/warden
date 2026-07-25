@@ -11,6 +11,7 @@ import { runWardenDetect } from "./commands/detect.ts";
 import { runWardenDoctor } from "./commands/doctor.ts";
 import { runWardenFix } from "./commands/fix.ts";
 import { runWardenInit } from "./commands/init.ts";
+import { runWardenIntegrations } from "./commands/integrations.ts";
 import { runWardenLog } from "./commands/log.ts";
 import { runWardenSchema } from "./commands/schema.ts";
 import {
@@ -154,6 +155,16 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 success",
     example: "warden shim-plan npm ci",
     run: runWardenShimPlan,
+  },
+  {
+    name: "integrations",
+    learnMore: "troubleshooting",
+    description: "check that the shims, agents, and CI wiring actually work",
+    positional: { kind: "[doctor]", values: ["doctor"] },
+    flags: [{ name: "--json", description: "write the integrations report to stdout" }, helpFlag],
+    exitCodes: "0 healthy · 30 a check failed",
+    example: "warden integrations doctor",
+    run: runWardenIntegrations,
   },
   {
     name: "detect",

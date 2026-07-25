@@ -42,6 +42,12 @@ Verdicts are cached in SQLite (`~/.wnpm-cache/verdicts.sqlite`) keyed by tarball
 
 `warden coverage` publishes which package-manager commands are mediated, generated from the same grammar the shim executes. `npm ci`, `npm exec`, `yarn dlx`, `pnpm dlx`, `bun x`, rebuilds, and global installs are all mediated; a no-argument install is treated as a graph transaction and audits the lockfile before delegating. Non-registry sources are blocked rather than skipped, and each unsupported path is listed explicitly. See [command coverage](command-coverage.md).
 
+## Integrations doctor
+
+`warden integrations doctor` verifies that Warden is actually in the path of your installs rather than merely installed. It checks that the shim directory exists and comes first on `PATH`, which tools are intercepted, whether interception is switched on, which agent adapter the handoff uses, which package manager the project declares, and whether a CI workflow is present. Each non-healthy check carries the command that repairs it. Only an actively broken wiring, such as the shim directory missing from `PATH`, is fatal: the verb exits `30` in that case and `0` otherwise.
+
+Warden preserves the package manager a project declares. Detection is ordered: the invoked binary, then `packageManager` in `package.json`, then the lockfile, then `warden.config.json`, then what is available on `PATH`, and only then a documented default of npm. `wnpm` installs through the detected manager with that manager's own verb, so a pnpm project is never quietly installed with npm.
+
 ## Interception
 
 See [interception](interception.md).
