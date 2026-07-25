@@ -43,6 +43,8 @@ ci:
 	./dist/warden doctor --help 2>&1 | grep -F 'usage: warden doctor' >/dev/null
 	./dist/warden schema doctor >/dev/null
 	./dist/warden schema intent >/dev/null
+	./dist/warden schema audit >/dev/null
+	./dist/warden check lockfile --dir fixtures/doctor-project --json >/dev/null
 
 doctor-demo: build
 	bun scripts/doctor-demo.ts
