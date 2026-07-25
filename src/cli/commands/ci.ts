@@ -9,6 +9,7 @@ import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { gitResult, resolveMergeBase } from "../../shared/git.ts";
 import { isQuiet } from "../../shared/output.ts";
+import { toSarif } from "../../shared/sarif.ts";
 import { type CheckSurface, runSurfaceAudit } from "./check.ts";
 import { jsonFile, type PackageJson } from "./detect.ts";
 
@@ -81,9 +82,10 @@ function annotationValue(value: string): string {
 export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   const jsonReporter = argv.some(
     (arg, index) =>
-      (arg === "--reporter" && ["json", "agent"].includes(argv[index + 1] ?? "")) ||
+      (arg === "--reporter" && ["json", "agent", "sarif"].includes(argv[index + 1] ?? "")) ||
       arg === "--reporter=json" ||
-      arg === "--reporter=agent",
+      arg === "--reporter=agent" ||
+      arg === "--reporter=sarif",
   );
   try {
     const { values } = parseArgs({
@@ -94,7 +96,10 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         "intent-prompt": { type: "string" },
       },
     });
-    if (!values.reporter || !["summary", "json", "github", "agent"].includes(values.reporter))
+    if (
+      !values.reporter ||
+      !["summary", "json", "github", "agent", "sarif"].includes(values.reporter)
+    )
       throw new Error(`invalid reporter "${values.reporter}"`);
     const root = deps.cwd();
     gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
@@ -171,6 +176,10 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
       )}\n`,
     );
     if (values.reporter === "json") deps.stdout(`${JSON.stringify(findings)}\n`);
+    else if (values.reporter === "sarif")
+      deps.stdout(
+        `${JSON.stringify(toSarif(findings, "https://warden.pulkit.page/docs/ci"), null, 2)}\n`,
+      );
     else if (values.reporter === "agent")
       deps.stdout(
         `${JSON.stringify({ findings, ...(intent ? { intent } : {}), verdict: level, exit })}\n`,

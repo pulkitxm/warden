@@ -73,11 +73,29 @@ Snyk shipping `agent-scan` in 2026 confirms the direction of travel: agent compo
 | "My agent installed a package that does not exist" | Agent | `slopsquat`, hallucinated intel, `wnpx` refusal | Shipped | n/a | Curated-name fixtures |
 | "Did the agent do what I asked?" | Agent, reviewer | `intent check` | Shipped | n/a | Dropped-claim and scope-creep fixtures |
 | pnpm / yarn lockfiles unparsed | Human, CI | `check lockfile` parses npm, pnpm, and yarn | Shipped; Bun lockfiles remain unsupported and are noted | n/a | Real lockfile fixtures per format against the shared rule table |
-| Provenance downgrade is buried in JSON | Human | `provenance_downgrade` category | Surface it prominently in human verdict output | Medium | Snapshot the rendered verdict for a downgraded package |
+| Provenance downgrade is buried in JSON | Human | Headline line in human output | Shipped | n/a | Rendered-verdict assertions per headline category |
 | Hallucinated-name intel goes stale | Agent | Static curated list | Documented refresh process with tests | Medium | Schema test over the intel file; freshness metadata |
-| Unknown verb is a dead end | Human | Error names the verb only | Suggest the closest verb | Medium | Table of typos to expected suggestion |
-| No SARIF output | CI | `github` reporter only | SARIF reporter for code scanning | Low | Validate against the SARIF schema |
-| Transitive dependency risk | Human, CI | Direct dependencies only | Depth-limited transitive audit | Low | Deliberately deferred; cost and false-positive risk are high |
+| Unknown verb is a dead end | Human | Closest-verb suggestion in text and JSON | Shipped | n/a | Table of typos to expected suggestion |
+| No SARIF output | CI | `ci --reporter sarif` | Shipped | n/a | Structural validation of the document, level mapping, and rule dedup |
+| Transitive dependency risk | Human, CI | Direct dependencies only | Depth-limited transitive audit | Low | Deferred; see below |
+| Agents cannot call warden as a tool | Agent | CLI with JSON and schemas | `warden mcp` server | Low | Deferred; see below |
+| `npm audit` muscle memory | Human | `doctor --no-apply` | `warden audit` alias | Low | Deferred; see below |
+| Deep dive on one package | Human | `check --json` carries evidence | `warden explain <pkg>` | Low | Deferred; see below |
+| Release cooldown awareness | Human, CI | Age is an engine signal | Surface PM `min-release-age` alignment | Low | Deferred; see below |
+
+## 3a. Deliberately deferred, with reasons
+
+These were considered and not built. Recording why matters more than recording that.
+
+**`warden mcp` server.** An MCP server would let agents call Warden as a tool rather than as a subprocess. The CLI already satisfies the requirement it would serve: JSON on stdout, published schemas, stable exit codes. An MCP server adds a second surface to keep in sync with the registry, and a second place for the contract to drift. Worth building once the CLI surface stops moving, not before.
+
+**`warden audit` as an alias for `doctor --no-apply`.** Tempting because it matches muscle memory, but it invites the assumption that Warden's audit is `npm audit` with a different name. The whole point of doctor is that it gates and verifies the fix, which `npm audit` does not. A familiar name would hide the difference that matters.
+
+**`warden explain <pkg>`.** `warden check --json` already returns the full evidence array, and `--verbose` now prints all of it rather than the first six signals. A separate verb would be a different presentation of data the tool already gives you.
+
+**Cooldown awareness.** Package managers ship their own release-age gates (npm `min-release-age`, pnpm `minimumReleaseAge`, Yarn, Bun). Age already feeds the engine's scoring. Reimplementing a cooldown would duplicate the layer Warden deliberately sits above.
+
+**Transitive dependency auditing.** Doctor audits direct dependencies. Going transitive multiplies both runtime and false-positive surface, and the actionable fix for a transitive problem usually lives in a direct dependency anyway. Revisit if real reports show transitive-only compromises being missed.
 
 ## 4. Citation hygiene
 
