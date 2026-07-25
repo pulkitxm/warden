@@ -229,10 +229,18 @@ test("established native package with a longstanding postinstall is allowed", as
   expect(v.verdict).toBe("allow");
 });
 
-test("established package adding an install script with a sensitive read warns but never blocks", async () => {
+test("popularity never rescues a newly added install script that reads credentials", async () => {
   const v = await check("acme-imaging@3.1.0");
-  expect(v.verdict).toBe("warn");
+  expect(v.verdict).toBe("block");
   expect(v.categories).toContain("install_script");
+  expect(v.summary).toContain("lifecycle script added");
+  expect(v.summary).toContain("credential");
+});
+
+test("the same package before the script was added stays clean", async () => {
+  const v = await check("acme-imaging@3.0.0");
+  expect(v.verdict).toBe("allow");
+  expect(v.categories).not.toContain("install_script");
 });
 
 test("trusted package two edits from a mega-popular name is not a typosquat", async () => {
