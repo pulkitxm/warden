@@ -199,6 +199,98 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  explain: {
+    intro:
+      "A verdict is only useful if you can act on it. `warden explain` answers the four questions a person actually has: what changed, why that matters here, what Warden prevented, and what to do next. It leads with the decision, the confidence, and the reason codes rather than with a number.",
+    whenToUse: [
+      "When a check or a plan blocked something and you need to decide what to do.",
+      "When a warning looks like a false positive and you want the evidence behind it.",
+      "In an agent loop, with `--json`, to turn a block into a next action instead of a dead end.",
+    ],
+    examples: [
+      {
+        command: "warden explain left-pad@1.3.0",
+        description: "Explain one exact release.",
+      },
+      {
+        command: "warden explain react-codeshift --json",
+        description: "The structured explanation, including reason codes and the baseline used.",
+      },
+    ],
+    behaviour:
+      "The decision and the confidence come first. Confidence is high for a blocklist hit or for known malware, high for a fresh clean analysis, medium for a cached allow, and lower for a block that rests on a single signal. Every reason code is translated into plain language. A block states what did not happen, because that is what blocking bought you. The next action is specific: compare against a package you trust, read the release history, approve one script narrowly, or plan the install.",
+    gotchas: [
+      "The score is still reported, labelled as a heuristic score. It is a summary of weighted signals, not a calibrated probability, and it is deliberately not the headline.",
+      "The baseline is named. Today it is the previous published release, so an attacker who publishes two bad releases in a row shifts the baseline.",
+      "A name that is not on the registry is reported as unpublished rather than as a first release.",
+    ],
+  },
+
+  history: {
+    intro:
+      "Shows how a package changed across releases in the ways that matter for trust: who published it, whether provenance held, which lifecycle scripts appeared, and whether it was deprecated.",
+    whenToUse: [
+      "When deciding whether a version bump is routine or worth reading.",
+      "After an incident, to see when a package's publishing behaviour changed.",
+      "Before adopting an unfamiliar dependency.",
+    ],
+    examples: [
+      { command: "warden history left-pad", description: "The recent release history." },
+      { command: "warden history esbuild --tail 5", description: "Only the last five releases." },
+      { command: "warden history chalk --json", description: "The structured history." },
+    ],
+    behaviour:
+      "Releases are listed newest first. The current release is annotated with what changed relative to the one before it: a changed publisher email, lost provenance attestation, newly added lifecycle scripts, or deprecation.",
+    gotchas: [
+      "A name that is not published is an error, not an empty history. A missing package is itself a finding.",
+    ],
+  },
+
+  compare: {
+    intro:
+      "When a package is blocked, the real question is what to use instead. `warden compare` puts candidates side by side on evidence: verdict, popularity, age, provenance, install scripts, and deprecation.",
+    whenToUse: [
+      "After a block, to find an established package that does the same job.",
+      "When an agent proposes a dependency you have never heard of.",
+      "When choosing between two libraries and trust is part of the decision.",
+    ],
+    examples: [
+      {
+        command: "warden compare jscodeshift react-codemod",
+        description: "Compare two candidates on the evidence.",
+      },
+      {
+        command: "warden compare react-codeshift jscodeshift --json",
+        description: "The structured comparison, ordered best first.",
+      },
+    ],
+    behaviour:
+      "Each candidate is vetted and its registry metadata read. Ranking penalises a block heavily, then an unanalyzable candidate, then deprecation, then install scripts, and rewards provenance and real download volume. A candidate that could not be analyzed appears as unknown rather than being dropped.",
+    gotchas: [
+      "Ordering is a summary of evidence, not an endorsement. Warden never installs an alternative for you, and it never picks one on the strength of a model's opinion alone.",
+    ],
+  },
+
+  scripts: {
+    intro:
+      "Lists every lifecycle script in the graph you already have installed, and which of them are still waiting on an approval. This is the standing view of your execution surface, as opposed to the per-transaction view a plan gives you.",
+    whenToUse: [
+      "After adopting Warden in an existing repository, to see the surface you inherited.",
+      "Before turning on stricter policy, to see how much approval work it implies.",
+      "In CI or a pre-commit check, with `--json`, to keep the pending set at zero.",
+    ],
+    examples: [
+      { command: "warden scripts pending", description: "The install scripts and their status." },
+      { command: "warden scripts pending --json", description: "The structured inventory." },
+    ],
+    behaviour:
+      "The installed graph is read from the lockfile and each package's own manifest under `node_modules`, so this reflects what is really on disk rather than what the registry currently says. Each hook is matched against the approvals in the repository and in your home directory. The command exits `10` while anything is pending and `0` once every script is approved.",
+    gotchas: [
+      "Pending does not mean the script ran. Warden suppresses scripts at install time; this list is what would need approval before a transaction involving them can proceed.",
+      "A package whose manifest cannot be read has no recorded hooks, so it will not appear here.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",

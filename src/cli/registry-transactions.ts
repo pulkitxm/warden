@@ -1,4 +1,6 @@
 import { runWardenApply, runWardenApproveScript } from "./commands/apply.ts";
+import { runWardenCompare, runWardenScripts } from "./commands/compare.ts";
+import { runWardenExplain, runWardenHistory } from "./commands/explain.ts";
 import { runWardenPlan } from "./commands/plan.ts";
 import { runWardenPolicy } from "./commands/policy.ts";
 import { runWardenVerify } from "./commands/verify.ts";
@@ -68,5 +70,45 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden policy --manager pnpm",
     run: runWardenPolicy,
+  },
+  {
+    name: "explain",
+    description: "explain one verdict: what changed, why it matters, and what to do next",
+    positional: { kind: "<pkg[@version]>" },
+    flags: [{ name: "--json", description: "write the explanation to stdout" }, helpFlag],
+    exitCodes: "0 allow · 10 warn · 20 block · 30 error",
+    example: "warden explain left-pad@1.3.0",
+    run: runWardenExplain,
+  },
+  {
+    name: "history",
+    description: "show how a package's releases changed publisher, provenance, and scripts",
+    positional: { kind: "<pkg>" },
+    flags: [
+      { name: "--tail", valueHint: "N", description: "show only the last N releases" },
+      { name: "--json", description: "write the release history to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden history left-pad --tail 5",
+    run: runWardenHistory,
+  },
+  {
+    name: "compare",
+    description: "compare candidate packages on evidence rather than on preference",
+    positional: { kind: "<pkg> <pkg> [pkg...]" },
+    flags: [{ name: "--json", description: "write the comparison to stdout" }, helpFlag],
+    exitCodes: "0 success · 30 error",
+    example: "warden compare jscodeshift react-codemod",
+    run: runWardenCompare,
+  },
+  {
+    name: "scripts",
+    description: "list install scripts in the current graph and which still need approval",
+    positional: { kind: "[pending]", values: ["pending"] },
+    flags: [{ name: "--json", description: "write the script inventory to stdout" }, helpFlag],
+    exitCodes: "0 all approved · 10 approvals pending · 30 error",
+    example: "warden scripts pending",
+    run: runWardenScripts,
   },
 ];
