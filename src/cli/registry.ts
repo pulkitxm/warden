@@ -6,6 +6,7 @@ import { wardenFailure } from "../shared/errors.ts";
 import { runWardenCheck } from "./commands/check.ts";
 import { runWardenCi } from "./commands/ci.ts";
 import { runWardenConfig, runWardenUninstall } from "./commands/config.ts";
+import { runWardenCoverage, runWardenShimPlan } from "./commands/coverage.ts";
 import { runWardenDetect } from "./commands/detect.ts";
 import { runWardenDoctor } from "./commands/doctor.ts";
 import { runWardenFix } from "./commands/fix.ts";
@@ -135,6 +136,24 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",
     example: 'warden intent check --prompt "add rate limiting to the api client"',
     run: runWardenIntent,
+  },
+  {
+    name: "coverage",
+    learnMore: "coverage",
+    description: "print which package-manager commands warden mediates",
+    flags: [{ name: "--json", description: "write the coverage matrix to stdout" }, helpFlag],
+    exitCodes: "0 success",
+    example: "warden coverage --json",
+    run: runWardenCoverage,
+  },
+  {
+    name: "shim-plan",
+    description: "classify a package-manager command for the shim",
+    hidden: true,
+    flags: [],
+    exitCodes: "0 success",
+    example: "warden shim-plan npm ci",
+    run: runWardenShimPlan,
   },
   {
     name: "detect",

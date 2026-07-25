@@ -38,6 +38,10 @@ Every check returns a versioned JSON verdict (`warden schema` prints the JSON Sc
 
 Verdicts are cached in SQLite (`~/.wnpm-cache/verdicts.sqlite`) keyed by tarball integrity and analyzer version, so repeat checks are instant and re-analysis happens automatically when the analyzer changes.
 
+## Command coverage
+
+`warden coverage` publishes which package-manager commands are mediated, generated from the same grammar the shim executes. `npm ci`, `npm exec`, `yarn dlx`, `pnpm dlx`, `bun x`, rebuilds, and global installs are all mediated; a no-argument install is treated as a graph transaction and audits the lockfile before delegating. Non-registry sources are blocked rather than skipped, and each unsupported path is listed explicitly. See [command coverage](command-coverage.md).
+
 ## Interception
 
 See [interception](interception.md).

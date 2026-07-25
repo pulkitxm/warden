@@ -82,82 +82,77 @@ vet_one() {
   fi
 }
 
-vet_install() {
-  shift
-  skip_next=false
-  for arg in "$@"; do
-    if [ "$skip_next" = true ]; then
-      skip_next=false
-      continue
-    fi
-    case "$arg" in
-      --workspace|-w|--filter|--registry|--tag|--cache|--prefix|--cwd)
-        skip_next=true
-        ;;
-      -*|./*|../*|/*|file:*|git:*|http:*|https:*)
-        ;;
-      *)
-        vet_one "$arg"
-        ;;
-    esac
-  done
+json_field() {
+  printf '%s' "$1" | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\\1/p" | head -n 1
 }
 
-vet_exec() {
-  package_next=false
-  for arg in "$@"; do
-    if [ "$package_next" = true ]; then
-      vet_one "$arg"
-      return
-    fi
-    case "$arg" in
-      -p|--package)
-        package_next=true
-        ;;
-      -*)
-        ;;
-      *)
-        vet_one "$arg"
-        return
-        ;;
-    esac
-  done
+json_list() {
+  printf '%s' "$1" | sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\\1/p" | head -n 1 |
+    tr ',' '\n' | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//' | grep -v '^$'
 }
 
-vet_pnpm_exec() {
-  shift
-  vet_exec "$@"
+json_bool() {
+  printf '%s' "$1" | grep -q "\"$2\"[[:space:]]*:[[:space:]]*true" && echo true || echo false
 }
 
-kind=none
-case "$tool:$1" in
-  npx:*|bunx:*)
-    kind=exec
-    ;;
-  pnpm:dlx)
-    kind=exec
-    ;;
-  npm:install|npm:i|npm:add|npm:update|pnpm:install|pnpm:i|pnpm:add|pnpm:update|yarn:install|yarn:i|yarn:add|yarn:update|bun:install|bun:i|bun:add|bun:update)
-    kind=install
-    ;;
+plan=$("$warden" shim-plan "$tool" "$@" 2>/dev/null)
+kind=$(json_field "$plan" kind)
+[ -n "$kind" ] || kind=passthrough
+graph_transaction=$(json_bool "$plan" graphTransaction)
+
+if [ "$kind" = "passthrough" ]; then
+  exec "$real" "$@"
+fi
+
+mediate_install=false
+mediate_exec=false
+case "$kind" in
+  install|frozen-install|global-install|rebuild) mediate_install=true ;;
+  exec) mediate_exec=true ;;
 esac
 
-if [ "$kind" = install ] && [ "$install_enabled" = true ]; then
-  vet_install "$@"
+if [ "$mediate_install" = true ] && [ "$install_enabled" != true ]; then
+  exec "$real" "$@"
 fi
-if [ "$kind" = exec ] && [ "$exec_enabled" = true ]; then
-  if [ "$tool" = pnpm ]; then
-    vet_pnpm_exec "$@"
-  else
-    vet_exec "$@"
+if [ "$mediate_exec" = true ] && [ "$exec_enabled" != true ]; then
+  exec "$real" "$@"
+fi
+
+exotic=$(printf '%s' "$plan" | sed -n 's/.*"exotic"[[:space:]]*:[[:space:]]*\[\(.*\)\][[:space:]]*,[[:space:]]*"graphTransaction".*/\1/p')
+if [ -n "$exotic" ] && [ "$exotic" != "" ]; then
+  if [ "$allow_risky" != true ] && [ "$mode" != log ]; then
+    printf 'warden: this command installs from a git, url, or local source, which carries no registry provenance.\n' >&2
+    printf 'warden: %s\n' "$exotic" >&2
+    printf 'warden: override with --allow-risky after reviewing the source.\n' >&2
+    exit 20
   fi
+fi
+
+for spec in $(json_list "$plan" specs); do
+  vet_one "$spec"
+done
+
+if [ "$graph_transaction" = true ] && [ "$mode" != log ]; then
+  "$warden" check lockfile >/dev/null 2>&1
+  lock_status=$?
+  if [ "$lock_status" -ge 20 ] && [ "$allow_risky" != true ]; then
+    "$warden" check lockfile >&2
+    printf 'warden: lockfile audit blocked this install; override with --allow-risky\n' >&2
+    exit "$lock_status"
+  fi
+fi
+
+suppress=$(json_list "$plan" suppressScripts | tr '\n' ' ')
+if printf '%s' "$plan" | grep -q '"YARN_ENABLE_SCRIPTS"'; then
+  YARN_ENABLE_SCRIPTS=0
+  export YARN_ENABLE_SCRIPTS
 fi
 
 exec_filtered() {
   remaining=$1
   shift
   if [ "$remaining" -eq 0 ]; then
-    exec "$real" "$@"
+    exec "$real" "$@" $suppress
   fi
   first=$1
   shift
