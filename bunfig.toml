@@ -4,6 +4,7 @@ coverageThreshold = 1.0
 coverageSkipTestFiles = true
 coveragePathIgnorePatterns = [
   "scripts/**",
+  "web/**",
   "demo/**",
   "src/bin/wnpm.ts",
   "src/bin/wnpx.ts",
