@@ -168,7 +168,10 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     name: "config",
     learnMore: "configuration",
     description: "read or set user-level settings (mode, intercept, agent)",
-    positional: { kind: "[mode|intercept] [value...]" },
+    positional: {
+      kind: "[mode|intercept|agent] [value...]",
+      values: ["mode", "intercept", "agent"],
+    },
     flags: [{ name: "--json", description: "write config JSON to stdout" }, helpFlag],
     exitCodes: "0 success · 30 error",
     example: "warden config intercept off",

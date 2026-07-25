@@ -1,10 +1,12 @@
 import { EXIT } from "../../schema.ts";
+import { AGENT_NAMES } from "../../shared/agents.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 
 interface UserConfig {
   mode: "verbose" | "brief" | "block" | "log";
   intercept: { install: boolean; exec: boolean };
+  agent?: { name: string };
 }
 
 const initialConfig = (): UserConfig => ({
@@ -78,6 +80,15 @@ export function runWardenConfig(argv: string[], deps: WardenDeps): number {
           ? `interception ${enabled ? "enabled (install, exec)" : "disabled; shims now pass every command straight through"}\n`
           : `${scope} interception ${enabled ? "enabled" : "disabled"}\n`,
       );
+      return EXIT.allow;
+    }
+    if (args[0] === "agent" && args.length === 2) {
+      if (!AGENT_NAMES.includes(args[1]!)) {
+        throw new Error(`unknown agent "${args[1]}"; known agents: ${AGENT_NAMES.join(", ")}`);
+      }
+      config.agent = { name: args[1]! };
+      writeConfig(deps, config);
+      deps.stderr(`agent set to ${config.agent.name}\n`);
       return EXIT.allow;
     }
     throw new Error("invalid config command");

@@ -218,6 +218,11 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       { command: "warden config", description: "Print the current settings." },
       { command: "warden config mode brief", description: "Set output verbosity for intercepted installs." },
       { command: "warden config intercept off", description: "Stop the shims vetting installs." },
+      {
+        command: "warden config agent codex",
+        description:
+          "Choose which coding agent `warden fix` hands off to. One of claude, cursor, codex, copilot, gemini, aider, or opencode.",
+      },
     ],
     behaviour:
       "Settings live in `~/.warden/config.json`. Project policy is separate and lives in `warden.config.json`.",
