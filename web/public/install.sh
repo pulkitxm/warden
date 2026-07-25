@@ -122,6 +122,34 @@ else
 fi
 
 tmp=$(mktemp -d)
+verify_checksum() {
+  file=$1
+  awk -v want="$file" '$2 == want || $2 == "*" want' "$tmp/sha256sums.txt" >"$tmp/expected"
+  [ -s "$tmp/expected" ] || {
+    printf 'warden installer: checksum missing for %s\n' "$file" >&2
+    exit 1
+  }
+  (
+    cd "$tmp"
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum -c expected >/dev/null
+    else
+      shasum -a 256 -c expected >/dev/null
+    fi
+  ) || {
+    printf 'warden installer: %s failed checksum verification\n' "$file" >&2
+    exit 1
+  }
+}
+
+fetch_release_file() {
+  file=$1
+  target=$2
+  curl -fsSL "https://github.com/$repo/releases/download/$tag/$file" -o "$tmp/$file"
+  verify_checksum "$file"
+  [ "$tmp/$file" = "$target" ] || cp "$tmp/$file" "$target"
+}
+
 source_dir=${WARDEN_INSTALL_SOURCE:-}
 if [ -n "$source_dir" ]; then
   printf '\nusing local source %s\n' "$source_dir"
@@ -140,21 +168,12 @@ else
   tag=${effective#*releases/download/}
   tag=${tag%%/*}
   version=${tag#v}
-  curl -fsSL "https://github.com/$repo/releases/download/$tag/sha256sums.txt" -o "$tmp/sha256sums.txt"
-  awk -v file="$asset" '$2 == file || $2 == "*" file' "$tmp/sha256sums.txt" >"$tmp/expected"
-  [ -s "$tmp/expected" ] || {
-    printf 'warden installer: checksum missing for %s\n' "$asset" >&2
+  [ -n "$tag" ] || {
+    printf 'warden installer: could not resolve a release tag to install from\n' >&2
     exit 1
   }
-
-  (
-    cd "$tmp"
-    if command -v sha256sum >/dev/null 2>&1; then
-      sha256sum -c expected >/dev/null
-    else
-      shasum -a 256 -c expected >/dev/null
-    fi
-  )
+  curl -fsSL "https://github.com/$repo/releases/download/$tag/sha256sums.txt" -o "$tmp/sha256sums.txt"
+  verify_checksum "$asset"
   printf '  sha256 verified\n'
   tar -xzf "$tmp/$asset" -C "$tmp"
 fi
@@ -173,7 +192,7 @@ done
 if [ -n "$source_dir" ]; then
   cp "$source_dir/install.sh" "$root/install.sh"
 else
-  curl -fsSL "https://raw.githubusercontent.com/$repo/main/install.sh" -o "$root/install.sh"
+  fetch_release_file install.sh "$root/install.sh"
 fi
 chmod 755 "$root/install.sh"
 
@@ -191,7 +210,7 @@ mkdir -p "$shim_dir"
 if [ -n "$source_dir" ]; then
   cp "$source_dir/scripts/shim.sh" "$tmp/shim.sh"
 else
-  curl -fsSL "https://raw.githubusercontent.com/$repo/main/scripts/shim.sh" -o "$tmp/shim.sh"
+  fetch_release_file shim.sh "$tmp/shim.sh"
 fi
 detected=
 for manager in npm pnpm yarn bun npx bunx; do

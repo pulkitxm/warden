@@ -114,3 +114,22 @@ docker run --rm -v "$PWD":/work:ro warden:dev check left-pad
 ALLOW  left-pad@1.3.0  risk 3/100 · npm
   verdict: established package, no risk signals
 ```
+
+## Release trust chain
+
+Everything the installer executes comes from one immutable release tag, and everything is checksum-verified before it is used.
+
+1. The installer requests `releases/latest/download/<asset>` and reads the tag out of the URL it was actually redirected to. If no tag can be resolved, it stops rather than guessing.
+2. `sha256sums.txt` is fetched from that exact tag.
+3. The platform tarball is verified against it before extraction.
+4. `install.sh` and `shim.sh` are fetched from that same tag and verified against the same sums file before either is written to disk.
+
+The release workflow stages both support files next to the binaries and includes them in `sha256sums.txt`, so what the installer verifies is what the release published.
+
+Nothing is fetched from a mutable branch. Earlier versions pulled `install.sh` and `scripts/shim.sh` from `main` over raw.githubusercontent.com, unverified, which meant a push to `main` between a release and an install changed executable content on the user's machine. Two tests now enforce the rule: one greps the installer for any reference to a mutable ref, and the shell harness fails the install outright if the stub is ever asked for one.
+
+Three failure modes are covered by tests:
+
+- a tampered `install.sh` whose digest does not match the release fails the install and says so
+- a release that does not list the support files at all is refused rather than falling back
+- a missing or mismatched tarball checksum fails as it always did
