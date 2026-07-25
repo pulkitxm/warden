@@ -1,5 +1,9 @@
 # Warden product plan
 
+> **Status.** This is a design document, not a description of the shipped tool. Sections below include example output for capabilities that are **planned and not implemented**, specifically codebase slop signals, `warden check secrets`, a policy engine, and an MCP server. For what actually ships today, read [features](features.md), the [CLI reference](https://warden.pulkit.page/docs/cli), or run `warden --help`.
+>
+> Shipped from this plan: `check` including the lockfile, scripts, and config surfaces; `ci` with summary, JSON, GitHub, agent, and SARIF reporters; `doctor`; `intent`; `detect`; `init`; `fix`; interception shims.
+
 Goal: users keep their existing package manager (npm, pnpm, yarn, Bun) and their existing coding agent. Warden vets packages automatically before any install or execute command, enforces repo policy in CI, and feeds agents structured feedback they can act on. Development runs in Docker, never on the host.
 
 ## Detailed designs
