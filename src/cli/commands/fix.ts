@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { type CiFinding, EXIT, SCHEMA_VERSION } from "../../schema.ts";
+import { AGENT_ADAPTERS, DEFAULT_AGENT } from "../../shared/agents.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { configPath } from "./config.ts";
@@ -48,21 +49,12 @@ export async function runWardenFix(argv: string[], deps: WardenDeps): Promise<nu
     };
     deps.mkdir(join(root, ".warden"));
     deps.writeFile(join(root, ".warden", "handoff.json"), `${JSON.stringify(bundle, null, 2)}\n`);
-    let agent = "claude";
+    let agent: string = DEFAULT_AGENT;
     try {
       const user = JSON.parse(deps.readFile(configPath(deps))) as { agent?: { name?: string } };
       if (user.agent?.name) agent = user.agent.name;
     } catch {}
-    const adapters: Record<string, string> = {
-      claude: "claude -p",
-      cursor: "cursor-agent -p",
-      codex: "codex exec",
-      copilot: "copilot -p",
-      gemini: "gemini -p",
-      aider: "aider --message",
-      opencode: "opencode run",
-    };
-    const adapter = adapters[agent] ?? adapters.claude!;
+    const adapter = AGENT_ADAPTERS[agent] ?? AGENT_ADAPTERS[DEFAULT_AGENT]!;
     const message =
       "Read .warden/handoff.json and fix the finding. Verify with the command in its verify field before finishing.";
     deps.stderr(`wrote .warden/handoff.json\nlaunch: ${adapter} ${JSON.stringify(message)}\n`);
