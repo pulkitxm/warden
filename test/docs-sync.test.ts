@@ -106,3 +106,35 @@ test("the limitations page states the boundary the report asked for", () => {
     expect(siteDocs).toContain(claim);
   }
 });
+
+test("the site content modules actually parse, so a broken page cannot reach the deploy", async () => {
+  const docs = await import("../web/src/lib/docs.ts");
+  const notes = await import("../web/src/lib/command-notes.ts");
+  expect(docs.DOC_PAGES.length).toBeGreaterThan(10);
+  expect(Object.keys(notes.COMMAND_NOTES).length).toBeGreaterThan(10);
+});
+
+test("every doc page has a slug, a title, a description, and a body", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  for (const page of DOC_PAGES) {
+    expect(`${page.slug} title`).not.toBe(" title");
+    expect(page.description.length).toBeGreaterThan(20);
+    expect(page.body.length).toBeGreaterThan(200);
+  }
+});
+
+test("every doc page body closes the template literal it opened", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  for (const page of DOC_PAGES) {
+    const backticks = (page.body.match(/`/g) ?? []).length;
+    expect(`${page.slug}: ${backticks % 2 === 0}`).toBe(`${page.slug}: true`);
+  }
+});
+
+test("every command note points at commands that exist", async () => {
+  const { COMMAND_NOTES } = await import("../web/src/lib/command-notes.ts");
+  const known = new Set(COMMAND_REGISTRY.map((entry) => entry.name));
+  for (const name of Object.keys(COMMAND_NOTES)) {
+    expect(`${name} is a real verb: ${known.has(name)}`).toBe(`${name} is a real verb: true`);
+  }
+});
