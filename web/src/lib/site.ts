@@ -54,6 +54,7 @@ export const footerLinks = [
   {
     heading: "Project",
     links: [
+      { href: "/hack", label: "Hackathon" },
       { href: "/about", label: "About" },
       { href: "/contact", label: "Contact" },
       { href: "/docs/security", label: "Threat model" },

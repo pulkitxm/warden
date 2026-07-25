@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CodeBlock } from "@/components/code";
 import { DocsPage } from "@/components/docs-page";
+import { COMMAND_NOTES } from "@/lib/command-notes";
 import { COMMANDS, commandBySlug } from "@/lib/docs";
 import { breadcrumbs, JsonLd, pageMetadata, techArticle } from "@/lib/seo";
 
@@ -75,12 +76,16 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
   const previous = COMMANDS[index - 1];
   const next = COMMANDS[index + 1];
 
+  const note = COMMAND_NOTES[command.name];
   const toc = [
+    ...(note ? [{ id: "overview", text: "Overview" }] : []),
     { id: "usage", text: "Usage" },
     { id: "flags", text: "Flags" },
     ...(command.positional?.values?.length ? [{ id: "values", text: "Accepted values" }] : []),
     { id: "exit-codes", text: "Exit codes" },
-    { id: "example", text: "Example" },
+    { id: "example", text: "Examples" },
+    ...(note?.behaviour ? [{ id: "how-it-works", text: "How it works" }] : []),
+    ...(note?.gotchas?.length ? [{ id: "notes", text: "Notes" }] : []),
   ];
 
   const related = [
@@ -122,6 +127,24 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
         next={next ? { href: `/docs/cli/${next.name}`, label: `warden ${next.name}` } : undefined}
         related={related}
       >
+        {note ? (
+          <section className="mb-10">
+            <h2 id="overview" className="scroll-mt-24 text-xl font-bold text-white">
+              Overview
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-fog">{note.intro}</p>
+            <h3 className="mt-6 text-[15px] font-semibold text-white">When to reach for it</h3>
+            <ul className="mt-2.5 space-y-2">
+              {note.whenToUse.map((item) => (
+                <li key={item} className="flex gap-2.5 text-[15px] leading-relaxed text-fog">
+                  <span className="mt-2 block h-1 w-1 shrink-0 rounded-full bg-mint" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section>
           <h2 id="usage" className="scroll-mt-24 text-xl font-bold text-white">
             Usage
@@ -191,11 +214,22 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
 
         <section className="mt-10">
           <h2 id="example" className="scroll-mt-24 text-xl font-bold text-white">
-            Example
+            Examples
           </h2>
-          <div className="mt-3">
-            <CodeBlock code={command.example} lang="bash" />
-          </div>
+          {note?.examples.length ? (
+            <div className="mt-3 space-y-5">
+              {note.examples.map((example) => (
+                <div key={example.command}>
+                  <CodeBlock code={example.command} lang="bash" />
+                  <p className="mt-2 text-[14px] leading-relaxed text-fog">{example.description}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3">
+              <CodeBlock code={command.example} lang="bash" />
+            </div>
+          )}
           <p className="mt-4 text-sm text-fog">
             Every verb also accepts{" "}
             <code className="rounded bg-white/8 px-1.5 py-0.5 text-[12.5px] text-[#ffd9d3]">
@@ -214,6 +248,33 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
             .
           </p>
         </section>
+
+        {note?.behaviour ? (
+          <section className="mt-10">
+            <h2 id="how-it-works" className="scroll-mt-24 text-xl font-bold text-white">
+              How it works
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-fog">{note.behaviour}</p>
+          </section>
+        ) : null}
+
+        {note?.gotchas?.length ? (
+          <section className="mt-10">
+            <h2 id="notes" className="scroll-mt-24 text-xl font-bold text-white">
+              Notes
+            </h2>
+            <ul className="mt-3 space-y-2.5">
+              {note.gotchas.map((item) => (
+                <li
+                  key={item}
+                  className="rounded-xl border border-white/10 bg-navy-soft/40 px-4 py-3 text-[14px] leading-relaxed text-fog"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </DocsPage>
     </>
   );

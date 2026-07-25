@@ -6,10 +6,12 @@ A trust layer that checks a package, or an agent's diff, before it runs. `warden
 
 ## Hackathon submission
 
+**[warden.pulkit.page/hack](https://warden.pulkit.page/hack)** collects the deck, the demo video, and the four demo beats on one page.
+
 - [Live deck](https://warden.pulkit.page/presentation/index.html)
 - [Slide PDF](https://warden.pulkit.page/presentation/warden-deck.pdf)
 - [Demo video](https://warden.pulkit.page/presentation/warden-preview.mp4)
-- [Presentation narrative and speaker notes](https://warden.pulkit.page/presentation/presentation-context.md)
+- [Speaker notes](https://warden.pulkit.page/presentation/presentation-context.md)
 
 ## Try it
 
@@ -52,4 +54,11 @@ Dependencies point one way: `bin` to `cli` to `shared` and the domain modules. D
 
 ## Docs
 
-[Features](https://warden.pulkit.page/docs/features.md) is the full inventory; [functionality](https://warden.pulkit.page/docs/functionality.md) walks through real captured output for every command. [Doctor](https://warden.pulkit.page/docs/doctor.md) and [intent](https://warden.pulkit.page/docs/intent.md) cover those two features in depth. [Offline demo](https://warden.pulkit.page/demo/README.md) runs everything without network access.
+Full documentation lives at **[warden.pulkit.page/docs](https://warden.pulkit.page/docs)**.
+
+- [Getting started](https://warden.pulkit.page/docs/getting-started) and [concepts](https://warden.pulkit.page/docs/concepts)
+- [CLI reference](https://warden.pulkit.page/docs/cli), generated from the command registry
+- [Doctor](https://warden.pulkit.page/docs/doctor), [intent](https://warden.pulkit.page/docs/intent), [CI](https://warden.pulkit.page/docs/ci), and [check surfaces](https://warden.pulkit.page/docs/check-surfaces)
+- [Agents](https://warden.pulkit.page/docs/agents) and the [threat model](https://warden.pulkit.page/docs/security)
+
+Every docs page has a markdown mirror for agents, at the same path with a `.md` suffix, and [`/llms.txt`](https://warden.pulkit.page/llms.txt) indexes them all. The in-repo [`docs/`](docs) directory holds the longer-form engineering notes, and [`demo/`](demo) runs everything without network access.
