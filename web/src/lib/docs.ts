@@ -26,7 +26,7 @@ Warden installs three binaries and, optionally, shims that put them in front of 
 ## Install
 
 \`\`\`sh
-curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh
+curl -fsSL https://warden.pulkit.page/install.sh | sh
 \`\`\`
 
 Or build from source, which is what the test suite runs against:
@@ -276,7 +276,7 @@ Every run also writes \`.warden/last-run.json\`, which is what \`warden fix\` ha
 
 \`\`\`yaml
 - uses: oven-sh/setup-bun@v2
-- run: curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh
+- run: curl -fsSL https://warden.pulkit.page/install.sh | sh
 - run: warden ci --reporter github --base origin/\${{ github.base_ref }}
 \`\`\`
 

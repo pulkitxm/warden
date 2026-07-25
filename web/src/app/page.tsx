@@ -274,7 +274,7 @@ export default function HomePage() {
             </p>
             <div className="mt-6 max-w-2xl">
               <CodeBlock
-                code={"curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh"}
+                code={"curl -fsSL https://warden.pulkit.page/install.sh | sh"}
                 lang="bash"
               />
             </div>

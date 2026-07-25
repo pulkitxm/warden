@@ -33,6 +33,7 @@ ${cli}
 ## Project
 
 - [Install](${absolute("/install")}): install script, from source, and CI setup.
+- [install.sh](${absolute("/install.sh")}): the install script itself, served as plain text.
 - [About](${absolute("/about")}): what Warden is and what it deliberately is not.
 - [Contact](${absolute("/contact")}): reporting false positives and security issues.
 - [Changelog](${absolute("/changelog")}): what has shipped.

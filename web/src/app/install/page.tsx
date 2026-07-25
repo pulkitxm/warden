@@ -15,10 +15,12 @@ const body = `
 ## Install script
 
 \`\`\`sh
-curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh
+curl -fsSL https://warden.pulkit.page/install.sh | sh
 \`\`\`
 
-This installs \`warden\`, \`wnpm\`, and \`wnpx\`, and offers to place shims ahead of the package managers it detects. Read the script before running it; that advice applies to every install script, including this one.
+This installs \`warden\`, \`wnpm\`, and \`wnpx\`, and offers to place shims ahead of the package managers it detects.
+
+Read the script before running it. That advice applies to every install script, including this one, so it is served as plain text at [warden.pulkit.page/install.sh](/install.sh) and is the same file as [install.sh](https://github.com/pulkitxm/warden/blob/main/install.sh) in the repository.
 
 ## From source
 
@@ -68,7 +70,7 @@ warden config                 # inspect current settings
   with:
     fetch-depth: 0
 - uses: oven-sh/setup-bun@v2
-- run: curl -fsSL https://raw.githubusercontent.com/pulkitxm/warden/main/install.sh | sh
+- run: curl -fsSL https://warden.pulkit.page/install.sh | sh
 - run: warden ci --reporter github --base origin/\${{ github.base_ref }}
 \`\`\`
 
