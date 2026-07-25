@@ -42,7 +42,7 @@ export function renderReceipt(receipt: TransactionReceipt): string {
       : receipt.result === "rolled_back"
         ? c("31", "ROLLED BACK")
         : c("33", "REFUSED");
-  const lines: string[] = ["", `${bold("WARDEN APPLY")}  ${receipt.command}`, ""];
+  const lines: string[] = ["", bold(`Warden apply: ${receipt.command}`), ""];
   lines.push(`  ${label}  ${receipt.transaction_id}`);
   if (receipt.reason) lines.push(`  ${receipt.reason}`);
   lines.push("");

@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import type { RunDeps, WardenDeps } from "../shared/deps.ts";
+import { withoutProgress } from "../shared/progress.ts";
 import { selectManagers } from "./managers.ts";
 
 export const defaultDeps: RunDeps = {
@@ -10,7 +11,10 @@ export const defaultDeps: RunDeps = {
   stdout: process.stdout.write.bind(process.stdout),
   stderr: process.stderr.write.bind(process.stderr),
   which: Bun.which,
-  spawn: (cmd) => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+  spawn: (cmd) =>
+    withoutProgress(
+      () => Bun.spawnSync(cmd, { stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+    ),
   readFile: (path) => readFileSync(path, "utf8"),
   doctor: runDoctor,
 };
@@ -19,7 +23,9 @@ export const defaultWardenDeps: WardenDeps = {
   ...defaultDeps,
   home: homedir(),
   spawnIn: (cmd: string[], cwd: string) =>
-    Bun.spawnSync(cmd, { cwd, stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+    withoutProgress(
+      () => Bun.spawnSync(cmd, { cwd, stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+    ),
   mkdir: (path) => mkdirSync(path, { recursive: true }),
   writeFile: writeFileSync,
   exists: existsSync,
@@ -34,6 +40,6 @@ export const defaultWardenDeps: WardenDeps = {
     };
   },
   isTTY: () => Boolean(process.stdin.isTTY),
-  prompt: async (question) => globalThis.prompt(question) ?? "",
+  prompt: async (question) => withoutProgress(() => globalThis.prompt(question) ?? ""),
   selectManagers,
 };

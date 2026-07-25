@@ -1,4 +1,5 @@
 import { maxSatisfying, satisfies } from "../semver.ts";
+import { progressCount, progressDetail } from "../shared/progress.ts";
 
 export const LIFECYCLE_HOOKS = ["preinstall", "install", "postinstall", "prepare", "prepublish"];
 
@@ -157,6 +158,8 @@ export async function resolveGraph(
       continue;
     }
 
+    progressCount(selected.size, selected.size + queue.length + 1);
+    progressDetail(`reading ${item.name}`);
     const pack = await load(item.name);
     if (!pack?.versions) {
       unresolved.push({

@@ -9,6 +9,7 @@ import { explain } from "./llm.ts";
 import { fetchTarball, resolvePackage } from "./registry.ts";
 import { ANALYZER_VERSION, SCHEMA_VERSION, type Verdict } from "./schema.ts";
 import { score } from "./score.ts";
+import { progressDetail } from "./shared/progress.ts";
 import { quarantine } from "./shared/untrusted.ts";
 import { readTgz } from "./tar.ts";
 
@@ -61,6 +62,7 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     };
   }
 
+  progressDetail(`${name}: registry metadata`);
   const meta = await resolvePackage(name, version);
 
   if (!meta.existsOnRegistry) {
@@ -101,6 +103,7 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
   let current: ReturnType<typeof readTgz> = [];
   let previous: ReturnType<typeof readTgz> | undefined;
   if (meta.tarballUrl) {
+    progressDetail(`${meta.name}@${meta.version}: downloading tarball`);
     const bytes = await fetchTarball(meta.tarballUrl);
     if (integrity && !verifyIntegrity(bytes, integrity)) {
       throw new Error(`integrity mismatch for ${meta.name}@${meta.version}`);
@@ -108,6 +111,7 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     current = readTgz(bytes);
   }
   if (meta.previousTarballUrl) {
+    progressDetail(`${meta.name}@${meta.version}: diffing against ${meta.previousVersion}`);
     try {
       previous = readTgz(await fetchTarball(meta.previousTarballUrl));
     } catch {
@@ -145,6 +149,7 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     scanFiles: d.scanFiles,
   };
 
+  progressDetail(`${meta.name}@${meta.version}: scanning ${d.scanFiles.length} changed file(s)`);
   const base = score(analyze(input), {
     package: meta.name,
     version: meta.version,

@@ -636,7 +636,7 @@ warden plan --json -- pnpm add zod
 Planning resolves the complete prospective graph from registry metadata, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. The graph is diffed against the one in your lockfile, and every added or changed package goes through the same engine as \`warden check\`.
 
 \`\`\`text
-WARDEN PLAN  npm install @fastify/jwt
+Warden plan: npm install @fastify/jwt
 
 Direct changes
   + @fastify/jwt 9.1.0

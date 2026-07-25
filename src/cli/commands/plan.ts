@@ -27,20 +27,28 @@ const DECISION_LABEL: Record<TransactionPlan["decision"], string> = {
   block: c("31", "BLOCK"),
 };
 
-export function specsFromArgv(argv: string[]): string[] {
+const RUNNERS = ["npm", "pnpm", "yarn", "bun", "npx", "bunx"];
+
+function wordsFromArgv(argv: string[]): string[] {
   const separator = argv.indexOf("--");
   const tail = separator === -1 ? argv : argv.slice(separator + 1);
-  const words = tail.filter((arg) => !arg.startsWith("-"));
-  const managerIndex = words.findIndex((word) =>
-    ["npm", "pnpm", "yarn", "bun", "npx", "bunx"].includes(word),
-  );
+  return tail.filter((arg) => !arg.startsWith("-"));
+}
+
+export function specsFromArgv(argv: string[]): string[] {
+  const words = wordsFromArgv(argv);
+  const managerIndex = words.findIndex((word) => RUNNERS.includes(word));
   if (managerIndex === -1) return words;
   const verbs = new Set(["install", "i", "add", "ci", "update", "up", "require"]);
   return words.slice(managerIndex + 1).filter((word) => !verbs.has(word));
 }
 
+export function managerFromArgv(argv: string[]): string | undefined {
+  return wordsFromArgv(argv).find((word) => RUNNERS.includes(word));
+}
+
 export function renderPlan(plan: TransactionPlan): string {
-  const lines: string[] = ["", bold(`WARDEN PLAN  ${plan.command}`), ""];
+  const lines: string[] = ["", bold(`Warden plan: ${plan.command}`), ""];
 
   lines.push(bold("Direct changes"));
   if (plan.direct.length) {
@@ -114,7 +122,7 @@ export async function runWardenPlan(argv: string[], deps: WardenDeps): Promise<n
         "run warden plan -- npm install <package> inside a project",
       );
     }
-    const manager = detectManager(fs, root).manager;
+    const manager = detectManager(fs, root, managerFromArgv(argv)).manager;
     const command = specs.length ? `${manager} install ${specs.join(" ")}` : `${manager} install`;
     plan = await buildPlan(
       { command, manager, root, direct, existing, installed },

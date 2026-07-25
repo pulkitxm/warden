@@ -3,6 +3,7 @@ import { type Blocklist, defaultBlocklist } from "../intel/index.ts";
 import { resolvePackage } from "../registry.ts";
 import type { Verdict, VerdictLevel } from "../schema.ts";
 import { minSatisfying } from "../semver.ts";
+import { progressCount, progressDetail, progressStep } from "../shared/progress.ts";
 import { fetchVulns, type OsvVuln } from "../vuln.ts";
 import {
   type Change,
@@ -152,15 +153,21 @@ export async function runDoctor(
   const project = loadProject(dir, deps.fs);
   const notes: string[] = [];
   const audits: DepAudit[] = [];
+  progressStep(`auditing ${project.deps.length} dependencies against advisories`);
   for (const dep of project.deps) {
+    progressCount(audits.length, project.deps.length);
+    progressDetail(dep.name);
     const audit = await auditDependency(dep, resolve, vulnsFn, blocklist, notes);
     if (audit) audits.push(audit);
   }
 
   const gates = new Map<string, GateRecord>();
+  progressStep(`vetting ${audits.length} installed versions`);
   for (const audit of audits) {
     if (!audit.installed || audit.blocklistId) continue;
     const key = `${audit.name}@${audit.installed}`;
+    progressCount(gates.size, audits.length);
+    progressDetail(key);
     try {
       const verdict = await check(key);
       const rec: GateRecord = {
@@ -182,6 +189,7 @@ export async function runDoctor(
   const minimalChanges: Change[] = [];
   const latestChanges: Change[] = [];
 
+  progressStep("choosing candidate fixes");
   for (const audit of audits) {
     const needsFix = issues.some(
       (i) => i.name === audit.name && (i.kind === "vulnerability" || i.kind === "compromised"),
@@ -226,6 +234,7 @@ export async function runDoctor(
       recommended = plans[0]?.id;
     } else {
       for (const plan of plans) {
+        progressStep(`verifying the ${plan.label} in an isolated workspace`);
         const result = verifyPlan(project, plan.changes, verifier);
         plan.verification = { passed: result.passed, steps: result.steps };
       }

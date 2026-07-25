@@ -136,7 +136,7 @@ test("planning a clean package allows and writes the plan to disk", async () => 
   const plan = JSON.parse(written[path] as string) as TransactionPlan;
   expect(plan.decision).toBe("allow");
   expect(plan.direct).toEqual([{ name: "left-pad", range: "latest" }]);
-  expect(err.join("")).toContain("WARDEN PLAN");
+  expect(err.join("")).toContain("Warden plan: npm install left-pad");
 });
 
 test("--json emits exactly one plan object and no human text", async () => {
