@@ -69,15 +69,19 @@ export function runWardenVersion(_argv: string[], deps: WardenDeps): number {
 export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   {
     name: "check",
-    description: "vet packages, the lockfile, scripts, or registry config",
-    positional: { kind: "<pkg[@version]...>" },
+    description: "vet packages, the lockfile, install scripts, or registry config",
+    positional: {
+      kind: "<pkg[@version]... | lockfile | scripts | config>",
+      values: ["lockfile", "scripts", "config"],
+    },
     flags: [
       { name: "--json", description: "write verdict JSON to stdout" },
       { name: "--allow-risky", description: "permit blocked packages and exit 10" },
+      { name: "--dir", valueHint: "<path>", description: "directory to audit for a surface check" },
       helpFlag,
     ],
     exitCodes: "0 allow · 10 warn · 20 block · 30 error",
-    example: "warden check express@5 left-pad --json",
+    example: "warden check lockfile --json",
     run: runWardenCheck,
   },
   {
@@ -190,8 +194,8 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     name: "schema",
     description: "print the JSON schema for structured output",
     positional: {
-      kind: "[check|ci|doctor|intent|list]",
-      values: ["check", "ci", "doctor", "intent", "list"],
+      kind: "[check|ci|audit|doctor|intent|list]",
+      values: ["check", "ci", "audit", "doctor", "intent", "list"],
     },
     flags: [helpFlag],
     exitCodes: "0 success · 30 error",

@@ -183,9 +183,15 @@ test("DoctorReport keys stay inside the published doctor schema", async () => {
 test("warden schema exposes every major report type", async () => {
   const list = makeDeps();
   expect(await runWarden(["schema", "list"], list.deps)).toBe(0);
-  expect(JSON.parse(list.out.join("")).schemas).toEqual(["check", "ci", "doctor", "intent"]);
+  expect(JSON.parse(list.out.join("")).schemas).toEqual([
+    "check",
+    "ci",
+    "audit",
+    "doctor",
+    "intent",
+  ]);
 
-  for (const verb of ["check", "ci", "doctor", "intent"]) {
+  for (const verb of ["check", "ci", "audit", "doctor", "intent"]) {
     const { deps, out } = makeDeps();
     expect(await runWarden(["schema", verb], deps)).toBe(0);
     expect(JSON.parse(out.join("")).type).toBeDefined();

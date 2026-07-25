@@ -1,3 +1,4 @@
+import type { AuditReport } from "../audit/types.ts";
 import type { DoctorReport } from "../doctor/index.ts";
 import type { Verdict } from "../schema.ts";
 import { bold, c, dim } from "../shared/ansi.ts";
@@ -109,6 +110,36 @@ export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): strin
     lines.push(c("31", "  apply failed: package.json left unchanged"), "");
   else if (r.recommended)
     lines.push(dim(`  run ${tool} without --no-apply to apply the recommended plan`), "");
+
+  return lines.join("\n");
+}
+
+export function renderAuditReport(r: AuditReport): string {
+  const lines: string[] = ["", bold(`Warden check ${r.surface} — ${r.root}`), ""];
+
+  if (!r.findings.length) {
+    lines.push(c("32", `  no ${r.surface} issues across ${r.scanned} entr(ies)`), "");
+  } else {
+    const blocking = r.findings.filter((f) => f.level === "block").length;
+    lines.push(
+      bold(
+        `  ${r.findings.length} finding(s) across ${r.scanned} entr(ies) — ${blocking} blocking`,
+      ),
+      "",
+    );
+    for (const f of r.findings) {
+      const where = f.line ? `${f.file}:${f.line}` : f.file;
+      lines.push(
+        `  ${badge(f.level, f.level.toUpperCase().padEnd(5))} ${bold(f.target)}  ${dim(f.rule)}`,
+      );
+      lines.push(`    ${f.evidence}`);
+      lines.push(`    ${dim(`fix: ${f.fix}`)} ${dim(`(${where})`)}`);
+    }
+    lines.push("");
+  }
+
+  for (const n of r.notes) lines.push(dim(`  note: ${n}`));
+  if (r.notes.length) lines.push("");
 
   return lines.join("\n");
 }

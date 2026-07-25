@@ -360,6 +360,36 @@ export const DOCTOR_JSON_SCHEMA = {
   },
 } as const;
 
+export const AUDIT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["schema_version", "surface", "root", "scanned", "findings", "notes"],
+  properties: {
+    schema_version: { type: "integer", const: SCHEMA_VERSION },
+    surface: { type: "string", enum: ["lockfile", "scripts", "config"] },
+    root: { type: "string" },
+    scanned: { type: "integer", minimum: 0 },
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["rule", "level", "target", "file", "evidence", "fix"],
+        properties: {
+          rule: { type: "string" },
+          level: { type: "string", enum: ["allow", "warn", "block"] },
+          target: { type: "string" },
+          file: { type: "string" },
+          line: { type: "integer" },
+          evidence: { type: "string" },
+          fix: { type: "string" },
+        },
+      },
+    },
+    notes: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
 export const EXIT = {
   allow: 0,
   warn: 10,

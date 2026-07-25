@@ -1,4 +1,5 @@
 import {
+  AUDIT_JSON_SCHEMA,
   DOCTOR_JSON_SCHEMA,
   EXIT,
   FINDINGS_JSON_SCHEMA,
@@ -12,6 +13,7 @@ import { wardenFailure } from "../../shared/errors.ts";
 const SCHEMAS: Record<string, unknown> = {
   check: VERDICT_JSON_SCHEMA,
   ci: FINDINGS_JSON_SCHEMA,
+  audit: AUDIT_JSON_SCHEMA,
   doctor: DOCTOR_JSON_SCHEMA,
   intent: INTENT_JSON_SCHEMA,
 };
