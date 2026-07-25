@@ -779,7 +779,7 @@ The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fa
 
 ## Baselines and history
 
-A delta is measured against a trusted baseline, resolved in order of evidence: an explicitly recorded version, then the version a verified transaction installed, then the version in your lockfile, then, only as a last resort, the previous published release. That last case is genuinely weak, because an attacker who publishes twice moves it along with them, and `warden baseline list` grades it as such rather than hiding it.
+A delta is measured against a trusted baseline, resolved in order of evidence: an explicitly recorded version, then the version a verified transaction installed, then the version in your lockfile, then, only as a last resort, the previous published release. That last case is genuinely weak, because an attacker who publishes twice moves it along with them, and \`warden baseline list\` grades it as such rather than hiding it.
 
 ## Scores
 
