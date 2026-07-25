@@ -25,8 +25,18 @@ test("Verdict type keys match JSON Schema required keys", () => {
   const schemaKeys = [...VERDICT_JSON_SCHEMA.required].sort();
   expect(typeKeys).toEqual(schemaKeys);
   expect(Object.keys(VERDICT_JSON_SCHEMA.properties).sort()).toEqual(
-    [...schemaKeys, "untrusted"].sort(),
+    [...schemaKeys, "untrusted", "inventory"].sort(),
   );
+});
+
+test("inventory is optional, so an older consumer of the verdict contract still parses", () => {
+  expect([...VERDICT_JSON_SCHEMA.required]).not.toContain("inventory");
+  expect(Object.keys(VERDICT_JSON_SCHEMA.properties.inventory.properties).sort()).toEqual([
+    "analyzed",
+    "coverage",
+    "notes",
+    "total",
+  ]);
 });
 
 test("untrusted is optional so the verdict contract stays backwards compatible", () => {

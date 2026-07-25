@@ -766,7 +766,7 @@ The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fa
 
 ## Analysis has limits
 
-- Static analysis reads JavaScript and TypeScript. A native binary, a WebAssembly module, or a compiled artifact is not analyzed the way source is.
+- Static analysis reads JavaScript and TypeScript. A native binary, a WebAssembly module, or a compiled artifact is not analyzed the way source is. Every verdict built from a tarball reports an artifact inventory naming how many files were read as source and what was not, so an allow never implies the whole package was understood.
 - Sufficiently determined obfuscation can hide behaviour from an AST scan. Warden treats heavy obfuscation as a signal in itself, which is a heuristic, not a proof.
 - Warden evaluates risk signals and policy. It cannot prove that code is safe. An allow means no rule fired, not that the package is trustworthy.
 

@@ -51,6 +51,12 @@ export function renderExplain(report: ExplainReport): string {
     lines.push("");
   }
 
+  if (report.analysis_limits.length) {
+    lines.push(bold("Analysis limits"));
+    for (const entry of report.analysis_limits) lines.push(`  ${entry}`);
+    lines.push("");
+  }
+
   lines.push(bold("Safe next action"));
   for (const entry of report.next_actions) lines.push(`  ${entry}`);
   lines.push("");

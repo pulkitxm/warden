@@ -97,6 +97,26 @@ Install scripts in the current graph
 
 It exits `10` while anything is pending and `0` once every script carries an approval, which makes it usable as a check.
 
+## Artifact inventory
+
+An AST scan reads JavaScript and TypeScript. An npm tarball can also contain native binaries, WebAssembly, nested archives, and scripts in shell, PowerShell, Python, Ruby, or Perl. Reporting an allow without saying which of those went unread would overstate what happened.
+
+Every verdict built from a fetched tarball now carries an inventory: how many files it held, how many were read as source, and a note for each category that was not. Files are classified by magic bytes first, then by shebang, then by extension, so a Mach-O binary named `index.js` is still reported as a native binary.
+
+```
+$ warden explain some-native-package@2.1.0
+
+...
+
+Analysis limits
+  41 of 58 files in the tarball were read as source
+  6 native binaries are present and were not analyzed; static analysis reads source, not compiled code
+  1 nested archives are present; their contents were not unpacked or analyzed
+  3 scripts in languages outside the AST analyzer are present in the tarball
+```
+
+The inventory is published on the verdict contract as an optional `inventory` object, so an existing consumer keeps parsing unchanged.
+
 ## Known limits
 
 - The baseline is the previous published release. An attacker who publishes two bad releases in a row moves the baseline with them. Trusted baselines drawn from a known-good release are a better answer and are not implemented yet.

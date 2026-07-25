@@ -4,6 +4,7 @@ import { popularityOf } from "./distance/index.ts";
 import { type AnalysisInput, analyze } from "./heuristics/index.ts";
 import { verifyIntegrity } from "./integrity.ts";
 import { type Blocklist, defaultBlocklist, defaultHallucinated } from "./intel/index.ts";
+import { buildInventory, inventoryNotes } from "./inventory/artifacts.ts";
 import { explain } from "./llm.ts";
 import { fetchTarball, resolvePackage } from "./registry.ts";
 import { ANALYZER_VERSION, SCHEMA_VERSION, type Verdict } from "./schema.ts";
@@ -161,7 +162,18 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
       .map(([hook, command]) => `${hook}: ${command}`)
       .join(" | "),
   });
-  const verdict: Verdict = { ...base, summary, ...(untrusted ? { untrusted } : {}) };
+  const artifacts = buildInventory(current);
+  const verdict: Verdict = {
+    ...base,
+    summary,
+    ...(untrusted ? { untrusted } : {}),
+    inventory: {
+      total: artifacts.total,
+      analyzed: artifacts.analyzed,
+      coverage: artifacts.coverage,
+      notes: inventoryNotes(artifacts),
+    },
+  };
 
   if (integrity) cache.set(integrity, verdict, Date.now());
   return verdict;

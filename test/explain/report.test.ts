@@ -301,3 +301,33 @@ test("ranking does not mutate the list it was given", () => {
   rankComparison(rows);
   expect(rows.map((row) => row.package)).toEqual(["a", "b"]);
 });
+
+test("a verdict carrying an inventory reports what analysis could not read", () => {
+  const report = buildExplain(
+    verdict({
+      inventory: {
+        total: 10,
+        analyzed: 6,
+        coverage: 0.6,
+        notes: ["2 native binaries are present and were not analyzed"],
+      },
+    }),
+    meta(),
+    "0.1.0",
+  );
+  expect(report.analysis_limits[0]).toBe("6 of 10 files in the tarball were read as source");
+  expect(report.analysis_limits[1]).toContain("native binaries");
+});
+
+test("a verdict with no inventory claims no limits rather than inventing them", () => {
+  expect(buildExplain(verdict(), meta(), "0.1.0").analysis_limits).toEqual([]);
+});
+
+test("a fully analyzed tarball still states its coverage, so silence is never implied safety", () => {
+  const report = buildExplain(
+    verdict({ inventory: { total: 4, analyzed: 4, coverage: 1, notes: [] } }),
+    meta(),
+    "0.1.0",
+  );
+  expect(report.analysis_limits).toEqual(["4 of 4 files in the tarball were read as source"]);
+});
