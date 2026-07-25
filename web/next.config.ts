@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/docs/cli/:command.md", destination: "/api/cli-md/:command" },
       { source: "/docs/:slug.md", destination: "/api/docs-md/:slug" },
-      { source: "/demo/:path*", destination: "https://pulkitxm.github.io/warden/demo/:path*" },
     ];
   },
 };
