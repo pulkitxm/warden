@@ -91,8 +91,8 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     flags: [
       {
         name: "--reporter",
-        valueHint: "<summary|json|github|agent>",
-        description: "select human, JSON, workflow, or agent output",
+        valueHint: "<summary|json|github|agent|sarif>",
+        description: "select human, JSON, workflow, agent, or SARIF output",
       },
       { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
       {

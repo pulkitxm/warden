@@ -109,3 +109,19 @@ test("a nested workspace lockfile also triggers the lockfile audit", async () =>
   expect(await runWarden(["ci", "--reporter", "json"], deps)).toBe(20);
   expect(findingsFrom(out).length).toBeGreaterThan(0);
 });
+
+test("the sarif reporter emits a valid document to stdout", async () => {
+  const { deps, out } = makeDeps(["package-lock.json"], {
+    "/repo/package-lock.json": HOSTILE_LOCK,
+  });
+  expect(await runWarden(["ci", "--reporter", "sarif"], deps)).toBe(20);
+  const sarif = JSON.parse(out.join(""));
+  expect(sarif.version).toBe("2.1.0");
+  expect(sarif.runs[0].results.length).toBeGreaterThan(0);
+  expect(sarif.runs[0].results[0].level).toBe("error");
+});
+
+test("an unknown reporter is rejected", async () => {
+  const { deps } = makeDeps(["README.md"], {});
+  expect(await runWarden(["ci", "--reporter", "nope"], deps)).toBe(30);
+});
