@@ -43,7 +43,7 @@ function severityBadge(severity: string | undefined): string {
   return dim(s);
 }
 
-export function renderDoctorReport(r: DoctorReport): string {
+export function renderDoctorReport(r: DoctorReport, tool = "wnpm doctor"): string {
   const lines: string[] = ["", bold(`Warden doctor — ${r.project}`), ""];
 
   const incomplete = `  audit incomplete: ${r.skipped} of ${r.audited + r.skipped} dependencies could not be audited`;
@@ -110,7 +110,7 @@ export function renderDoctorReport(r: DoctorReport): string {
   else if (r.applied === false)
     lines.push(c("31", "  apply failed: package.json left unchanged"), "");
   else if (r.recommended)
-    lines.push(dim("  run wnpm doctor without --no-apply to apply the recommended plan"), "");
+    lines.push(dim(`  run ${tool} without --no-apply to apply the recommended plan`), "");
 
   return lines.join("\n");
 }
