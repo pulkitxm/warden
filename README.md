@@ -26,32 +26,6 @@ bun run build
 
 Exit codes are `0` allow, `10` warn, `20` block, `30` analysis error. `--json` writes machine-readable output to stdout on every verb that has a report, `warden schema list` names them, and `--no-color` disables ANSI.
 
-## Website
-
-The site in `web/` is a Next.js app that documents the shipped CLI. Its CLI reference is generated from the command registry by `bun scripts/export-cli-reference.ts`, so it cannot drift from the binary. See [web/README.md](web/README.md).
-
-## Layout
-
-```text
-src/
-  bin/        warden, wnpm, wnpx entrypoints
-  cli/        argument parsing, rendering, and command wiring
-    commands/ one module per warden verb
-    help.ts   help and completion rendering, driven by the registry
-    registry.ts  COMMAND_REGISTRY, the single source of verbs
-  shared/     deps interfaces, error envelopes, git helpers, ansi, arg parsing
-  engine.ts   the checkPackage pipeline
-  doctor/     OSV audit, plan, supply-chain gate, isolated verify, apply
-  intent/     prompt-as-spec verification for agent diffs
-  heuristics/ AST capability scan
-  distance/   typosquat scoring against package popularity
-  intel/      curated blocklist and hallucinated-name data
-  audit/      lockfile, install script, and registry config surface audits
-web/          Next.js documentation and marketing site
-```
-
-Dependencies point one way: `bin` to `cli` to `shared` and the domain modules. Domain modules never import from `cli`, and `test/cli/layering.test.ts` fails the build if that reverses.
-
 ## Docs
 
 Full documentation lives at **[warden.pulkit.page/docs](https://warden.pulkit.page/docs)**.
