@@ -39,8 +39,28 @@ printf '\n' >> "$MANAGER_LOG"
 exit 0
 `;
   const wardenStub = `#!/bin/sh
+if [ "$1" = "shim-transaction" ]; then
+  if [ -n "$WARDEN_TRANSACTION" ]; then
+    printf '%s
+' "$WARDEN_TRANSACTION"
+  else
+    printf '{"decision":"allow","exit":0,"pendingScripts":[],"reasons":[]}
+'
+  fi
+  exit 0
+fi
 if [ "$1" = "shim-plan" ]; then
   printf '%s\n' "$WARDEN_PLAN"
+  exit 0
+fi
+if [ "$1" = "shim-transaction" ]; then
+  if [ -n "$WARDEN_TRANSACTION" ]; then
+    printf '%s
+' "$WARDEN_TRANSACTION"
+  else
+    printf '{"decision":"allow","exit":0,"pendingScripts":[],"reasons":[]}
+'
+  fi
   exit 0
 fi
 for arg in "$@"; do printf '%s\n' "$arg" >> "$WARDEN_LOG"; done
@@ -357,6 +377,16 @@ test("passthrough commands never reach warden", () =>
 test("empty verdict output covers silent warning and block paths", () =>
   inSandbox((sandbox) => {
     const silentWarden = `#!/bin/sh
+if [ "$1" = "shim-transaction" ]; then
+  if [ -n "$WARDEN_TRANSACTION" ]; then
+    printf '%s
+' "$WARDEN_TRANSACTION"
+  else
+    printf '{"decision":"allow","exit":0,"pendingScripts":[],"reasons":[]}
+'
+  fi
+  exit 0
+fi
 if [ "$1" = "shim-plan" ]; then
   printf '%s\n' "$WARDEN_PLAN"
   exit 0
@@ -388,4 +418,97 @@ test("log mode records every verdict and never blocks the manager", () =>
       '{"schema_version":"1.0.0","verdict":"block"}\n',
     );
     expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\t--ignore-scripts\n");
+  }));
+
+const blockedTransaction = JSON.stringify({
+  decision: "block",
+  exit: 20,
+  planId: "wtxn_test",
+  pendingScripts: [],
+  reasons: ["byte-utils@2.0.0: known malicious release"],
+});
+
+const approvalTransaction = JSON.stringify({
+  decision: "needs_approval",
+  exit: 10,
+  planId: "wtxn_test",
+  pendingScripts: ["fast-jwt@5.0.6 postinstall"],
+  reasons: ["fast-jwt@5.0.6 has a postinstall script"],
+});
+
+test("an install is gated on the whole prospective graph, not only the typed package", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "left-pad"], {
+      WARDEN_TRANSACTION: blockedTransaction,
+    });
+    expect(result.exitCode).toBe(20);
+    const err = text(result.stderr);
+    expect(err).toContain("blocked on the whole prospective graph");
+    expect(err).toContain("byte-utils@2.0.0");
+    expect(log(sandbox.managerLog)).toBe("");
+  }));
+
+test("a blocked graph names the plan command that shows the full picture", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "left-pad"], {
+      WARDEN_TRANSACTION: blockedTransaction,
+    });
+    expect(text(result.stderr)).toContain("warden plan -- npm install left-pad");
+  }));
+
+test("--allow-risky overrides a blocked graph and the install proceeds", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "left-pad", "--allow-risky"], {
+      WARDEN_TRANSACTION: blockedTransaction,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(log(sandbox.managerLog)).toContain("left-pad");
+  }));
+
+test("a transitive install script is named with the exact approval command", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "@fastify/jwt"], {
+      WARDEN_TRANSACTION: approvalTransaction,
+    });
+    expect(result.exitCode).toBe(0);
+    const err = text(result.stderr);
+    expect(err).toContain("install scripts new to this graph are suppressed and will not run");
+    expect(err).toContain("warden approve-script fast-jwt@5.0.6 --hook postinstall");
+  }));
+
+test("an install whose scripts need approval still installs, with scripts suppressed", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "@fastify/jwt"], {
+      WARDEN_TRANSACTION: approvalTransaction,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(log(sandbox.managerLog)).toContain("--ignore-scripts");
+  }));
+
+test("an exec command is not put through the transaction gate", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npx", ["create-vite"], {
+      WARDEN_TRANSACTION: blockedTransaction,
+    });
+    expect(result.exitCode).toBe(0);
+  }));
+
+test("log mode records without ever blocking on the transaction gate", () =>
+  inSandbox((sandbox) => {
+    writeFileSync(
+      join(sandbox.home, ".warden", "config.json"),
+      '{"mode":"log","intercept":{"install":true,"exec":true}}\n',
+    );
+    const result = run(sandbox, "npm", ["install", "left-pad"], {
+      WARDEN_TRANSACTION: blockedTransaction,
+    });
+    expect(result.exitCode).toBe(0);
+    expect(log(sandbox.managerLog)).toContain("left-pad");
+  }));
+
+test("a gate that returns nothing does not wedge the install", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "left-pad"], { WARDEN_TRANSACTION: "" });
+    expect(result.exitCode).toBe(0);
+    expect(log(sandbox.managerLog)).toContain("left-pad");
   }));

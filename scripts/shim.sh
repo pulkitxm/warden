@@ -142,6 +142,36 @@ if [ "$graph_transaction" = true ] && [ "$mode" != log ]; then
   fi
 fi
 
+if [ "$mediate_install" = true ] && [ "$mode" != log ]; then
+  txn=$("$warden" shim-transaction "$tool" "$@" 2>/dev/null)
+  txn_decision=$(json_field "$txn" decision)
+  txn_exit=$(printf '%s' "$txn" | sed -n 's/.*"exit"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -n 1)
+  [ -n "$txn_exit" ] || txn_exit=0
+
+  if [ "$txn_decision" = "block" ]; then
+    printf 'warden: this change was blocked on the whole prospective graph, not only on %s\n' "$tool" >&2
+    printf '%s\n' "$txn" | sed -n 's/.*"reasons"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' |
+      tr ',' '\n' | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//' | grep -v '^$' |
+      while IFS= read -r reason; do printf 'warden:   %s\n' "$reason" >&2; done
+    if [ "$allow_risky" != true ]; then
+      printf 'warden: run warden plan -- %s %s to see the full graph, or override with --allow-risky\n' "$tool" "$*" >&2
+      exit "$txn_exit"
+    fi
+  fi
+
+  pending=$(printf '%s' "$txn" | sed -n 's/.*"pendingScripts"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' |
+    tr ',' '\n' | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//' | grep -v '^$')
+  if [ -n "$pending" ] && [ "$mode" != quiet ]; then
+    printf 'warden: install scripts new to this graph are suppressed and will not run:\n' >&2
+    printf '%s\n' "$pending" | while IFS= read -r entry; do
+      name=${entry%% *}
+      hook=${entry##* }
+      printf 'warden:   %s (%s)\n' "$name" "$hook" >&2
+      printf 'warden:     approve with: warden approve-script %s --hook %s\n' "$name" "${hook%%,*}" >&2
+    done
+  fi
+fi
+
 suppress=$(json_list "$plan" suppressScripts | tr '\n' ' ')
 if printf '%s' "$plan" | grep -q '"YARN_ENABLE_SCRIPTS"'; then
   YARN_ENABLE_SCRIPTS=0

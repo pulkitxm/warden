@@ -5,6 +5,7 @@ import { runWardenCompare, runWardenScripts } from "./commands/compare.ts";
 import { runWardenExplain, runWardenHistory } from "./commands/explain.ts";
 import { runWardenPlan } from "./commands/plan.ts";
 import { runWardenPolicy } from "./commands/policy.ts";
+import { runWardenShimTransaction } from "./commands/shim-transaction.ts";
 import { runWardenVerify } from "./commands/verify.ts";
 import { type CommandDefinition, helpFlag } from "./help.ts";
 
@@ -140,5 +141,14 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden baseline record left-pad@1.3.0",
     run: runWardenBaseline,
+  },
+  {
+    name: "shim-transaction",
+    description: "gate an intercepted install on the whole prospective graph",
+    hidden: true,
+    flags: [],
+    exitCodes: "0 success",
+    example: "warden shim-transaction npm install left-pad",
+    run: runWardenShimTransaction,
   },
 ];

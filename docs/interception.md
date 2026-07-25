@@ -120,3 +120,39 @@ $ warden log --tail 2
 ```
 
 `log` mode is the observability tier: it answers "what would warden have done" during a trial period without changing any behavior. The jsonl file carries full verdict objects; `warden log` renders them.
+
+## The shim routes an install through the transaction model
+
+Vetting only the package names typed on the command line is what let a malicious transitive dependency through. An intercepted install is now gated on the whole prospective graph.
+
+For any command the grammar classifies as `install`, `frozen-install`, or `global-install`, the shim calls the hidden `warden shim-transaction` verb. That builds the same plan `warden plan` builds: it resolves the complete prospective graph from registry metadata, diffs it against the lockfile, and vets every added or changed package.
+
+```
+$ npm install @fastify/jwt
+
+warden: install scripts new to this graph are suppressed and will not run:
+warden:   fast-jwt@5.0.6 (postinstall)
+warden:     approve with: warden approve-script fast-jwt@5.0.6 --hook postinstall
+```
+
+```
+$ npm install some-package
+
+warden: this change was blocked on the whole prospective graph, not only on npm
+warden:   byte-utils@2.0.0: known malicious release
+warden: run warden plan -- npm install some-package to see the full graph, or override with --allow-risky
+```
+
+### How the shim treats each decision
+
+| Decision | What the shim does |
+| --- | --- |
+| `ALLOW` | Delegates to the real package manager with scripts suppressed |
+| `WARN` | Same, after printing the findings |
+| `NEEDS_APPROVAL` | Installs with scripts suppressed, and names every new install script with the exact `warden approve-script` command for it |
+| `BLOCK` | Refuses, prints the reasons, and points at `warden plan`. `--allow-risky` overrides |
+| unplannable | Fails closed, the same as any other analysis error |
+
+`NEEDS_APPROVAL` behaves differently here than in `warden apply`, deliberately. `apply` refuses, because you asked to apply a specific plan and the approval is part of it. The shim intercepted a command you already ran, and the install itself is safe with scripts suppressed, so it proceeds and tells you exactly what is waiting on approval. Nothing from an unapproved script runs in either case.
+
+`exec` and `rebuild` commands are not put through the gate: they do not change the dependency graph. `mode: log` records without ever blocking, as it does everywhere else.
