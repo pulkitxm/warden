@@ -51,6 +51,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
         title={page.title}
         description={page.description}
         toc={headingsOf(page.body)}
+        markdownPath={`/docs/${page.slug}.md`}
         previous={previous ? { href: `/docs/${previous.slug}`, label: previous.title } : undefined}
         next={next ? { href: `/docs/${next.slug}`, label: next.title } : undefined}
         related={page.related?.map((relatedSlug) => {

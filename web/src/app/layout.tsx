@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Footer, Header } from "@/components/chrome";
+import { CopyEnhancer } from "@/components/copy-enhancer";
 import { JsonLd } from "@/lib/seo";
 import { site, siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             },
           ]}
         />
+        <CopyEnhancer />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

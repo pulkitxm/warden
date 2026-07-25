@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/chrome";
+import { PageActions } from "@/components/page-actions";
 import { Toc, type TocItem } from "@/components/toc";
 
 export type { TocItem };
@@ -20,6 +21,7 @@ export function DocsPage({
   previous,
   next,
   related,
+  markdownPath,
 }: {
   trail: Array<{ name: string; path: string }>;
   eyebrow: string;
@@ -30,6 +32,7 @@ export function DocsPage({
   previous?: PageLink;
   next?: PageLink;
   related?: Array<{ href: string; label: string; description?: string }>;
+  markdownPath?: string;
 }) {
   return (
     <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_216px] xl:gap-10">
@@ -39,6 +42,7 @@ export function DocsPage({
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h1>
         <p className="mt-4 text-lg leading-relaxed text-fog">{description}</p>
         <hr className="my-8 border-white/10" />
+        {markdownPath ? <PageActions markdownPath={markdownPath} title={title} /> : null}
 
         {children}
 

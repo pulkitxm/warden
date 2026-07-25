@@ -24,6 +24,8 @@ export function Header() {
         </nav>
         <a
           href={site.repo}
+          target="_blank"
+          rel="noreferrer"
           className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[13.5px] text-white transition hover:border-mint/60 hover:text-mint"
         >
           GitHub
@@ -51,16 +53,26 @@ export function Footer() {
                 {group.heading}
               </h2>
               <ul className="mt-3 space-y-2">
-                {group.links.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-fog transition hover:text-mint"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {group.links.map((link) =>
+                  link.href.startsWith("http") ? (
+                    <li key={link.href}>
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-fog transition hover:text-mint"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  ) : (
+                    <li key={link.href}>
+                      <Link href={link.href} className="text-sm text-fog transition hover:text-mint">
+                        {link.label}
+                      </Link>
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
           ))}

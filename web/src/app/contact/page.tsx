@@ -78,6 +78,8 @@ export default function ContactPage() {
             <p className="mt-2.5 text-[15px] leading-relaxed text-fog">{channel.body}</p>
             <a
               href={channel.href}
+              target="_blank"
+              rel="noreferrer"
               className="mt-4 inline-block text-sm font-medium text-mint transition hover:text-white"
             >
               {channel.cta} →

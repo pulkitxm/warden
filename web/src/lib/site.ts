@@ -6,7 +6,7 @@ export const site = {
   name: "Warden",
   tagline: "The trust layer for npm and coding agents",
   description:
-    "Warden vets packages before they install, audits your lockfile, install scripts and registry config, repairs vulnerable dependencies through a supply-chain gate, and checks that an agent's diff matches the prompt it was given.",
+    "Warden vets npm packages before they install or execute, audits your lockfile, install scripts and registry config, and repairs vulnerable dependencies safely.",
   repo: "https://github.com/pulkitxm/warden",
   url: siteUrl,
 } as const;
