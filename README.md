@@ -61,4 +61,4 @@ Full documentation lives at **[warden.pulkit.page/docs](https://warden.pulkit.pa
 - [Doctor](https://warden.pulkit.page/docs/doctor), [intent](https://warden.pulkit.page/docs/intent), [CI](https://warden.pulkit.page/docs/ci), and [check surfaces](https://warden.pulkit.page/docs/check-surfaces)
 - [Agents](https://warden.pulkit.page/docs/agents) and the [threat model](https://warden.pulkit.page/docs/security)
 
-Every docs page has a markdown mirror for agents, at the same path with a `.md` suffix, and [`/llms.txt`](https://warden.pulkit.page/llms.txt) indexes them all. The in-repo [`docs/`](docs) directory holds the longer-form engineering notes, and [`demo/`](demo) runs everything without network access.
+Every docs page has a markdown mirror for agents, at the same path with a `.md` suffix, and [`/llms.txt`](https://warden.pulkit.page/llms.txt) indexes them all. The in-repo [`docs/`](docs/README.md) directory holds the longer-form engineering notes, and [`demo/`](demo) runs everything without network access.
