@@ -324,6 +324,31 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  baseline: {
+    intro:
+      "A version delta is only as good as what it is measured against. Comparing a release to the one published immediately before it is the weakest possible baseline: an attacker who publishes twice moves the comparison point along with them. `warden baseline` records the version you actually trust, so a delta means something.",
+    whenToUse: [
+      "After auditing a dependency, to pin the exact version that audit covered.",
+      "When adopting Warden in an existing project, to see what each baseline currently rests on.",
+      "Before an upgrade, to check whether the comparison point is strong or a fallback.",
+    ],
+    examples: [
+      { command: "warden baseline list", description: "Every baseline and how much it is worth." },
+      {
+        command: "warden baseline record esbuild@0.25.8 --note \"audited in PR 412\"",
+        description: "Pin an exact version as trusted, with the reason.",
+      },
+      { command: "warden baseline list --json", description: "The structured baselines." },
+    ],
+    behaviour:
+      "Baselines resolve in order of how much evidence stands behind them: an explicitly recorded version, then the version a verified Warden transaction installed, then the version in your lockfile, then the previous published release. Each is graded strong, moderate, weak, or none, and carries the evidence that produced it. Recorded baselines live in `.warden/baselines.json` and are meant to be committed.",
+    gotchas: [
+      "A baseline must name an exact version. A range would defeat the purpose.",
+      "Only an applied receipt with an allow verdict contributes a baseline. A refused transaction or a blocked artifact does not.",
+      "Recording a baseline does not re-run any analysis. It changes what future deltas are compared against.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",

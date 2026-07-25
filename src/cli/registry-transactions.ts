@@ -1,5 +1,6 @@
 import { runWardenAgent } from "./commands/agent.ts";
 import { runWardenApply, runWardenApproveScript } from "./commands/apply.ts";
+import { runWardenBaseline } from "./commands/baseline.ts";
 import { runWardenCompare, runWardenScripts } from "./commands/compare.ts";
 import { runWardenExplain, runWardenHistory } from "./commands/explain.ts";
 import { runWardenPlan } from "./commands/plan.ts";
@@ -126,5 +127,18 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 success · 30 error",
     example: "warden agent setup claude --yes",
     run: runWardenAgent,
+  },
+  {
+    name: "baseline",
+    description: "show and record the trusted version a release should be compared against",
+    positional: { kind: "[list|record] [pkg@version]", values: ["list", "record"] },
+    flags: [
+      { name: "--note", valueHint: "<text>", description: "why this version is trusted" },
+      { name: "--json", description: "write the baselines to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden baseline record left-pad@1.3.0",
+    run: runWardenBaseline,
   },
 ];
