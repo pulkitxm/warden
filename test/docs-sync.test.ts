@@ -138,3 +138,16 @@ test("every command note points at commands that exist", async () => {
     expect(`${name} is a real verb: ${known.has(name)}`).toBe(`${name} is a real verb: true`);
   }
 });
+
+test("the published benchmark matches what the binary produces today", async () => {
+  const { BENCHMARK_CASES } = await import("../src/benchmark/cases.ts");
+  const { runBenchmark } = await import("../src/benchmark/run.ts");
+  const published = await import("../web/src/lib/benchmark.json");
+  const fresh = await runBenchmark(BENCHMARK_CASES, published.default.analyzer_version);
+  expect(fresh.totals).toEqual(published.default.totals);
+  expect(fresh.detection).toEqual(published.default.detection);
+  expect(fresh.falsePositives).toEqual(published.default.falsePositives);
+  expect(fresh.results.map((row) => `${row.id}:${row.actual}`)).toEqual(
+    published.default.results.map((row) => `${row.id}:${row.actual}`),
+  );
+});

@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "analyzer_version": "0.1.0",
+  "totals": {
+    "cases": 20,
+    "malicious": 12,
+    "benign": 8
+  },
+  "detection": {
+    "caught": 12,
+    "missed": 0,
+    "rate": 1
+  },
+  "falsePositives": {
+    "count": 0,
+    "rate": 0
+  },
+  "meanCoverage": 1,
+  "results": [
+    {
+      "id": "mal-grandchild",
+      "shape": "a malicious package three levels below the one the user typed",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-transitive-postinstall",
+      "shape": "a clean direct dependency whose child runs code at install time",
+      "kind": "malicious",
+      "expected": "needs_approval",
+      "actual": "needs_approval",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-preinstall",
+      "shape": "a preinstall script, which runs before anything is unpacked",
+      "kind": "malicious",
+      "expected": "needs_approval",
+      "actual": "needs_approval",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-compromised-patch",
+      "shape": "a patch release that adds a script the trusted version did not have",
+      "kind": "malicious",
+      "expected": "needs_approval",
+      "actual": "needs_approval",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-vanished-dep",
+      "shape": "a dependency that no longer resolves from the registry",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-transitive-git",
+      "shape": "a child dependency pulled straight from a git repository",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-transitive-url",
+      "shape": "a child dependency resolving to an arbitrary https tarball",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-needle-in-haystack",
+      "shape": "one malicious leaf among twelve clean siblings",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-optional-dep",
+      "shape": "a malicious optional dependency, which still installs on a matching platform",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-diamond",
+      "shape": "a diamond whose shared package is the compromised one",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-cycle",
+      "shape": "a dependency cycle containing a malicious node",
+      "kind": "malicious",
+      "expected": "block",
+      "actual": "block",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "mal-prepare-hook",
+      "shape": "a prepare script, which npm also runs at install time",
+      "kind": "malicious",
+      "expected": "needs_approval",
+      "actual": "needs_approval",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-single",
+      "shape": "a single dependency with no children",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-deep-chain",
+      "shape": "ten levels of ordinary transitive dependencies",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-wide-fan",
+      "shape": "one package pulling thirty clean leaves",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-diamond",
+      "shape": "the diamond every real graph contains",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-scoped",
+      "shape": "scoped packages depending on scoped packages",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-ranges",
+      "shape": "caret and tilde ranges throughout, as real manifests use",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-unchanged",
+      "shape": "re-planning a project where nothing changed",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    },
+    {
+      "id": "benign-existing-script",
+      "shape": "an upgrade of a package whose install script was already trusted",
+      "kind": "benign",
+      "expected": "allow",
+      "actual": "allow",
+      "correct": true,
+      "coverage": 1
+    }
+  ],
+  "method": [
+    "every case is driven through the real resolver and the real plan decision, not a mock",
+    "a malicious case counts as caught only when the decision stops the install, which means block or needs_approval",
+    "a benign case counts as a false positive when the decision stops the install",
+    "coverage is the share of changed packages the plan actually analyzed",
+    "these are curated shapes, not a sample of the registry; treat the rates as regression signals rather than as field accuracy"
+  ]
+}

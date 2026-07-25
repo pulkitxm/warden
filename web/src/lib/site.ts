@@ -41,6 +41,7 @@ export const footerLinks = [
       { href: "/docs/configuration", label: "Configuration" },
       { href: "/docs/schemas", label: "JSON schemas" },
       { href: "/docs/coverage", label: "Command coverage" },
+      { href: "/benchmark", label: "Benchmark" },
       { href: "/docs/limitations", label: "Limitations" },
       { href: "/changelog", label: "Changelog" },
     ],

@@ -1,6 +1,7 @@
 import { runWardenAgent } from "./commands/agent.ts";
 import { runWardenApply, runWardenApproveScript } from "./commands/apply.ts";
 import { runWardenBaseline } from "./commands/baseline.ts";
+import { runWardenBenchmark } from "./commands/benchmark.ts";
 import { runWardenCompare, runWardenScripts } from "./commands/compare.ts";
 import { runWardenExplain, runWardenHistory } from "./commands/explain.ts";
 import { runWardenPlan } from "./commands/plan.ts";
@@ -150,5 +151,14 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 success",
     example: "warden shim-transaction npm install left-pad",
     run: runWardenShimTransaction,
+  },
+  {
+    name: "benchmark",
+    learnMore: "benchmark",
+    description: "measure detection and false positives against the published corpora",
+    flags: [{ name: "--json", description: "write the benchmark report to stdout" }, helpFlag],
+    exitCodes: "0 every case matched · 20 a case regressed",
+    example: "warden benchmark --json",
+    run: runWardenBenchmark,
   },
 ];

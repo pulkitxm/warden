@@ -349,6 +349,29 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  benchmark: {
+    intro:
+      "A security tool that publishes a detection rate without publishing the corpus behind it is asking to be taken on faith. `warden benchmark` runs a curated corpus of attack and benign dependency shapes through the same resolver and the same decision logic the CLI uses, and reports detection, false positives, and analysis coverage together.",
+    whenToUse: [
+      "Before trusting the tool, to see what it actually catches and what it lets through.",
+      "In CI on this repository, to catch a change that quietly weakens a decision.",
+      "When tuning policy, to see the false-positive cost of a stricter setting.",
+    ],
+    examples: [
+      { command: "warden benchmark", description: "The human summary and any regressed case." },
+      {
+        command: "warden benchmark --json",
+        description: "The full report, including every case and the method behind the numbers.",
+      },
+    ],
+    behaviour:
+      "Every case is driven through the real resolver and the real plan decision, not a mock. A malicious shape counts as caught only when the decision stops the install, which means block or needs approval. A benign shape counts as a false positive when the decision stops it. The command exits `20` if any case no longer matches its recorded decision, so a weakened rule fails the build rather than moving the average.",
+    gotchas: [
+      "These are curated shapes, not a sample of the registry. Treat the rates as regression signals, not as field accuracy.",
+      "The published figures are at [warden.pulkit.page/benchmark](/benchmark), generated from the same run.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",
