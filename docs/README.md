@@ -9,6 +9,7 @@ User documentation lives on the website at **[warden.pulkit.page/docs](https://w
 | [doctor](doctor.md) | The audit, gate, verify, apply loop | Shipped |
 | [intent](intent.md) | Prompt-as-spec verification | Shipped |
 | [check-surfaces](check-surfaces.md) | Lockfile, install script, and registry config audits | Shipped |
+| [transactions](transactions.md) | Prospective graph resolution and the plan decision | Shipped |
 | [agent-first-cli](agent-first-cli.md) | CLI conventions for agents | Shipped |
 | [interception](interception.md) | PATH shims and the intercept switch | Shipped |
 | [detection-and-init](detection-and-init.md) | `warden detect` and `warden init` | Shipped |
