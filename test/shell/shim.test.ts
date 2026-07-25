@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { type Manager, planCommand } from "../../src/shim/grammar.ts";
 
 const shimSource = join(import.meta.dir, "../../scripts/shim.sh");
 const managers = ["npm", "bun", "npx", "bunx", "pnpm", "yarn"];
@@ -38,6 +39,10 @@ printf '\n' >> "$MANAGER_LOG"
 exit 0
 `;
   const wardenStub = `#!/bin/sh
+if [ "$1" = "shim-plan" ]; then
+  printf '%s\n' "$WARDEN_PLAN"
+  exit 0
+fi
 for arg in "$@"; do printf '%s\n' "$arg" >> "$WARDEN_LOG"; done
 case " $* " in
   *" --json "*) printf '{"schema_version":"1.0.0","verdict":"%s"}\n' "\${WARDEN_VERDICT:-allow}" ;;
@@ -75,6 +80,7 @@ function run(
     WARDEN_LOG: sandbox.wardenLog,
     WARDEN_EXIT: "0",
     WARDEN_VERDICT: "allow",
+    WARDEN_PLAN: JSON.stringify(planCommand(tool as Manager, args)),
     ...extraEnv,
   });
   return Bun.spawnSync(["sh", join(sandbox.shimDir, tool), ...args], {
@@ -113,7 +119,7 @@ test("npm install allow vets the package and preserves argv", () =>
   inSandbox((sandbox) => {
     checked(sandbox, "npm", ["install", "left-pad"]);
     expect(log(sandbox.wardenLog)).toBe("check\nleft-pad\n--json\n");
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tleft-pad\n");
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tleft-pad\t--ignore-scripts\n");
   }));
 
 test("npm install block exits 20 without invoking npm", () =>
@@ -136,7 +142,7 @@ test("allow-risky is sent to warden and removed before npm runs", () =>
       WARDEN_VERDICT: "allow",
     });
     expect(log(sandbox.wardenLog)).toBe("check\ndanger\n--json\n--allow-risky\n");
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\n");
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\t--ignore-scripts\n");
   }));
 
 test("warn verdict prints the verdict and proceeds", () =>
@@ -148,7 +154,7 @@ test("warn verdict prints the verdict and proceeds", () =>
     expect(result.exitCode).toBe(0);
     expect(text(result.stderr)).toContain("HUMAN VERDICT warn");
     expect(text(result.stderr)).not.toContain("schema_version");
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tuncertain\n");
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tuncertain\t--ignore-scripts\n");
   }));
 
 test("npx and bunx vet execution packages and stop on block", () =>
@@ -201,7 +207,7 @@ test("exec interception false skips npx but install interception remains active"
     checked(sandbox, "npx", ["danger"]);
     checked(sandbox, "npm", ["install", "safe"]);
     expect(log(sandbox.wardenLog)).toBe("check\nsafe\n--json\n");
-    expect(log(sandbox.managerLog)).toBe("npx\tdanger\nnpm\tinstall\tsafe\n");
+    expect(log(sandbox.managerLog)).toBe("npx\tdanger\nnpm\tinstall\tsafe\t--ignore-scripts\n");
   }));
 
 test("missing and incomplete config use interception defaults", () =>
@@ -251,16 +257,14 @@ test("multiple packages are each vetted before one identical install", () =>
     expect(log(sandbox.wardenLog)).toBe(
       "check\none\n--json\ncheck\ntwo@3\n--json\ncheck\n@scope/four\n--json\n",
     );
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tone\ttwo@3\t@scope/four\n");
+    expect(log(sandbox.managerLog)).toBe(
+      "npm\tinstall\tone\ttwo@3\t@scope/four\t--ignore-scripts\n",
+    );
   }));
 
-test("install option values and non-registry specs are not vetted", () =>
+test("a git, url, or local spec is blocked rather than silently skipped", () =>
   inSandbox((sandbox) => {
-    checked(sandbox, "npm", [
-      "install",
-      "--registry",
-      "registry.test",
-      "--flag",
+    for (const spec of [
       "./local",
       "../parent",
       "/absolute",
@@ -268,8 +272,25 @@ test("install option values and non-registry specs are not vetted", () =>
       "git:repo",
       "http://example.test/a",
       "https://example.test/b",
-      "package",
-    ]);
+    ]) {
+      writeFileSync(sandbox.managerLog, "");
+      const result = run(sandbox, "npm", ["install", spec]);
+      expect(result.exitCode).toBe(20);
+      expect(text(result.stderr)).toContain("no registry provenance");
+      expect(log(sandbox.managerLog)).toBe("");
+    }
+  }));
+
+test("--allow-risky permits a reviewed non-registry source", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "git:repo", "--allow-risky"]);
+    expect(result.exitCode).toBe(0);
+    expect(log(sandbox.managerLog)).toContain("npm\tinstall\tgit:repo");
+  }));
+
+test("option values are never mistaken for package specs", () =>
+  inSandbox((sandbox) => {
+    checked(sandbox, "npm", ["install", "--registry", "registry.test", "--flag", "package"]);
     expect(log(sandbox.wardenLog)).toBe("check\npackage\n--json\n");
   }));
 
@@ -288,19 +309,58 @@ test("pnpm dlx removes its verb before exec vetting", () =>
     expect(log(sandbox.managerLog)).toBe("pnpm\tdlx\t--silent\ttool-package\n");
   }));
 
-test("all install manager and verb patterns route through vetting", () =>
+test("every install verb the grammar mediates routes through vetting", () =>
   inSandbox((sandbox) => {
-    for (const tool of ["npm", "pnpm", "yarn", "bun"]) {
-      for (const verb of ["install", "i", "add", "update"]) {
-        checked(sandbox, tool, [verb, `${tool}-${verb}`]);
-      }
+    const cases = (["npm", "pnpm", "yarn", "bun"] as const).flatMap((tool) =>
+      ["install", "i", "add", "update", "up", "upgrade"]
+        .filter((verb) => planCommand(tool, [verb, "x"]).kind === "install")
+        .map((verb) => [tool, verb] as const),
+    );
+    expect(cases.length).toBeGreaterThan(12);
+    for (const [tool, verb] of cases) {
+      checked(sandbox, tool, [verb, `${tool}-${verb}`]);
     }
-    expect(log(sandbox.wardenLog).split("--json\n").length - 1).toBe(16);
+    expect(log(sandbox.wardenLog).split("--json\n").length - 1).toBe(cases.length);
+  }));
+
+test("every mediated install delegates with the manager's script suppression", () =>
+  inSandbox((sandbox) => {
+    for (const tool of ["npm", "pnpm"] as const) {
+      writeFileSync(sandbox.managerLog, "");
+      checked(sandbox, tool, ["install", "pkg"]);
+      expect(log(sandbox.managerLog)).toContain("--ignore-scripts");
+    }
+  }));
+
+test("npm ci is mediated and audits the lockfile before delegating", () =>
+  inSandbox((sandbox) => {
+    checked(sandbox, "npm", ["ci"]);
+    expect(log(sandbox.wardenLog)).toContain("check");
+    expect(log(sandbox.wardenLog)).toContain("lockfile");
+    expect(log(sandbox.managerLog)).toContain("npm\tci\t--ignore-scripts");
+  }));
+
+test("a no-argument install audits the lockfile as a graph transaction", () =>
+  inSandbox((sandbox) => {
+    checked(sandbox, "npm", ["install"]);
+    expect(log(sandbox.wardenLog)).toContain("lockfile");
+  }));
+
+test("passthrough commands never reach warden", () =>
+  inSandbox((sandbox) => {
+    for (const argv of [["run", "build"], ["test"], ["publish"]]) {
+      checked(sandbox, "npm", argv);
+    }
+    expect(log(sandbox.wardenLog)).toBe("");
   }));
 
 test("empty verdict output covers silent warning and block paths", () =>
   inSandbox((sandbox) => {
     const silentWarden = `#!/bin/sh
+if [ "$1" = "shim-plan" ]; then
+  printf '%s\n' "$WARDEN_PLAN"
+  exit 0
+fi
 exit "\${WARDEN_EXIT:-0}"
 `;
     executable(join(sandbox.binDir, "warden"), silentWarden);
@@ -327,5 +387,5 @@ test("log mode records every verdict and never blocks the manager", () =>
     expect(log(join(sandbox.home, ".warden", "log.jsonl"))).toBe(
       '{"schema_version":"1.0.0","verdict":"block"}\n',
     );
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\n");
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\t--ignore-scripts\n");
   }));

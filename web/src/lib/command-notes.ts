@@ -52,6 +52,29 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  coverage: {
+    intro:
+      "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",
+    whenToUse: [
+      "Before trusting the shims, to see what is actually protected.",
+      "When a command you expected to be checked was not.",
+      "In CI or an audit, with `--json`, to assert coverage has not regressed.",
+    ],
+    examples: [
+      { command: "warden coverage", description: "The human matrix, grouped by manager." },
+      {
+        command: "warden coverage --json",
+        description: "The machine-readable matrix plus the documented unsupported paths.",
+      },
+    ],
+    behaviour:
+      "Every row comes from the same command grammar the shim consults at runtime, so the matrix cannot drift from behaviour. Install, frozen install, exec, and rebuild are mediated; anything outside the grammar passes straight through.",
+    gotchas: [
+      "PATH shims are not an operating-system sandbox. An absolute path, a container, or Corepack can bypass them, and each is listed explicitly rather than quietly claimed.",
+      "Interception can be turned off per scope with `warden config intercept`, which the matrix does not reflect.",
+    ],
+  },
+
   ci: {
     intro:
       "One command for a pull request. `warden ci` resolves the merge base, looks at what actually changed, and gates on it. It is the only verb designed to be the single required check in a workflow.",

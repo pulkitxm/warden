@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { type Manager, planCommand } from "../../src/shim/grammar.ts";
 
 const shimSource = join(import.meta.dir, "../../scripts/shim.sh");
 const managers = ["npm", "bun", "npx", "bunx", "pnpm", "yarn"];
@@ -38,6 +39,10 @@ printf '\n' >> "$MANAGER_LOG"
 exit "\${MANAGER_EXIT:-0}"
 `;
   const wardenStub = `#!/bin/sh
+if [ "$1" = "shim-plan" ]; then
+  printf '%s\n' "$WARDEN_PLAN"
+  exit 0
+fi
 for arg in "$@"; do printf '%s\n' "$arg" >> "$WARDEN_LOG"; done
 case " $* " in
   *" --json "*) printf '{"schema_version":1,"verdict":"%s"}\n' "\${WARDEN_VERDICT:-allow}" ;;
@@ -75,6 +80,7 @@ function run(
     WARDEN_LOG: sandbox.wardenLog,
     WARDEN_EXIT: "0",
     WARDEN_VERDICT: "allow",
+    WARDEN_PLAN: JSON.stringify(planCommand(tool as Manager, args)),
     MANAGER_EXIT: "0",
     ...extraEnv,
   });
@@ -115,7 +121,9 @@ test("yarn install forms vet supported package arguments and preserve passthroug
     checked(sandbox, "yarn", ["global", "add", "yarn-global"]);
     checked(sandbox, "yarn", ["dlx", "yarn-tool"]);
     checked(sandbox, "yarn", []);
-    expect(log(sandbox.wardenLog)).toBe("check\nyarn-basic\n--json\ncheck\nyarn-dev\n--json\n");
+    expect(log(sandbox.wardenLog)).toBe(
+      "check\nyarn-basic\n--json\ncheck\nyarn-dev\n--json\ncheck\nyarn-tool\n--json\n",
+    );
     expect(log(sandbox.managerLog)).toBe(
       "yarn\tadd\tyarn-basic\nyarn\tadd\t-D\tyarn-dev\nyarn\tglobal\tadd\tyarn-global\nyarn\tdlx\tyarn-tool\nyarn\n",
     );
@@ -145,6 +153,13 @@ test("bun install and bunx forms vet while the bun a alias currently passes thro
     expect(log(sandbox.managerLog)).toContain("bun\ta\tbun-alias\n");
   }));
 
+test("npm exec and yarn dlx are now mediated, closing a documented gap", () =>
+  inSandbox((sandbox) => {
+    checked(sandbox, "npm", ["exec", "exec-tool"]);
+    checked(sandbox, "yarn", ["dlx", "dlx-tool"]);
+    expect(log(sandbox.wardenLog)).toBe("check\nexec-tool\n--json\ncheck\ndlx-tool\n--json\n");
+  }));
+
 test("npm install and npx forms preserve specs, scopes, flags, and package ordering", () =>
   inSandbox((sandbox) => {
     checked(sandbox, "npm", ["i", "npm-short"]);
@@ -162,18 +177,25 @@ test("npm install and npx forms preserve specs, scopes, flags, and package order
       "@scope/pkg",
     ]);
     expect(log(sandbox.wardenLog)).toBe(
-      "check\nnpm-short\n--json\ncheck\nnpm-global\n--json\ncheck\nnpm-dev\n--json\ncheck\nnpx-package\n--json\ncheck\nfirst@1.2.3\n--json\ncheck\ntagged@latest\n--json\ncheck\n@scope/pkg\n--json\n",
+      "check\nnpm-short\n--json\ncheck\nnpm-global\n--json\ncheck\nnpm-dev\n--json\ncheck\nnpm-exec-tool\n--json\ncheck\nnpx-package\n--json\ncheck\nfirst@1.2.3\n--json\ncheck\ntagged@latest\n--json\ncheck\n@scope/pkg\n--json\n",
     );
     expect(log(sandbox.managerLog)).toContain("npm\texec\tnpm-exec-tool\n");
   }));
 
-test("lockfile-only npm, pnpm, and yarn installs pass through without vetting", () =>
+test("a lockfile-only install is a graph transaction, not a free pass", () =>
   inSandbox((sandbox) => {
     checked(sandbox, "npm", ["install"]);
     checked(sandbox, "pnpm", ["install"]);
+    expect(log(sandbox.wardenLog)).toContain("lockfile");
+    expect(log(sandbox.managerLog)).toContain("npm\tinstall\t--ignore-scripts");
+    expect(log(sandbox.managerLog)).toContain("pnpm\tinstall\t--ignore-scripts");
+  }));
+
+test("a bare manager invocation with no verb still passes through", () =>
+  inSandbox((sandbox) => {
     checked(sandbox, "yarn", []);
     expect(log(sandbox.wardenLog)).toBe("");
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\npnpm\tinstall\nyarn\n");
+    expect(log(sandbox.managerLog)).toBe("yarn\n");
   }));
 
 test("block verdicts stop every supported manager install and exec path", () =>
