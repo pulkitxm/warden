@@ -548,3 +548,12 @@ a[href] {
   border-color: rgba(79, 209, 165, 0.45);
   background: rgba(79, 209, 165, 0.08);
 }
+
+.reveal {
+  min-width: 0;
+}
+.terminal-block,
+.shiki-block,
+.code-wrap {
+  max-width: 100%;
+}
