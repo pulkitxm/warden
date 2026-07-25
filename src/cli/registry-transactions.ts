@@ -1,3 +1,4 @@
+import { runWardenAgent } from "./commands/agent.ts";
 import { runWardenApply, runWardenApproveScript } from "./commands/apply.ts";
 import { runWardenCompare, runWardenScripts } from "./commands/compare.ts";
 import { runWardenExplain, runWardenHistory } from "./commands/explain.ts";
@@ -110,5 +111,20 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     exitCodes: "0 all approved · 10 approvals pending · 30 error",
     example: "warden scripts pending",
     run: runWardenScripts,
+  },
+  {
+    name: "agent",
+    learnMore: "agents",
+    description: "set up and check the coding-agent adapters, and print the MCP tool manifest",
+    positional: { kind: "[doctor|setup|mcp] [name]" },
+    flags: [
+      { name: "--all", description: "set up every known agent adapter" },
+      { name: "--yes", description: "write the adapter files instead of only planning them" },
+      { name: "--json", description: "write the adapter report to stdout" },
+      helpFlag,
+    ],
+    exitCodes: "0 success · 30 error",
+    example: "warden agent setup claude --yes",
+    run: runWardenAgent,
   },
 ];

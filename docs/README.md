@@ -12,6 +12,7 @@ User documentation lives on the website at **[warden.pulkit.page/docs](https://w
 | [transactions](transactions.md) | Prospective graph resolution and the plan decision | Shipped |
 | [explainability](explainability.md) | explain, history, compare, and the standing script surface | Shipped |
 | [agent-first-cli](agent-first-cli.md) | CLI conventions for agents | Shipped |
+| [agent-integration](agent-integration.md) | Capability-based adapters, setup, and the generated MCP surface | Shipped |
 | [interception](interception.md) | PATH shims and the intercept switch | Shipped |
 | [detection-and-init](detection-and-init.md) | `warden detect` and `warden init` | Shipped |
 | [config](config.md) | Config cascade and cache semantics | Shipped |

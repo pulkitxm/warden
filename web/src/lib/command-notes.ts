@@ -291,6 +291,39 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  agent: {
+    intro:
+      "Coding agents are the reason Warden exists in its current shape, and they need three layers, not one: guidance so the agent chooses the right workflow, hooks so a package-manager command is mediated when it actually runs, and a CI receipt gate that no agent can skip. `warden agent` sets those up and tells you honestly which ones a given agent genuinely supports.",
+    whenToUse: [
+      "Once per repository, after installing Warden, to wire up the agents your team uses.",
+      "When adding a new agent to a project, to see what it can and cannot enforce.",
+      "To print the MCP tool manifest for an agent that supports MCP.",
+    ],
+    examples: [
+      {
+        command: "warden agent doctor",
+        description: "Which agents are installed, which are configured, and what is still pending.",
+      },
+      {
+        command: "warden agent setup claude --yes",
+        description: "Write the instruction section and the skill for one agent.",
+      },
+      { command: "warden agent setup --all", description: "Plan the adapters for every agent." },
+      {
+        command: "warden agent mcp --json",
+        description: "The MCP tool manifest, generated from the same command registry as the CLI.",
+      },
+    ],
+    behaviour:
+      "Adapters are capability-based rather than a list of launch commands. Each agent declares whether it genuinely supports an instruction file, a skill, a pre-command hook, a post-change hook, MCP, and managed settings. Claude Code and Codex are the two with real command interception; the rest fall back to the PATH shim and the CI receipt gate, and the report says so rather than implying equal integration. Setup plans before it writes, appends rather than overwrites, and stamps a version marker so a second run is a no-op.",
+    gotchas: [
+      "Hook and MCP configuration are never rewritten for you. Those files usually carry settings Warden does not own, so the command tells you what to merge and leaves the merge to you.",
+      "The MCP surface is read-only by design. `plan`, `explain`, `compare`, `check`, and the other reporting verbs are exposed; `apply`, `approve-script`, `init`, and `config` are not, and the manifest names each exclusion with its reason.",
+      "Every tool is generated from the command registry, so the MCP surface cannot drift from the CLI.",
+      "Guidance is guidance. An agent that ignores its instruction file is still caught by the shim, and one that bypasses the shim is still caught by `warden ci --require-transaction-receipt`.",
+    ],
+  },
+
   coverage: {
     intro:
       "Publishes exactly which package-manager commands Warden mediates, and which it does not. A security tool earns trust through verifiable coverage rather than a claim, so this matrix is generated from the same grammar the shim executes.",
