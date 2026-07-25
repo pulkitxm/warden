@@ -523,3 +523,28 @@ pre.terminal .t-prompt {
 .prose-warden .terminal-block {
   border-radius: 0.75rem;
 }
+
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+a[href] {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+button,
+a[href] {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.copy-button:hover {
+  color: var(--color-mint);
+  border-color: rgba(79, 209, 165, 0.45);
+  background: rgba(79, 209, 165, 0.08);
+}

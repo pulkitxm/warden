@@ -16,7 +16,7 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="shrink-0 rounded-lg px-2.5 py-1.5 text-[13.5px] text-fog transition hover:bg-white/5 hover:text-white"
+              className="shrink-0 rounded-lg px-2.5 py-1.5 text-[13.5px] text-fog transition hover:bg-mint/10 hover:text-mint"
             >
               {item.label}
             </Link>
@@ -26,7 +26,7 @@ export function Header() {
           href={site.repo}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[13.5px] text-white transition hover:border-mint/60 hover:text-mint"
+          className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-[13.5px] text-white transition hover:border-mint/60 hover:bg-mint/10 hover:text-mint"
         >
           GitHub
         </a>

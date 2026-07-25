@@ -57,6 +57,24 @@ function ChevronIcon() {
   );
 }
 
+function SpinnerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      className="animate-spin"
+      aria-hidden="true"
+    >
+      <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+    </svg>
+  );
+}
+
 function EyeIcon() {
   return (
     <svg
@@ -93,7 +111,7 @@ function ClaudeIcon() {
 }
 
 export function PageActions({ markdownPath, title }: { markdownPath: string; title: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
@@ -114,15 +132,17 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
   }, [open]);
 
   const copyMarkdown = async () => {
-    const response = await fetch(markdownPath);
-    const text = await response.text();
+    if (state === "loading") return;
+    setState("loading");
     try {
+      const response = await fetch(markdownPath);
+      const text = await response.text();
       await navigator.clipboard.writeText(text);
+      setState("copied");
+      window.setTimeout(() => setState("idle"), 1800);
     } catch {
-      return;
+      setState("idle");
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
   };
 
   const prompt = () => {
@@ -134,19 +154,21 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
   };
 
   const itemClass =
-    "flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-fog transition hover:bg-white/6 hover:text-white";
+    "flex w-full items-center gap-2.5 px-3 py-2 text-[13px] text-fog transition hover:bg-mint/10 hover:text-mint";
 
   return (
-    <div ref={container} className="relative mb-6 inline-flex">
+    <div ref={container} className="relative inline-flex shrink-0">
       <button
         type="button"
         onClick={copyMarkdown}
-        className="flex items-center gap-2 rounded-l-lg border border-white/14 bg-navy-soft/60 px-3 py-1.5 text-[13px] font-medium text-white transition hover:border-white/25 hover:bg-white/6"
+        disabled={state === "loading"}
+        aria-busy={state === "loading"}
+        className="flex items-center gap-2 rounded-l-lg border border-white/14 bg-navy-soft/60 px-3 py-1.5 text-[13px] font-medium text-white transition hover:border-mint/50 hover:bg-mint/10 hover:text-mint disabled:opacity-70 disabled:hover:border-white/14 disabled:hover:bg-navy-soft/60 disabled:hover:text-white"
       >
-        <span className={copied ? "text-mint" : "text-fog"}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
+        <span className={state === "copied" ? "text-mint" : "text-fog"}>
+          {state === "copied" ? <CheckIcon /> : state === "loading" ? <SpinnerIcon /> : <CopyIcon />}
         </span>
-        {copied ? "Copied" : "Copy Markdown"}
+        {state === "copied" ? "Copied" : state === "loading" ? "Copying" : "Copy Markdown"}
       </button>
       <button
         type="button"
@@ -154,7 +176,7 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center rounded-r-lg border border-l-0 border-white/14 bg-navy-soft/60 px-2 py-1.5 text-fog transition hover:border-white/25 hover:bg-white/6 hover:text-white"
+        className="flex items-center rounded-r-lg border border-l-0 border-white/14 bg-navy-soft/60 px-2 py-1.5 text-fog transition hover:border-mint/50 hover:bg-mint/10 hover:text-mint"
       >
         <ChevronIcon />
       </button>
@@ -162,7 +184,7 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
       {open ? (
         <div
           role="menu"
-          className="absolute top-full left-0 z-30 mt-1.5 w-56 overflow-hidden rounded-xl border border-white/14 bg-[#0e1424] py-1 shadow-2xl shadow-black/50"
+          className="absolute top-full right-0 z-30 mt-1.5 w-56 overflow-hidden rounded-xl border border-white/14 bg-[#0e1424] py-1 shadow-2xl shadow-black/50"
         >
           <a
             role="menuitem"
