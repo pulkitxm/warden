@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { CHECK_SURFACES } from "../src/cli/commands/check.ts";
 import { COMMAND_REGISTRY } from "../src/cli/registry.ts";
@@ -258,16 +258,24 @@ test("the sitemap lists every standalone page, not only the docs", async () => {
   }
 });
 
-test("code blocks are wrapped and given a copy button on the server, not on hydration", async () => {
-  const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
-  const html = await renderMarkdown("```sh\nwarden plan\n```\n");
-  expect(html).toContain('<div class="code-wrap">');
-  expect(html).toContain("copy-button");
-  expect(html).toContain('data-copy="idle"');
-  expect(html).not.toContain('code-wrap"><div class="code-wrap');
-});
+const webInstalled = existsSync(
+  fileURLToPath(new URL("../web/node_modules/@shikijs/rehype", import.meta.url)),
+);
+const withWeb = webInstalled ? test : test.skip;
 
-test("terminal output is syntax highlighted whether the fence says term or text", async () => {
+withWeb(
+  "code blocks are wrapped and given a copy button on the server, not on hydration",
+  async () => {
+    const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
+    const html = await renderMarkdown("```sh\nwarden plan\n```\n");
+    expect(html).toContain('<div class="code-wrap">');
+    expect(html).toContain("copy-button");
+    expect(html).toContain('data-copy="idle"');
+    expect(html).not.toContain('code-wrap"><div class="code-wrap');
+  },
+);
+
+withWeb("terminal output is syntax highlighted whether the fence says term or text", async () => {
   const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
   for (const lang of ["term", "text", "console", "shell-session"]) {
     const html = await renderMarkdown(
@@ -278,14 +286,14 @@ test("terminal output is syntax highlighted whether the fence says term or text"
   }
 });
 
-test("a language fence shiki knows is still highlighted by shiki", async () => {
+withWeb("a language fence shiki knows is still highlighted by shiki", async () => {
   const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
   const html = await renderMarkdown('```json\n{ "a": 1 }\n```\n');
   expect(html).toContain("shiki");
   expect(html).toContain('<div class="code-wrap">');
 });
 
-test("every fence language used in the docs renders as highlighted output", async () => {
+withWeb("every fence language used in the docs renders as highlighted output", async () => {
   const { renderMarkdown } = await import("../web/src/lib/markdown.ts");
   const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
   const langs = new Set<string>();
