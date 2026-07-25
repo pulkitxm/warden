@@ -5,7 +5,11 @@ dist/
 .warden-cache/
 coverage/
 .DS_Store
-.warden/
+.warden/*
+!.warden/approvals.json
+!.warden/baselines.json
+!.warden/receipts/
+!.warden/plans/
 task_manager/
 extras/
 web/node_modules/

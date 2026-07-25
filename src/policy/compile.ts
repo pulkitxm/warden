@@ -49,18 +49,18 @@ function compileNpm(policy: Required<WardenPolicy>): CompiledPolicy {
   if (policy.minimumReleaseAgeDays > 0) {
     settings.push({
       file: ".npmrc",
-      key: "minimum-release-age",
-      value: `${policy.minimumReleaseAgeDays * 1440}`,
-      note: "a freshly published version cannot be installed immediately",
+      key: "min-release-age",
+      value: `${policy.minimumReleaseAgeDays}`,
+      note: "npm measures this in days; a freshly published version cannot be installed immediately",
     });
   }
   if (policy.exoticSources === "block") {
-    for (const key of ["allow-git", "allow-remote"]) {
+    for (const key of ["allow-git", "allow-remote", "allow-directory", "allow-file"]) {
       settings.push({
         file: ".npmrc",
         key,
-        value: "false",
-        note: "git and url dependencies have no registry provenance to check",
+        value: "none",
+        note: "npm takes all, none, or root here; none blocks this source outright",
       });
     }
   }
@@ -90,8 +90,8 @@ function compilePnpm(policy: Required<WardenPolicy>): CompiledPolicy {
     settings.push({
       file: "pnpm-workspace.yaml",
       key: "allowBuilds",
-      value: "[]",
-      note: "no dependency may build until warden records an approval for it",
+      value: "{}",
+      note: "a map from package matcher to true or false; empty means no dependency may build",
     });
   }
   if (policy.minimumReleaseAgeDays > 0) {
@@ -118,15 +118,26 @@ function compilePnpm(policy: Required<WardenPolicy>): CompiledPolicy {
       note: "the lockfile is re-verified against the registry rather than trusted as written",
     });
   }
+  const pnpmUnsupported: CompiledPolicy["unsupported"] = [];
   if (policy.downgrades === "block") {
     settings.push({
       file: "pnpm-workspace.yaml",
       key: "trustPolicy",
       value: "no-downgrade",
-      note: "a resolution may not move a package backwards",
+      note: "pnpm fails when a package's trust evidence weakens against earlier releases",
+    });
+    pnpmUnsupported.push({
+      intent: "block semantic version downgrades",
+      reason:
+        "pnpm's trustPolicy covers provenance evidence, not semver direction; warden reports a downgrade as a version move in the plan",
     });
   }
-  return { manager: "pnpm", settings, enforcedByWarden: enforced(policy, []), unsupported: [] };
+  return {
+    manager: "pnpm",
+    settings,
+    enforcedByWarden: enforced(policy, pnpmUnsupported),
+    unsupported: pnpmUnsupported,
+  };
 }
 
 function compileYarn(policy: Required<WardenPolicy>): CompiledPolicy {
@@ -144,9 +155,9 @@ function compileYarn(policy: Required<WardenPolicy>): CompiledPolicy {
   if (policy.minimumReleaseAgeDays > 0) {
     settings.push({
       file: ".yarnrc.yml",
-      key: "minimumReleaseAge",
-      value: `${policy.minimumReleaseAgeDays * 1440}`,
-      note: "yarn 4.12 and later gate freshly published versions",
+      key: "npmMinimalAgeGate",
+      value: `"${policy.minimumReleaseAgeDays}d"`,
+      note: "yarn takes a duration string here, not a number of minutes",
     });
   }
   if (policy.lockfile === "reverify") {
@@ -182,10 +193,10 @@ function compileBun(policy: Required<WardenPolicy>): CompiledPolicy {
 
   if (policy.scripts !== "allow") {
     settings.push({
-      file: "package.json",
-      key: "trustedDependencies",
-      value: "[]",
-      note: "bun runs no dependency lifecycle script outside this list",
+      file: "bunfig.toml",
+      key: "install.ignoreScripts",
+      value: "true",
+      note: "bun ships a default trusted list, so trustedDependencies alone is not deny-all; this is",
     });
   }
   for (const [intent, enabled] of [

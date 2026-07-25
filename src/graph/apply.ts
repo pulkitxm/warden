@@ -25,6 +25,7 @@ export interface ApplyDeps {
 export interface ApplyOptions {
   verify?: boolean;
   allowUnapproved?: boolean;
+  allowIncompleteAnalysis?: boolean;
 }
 
 const VERIFY_STEPS: Array<keyof Omit<VerificationSteps, "install">> = [
@@ -137,6 +138,24 @@ export async function applyTransaction(
   if (missing.length && !options.allowUnapproved) {
     const names = missing.map((entry) => `${entry.package}@${entry.version} (${entry.hook})`);
     return refuse(plan, `unapproved install scripts: ${names.join(", ")}`, approved, deps);
+  }
+
+  const unchecked = plan.artifacts.filter((artifact) => artifact.verdict === "unchecked");
+  if (plan.truncated && !options.allowIncompleteAnalysis) {
+    return refuse(
+      plan,
+      "the graph was truncated before it was fully resolved, so this plan cannot be applied as reviewed",
+      approved,
+      deps,
+    );
+  }
+  if (unchecked.length && !options.allowIncompleteAnalysis) {
+    return refuse(
+      plan,
+      `${unchecked.length} changed packages were never analyzed; a script approval does not cover incomplete analysis`,
+      approved,
+      deps,
+    );
   }
 
   const manifestPath = join(plan.root, "package.json");

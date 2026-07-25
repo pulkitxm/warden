@@ -86,10 +86,12 @@ Anything omitted inherits the default shown above. `warden policy` compiles the 
 
 | Intent | npm | pnpm | Yarn | Bun |
 | --- | --- | --- | --- | --- |
-| Deny dependency scripts | `ignore-scripts` | `strictDepBuilds`, `allowBuilds` | `enableScripts` | `trustedDependencies` |
-| Minimum release age | `minimum-release-age` | `minimumReleaseAge` | `minimumReleaseAge` | Warden |
-| Block git and url sources | `allow-git`, `allow-remote` | `blockExoticSubdeps` | Warden | Warden |
+| Deny dependency scripts | `ignore-scripts` | `strictDepBuilds`, `allowBuilds` | `enableScripts` | `install.ignoreScripts` |
+| Minimum release age | `min-release-age` (days) | `minimumReleaseAge` (minutes) | `npmMinimalAgeGate` (duration) | Warden |
+| Block git and url sources | `allow-git`, `allow-remote`, `allow-directory`, `allow-file` (`none`) | `blockExoticSubdeps` | Warden | Warden |
 | Re-verify the lockfile | Warden | `trustLockfile` | `enableHardenedMode` | Warden |
-| Block downgrades | Warden | `trustPolicy` | Warden | Warden |
+| Block semver downgrades | Warden | Warden | Warden | Warden |
+
+Each manager names and types these differently, and the compiler follows the manager rather than a house style: npm counts release age in days, pnpm in minutes, Yarn takes a duration string such as `1d`. pnpm's `trustPolicy: no-downgrade` is about provenance evidence weakening, not semantic versions, so Warden emits it for that purpose and reports semver downgrades as a gap it covers itself. Bun ships a default trusted list, so `trustedDependencies` alone is not deny-all and `install.ignoreScripts` is used instead.
 
 Warden orchestrates these controls rather than replacing them. Whatever the manager cannot do, the plan, the approval model, and the CI receipt gate still cover.

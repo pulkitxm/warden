@@ -65,7 +65,7 @@ Each plan records `graph_before` and `graph_after` as sha256 digests over the so
 2. Refuse if any new install script has no matching approval, unless `--allow-unapproved` is passed.
 3. Install through the project's own package manager with lifecycle scripts suppressed by that manager's native mechanism.
 4. Run the project's `test`, `typecheck`, and `build` scripts, in that order, stopping at the first failure.
-5. Restore `package.json` if the install or any verification step fails.
+5. Restore `package.json` if the install or any verification step fails. This is a manifest rollback, not a transaction rollback: the lockfile, `node_modules`, and anything verification touched are left as the failure left them.
 6. Write a transaction receipt.
 
 Scripts stay suppressed for the entire install, including for approved packages. An approval governs whether the transaction may proceed at all; it is not a handoff of execution to package code mid-install.

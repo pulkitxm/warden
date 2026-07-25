@@ -362,10 +362,10 @@ test("wnpm falls back to package.json direct deps and preserves the project mana
   expect(spawns).toEqual([["pnpm", "install", "--ignore-scripts"]]);
 });
 
-test("wnpm via bun omits --ignore-scripts, because bun disables scripts by default", async () => {
+test("wnpm via bun suppresses scripts, because bun ships a default trusted list", async () => {
   const { deps, spawns } = makeDeps({ which: (p) => (p === "bun" ? "/usr/bin/bun" : null) });
   expect(await runWnpm(["add", "left-pad"], deps)).toBe(0);
-  expect(spawns).toEqual([["bun", "add", "left-pad"]]);
+  expect(spawns).toEqual([["bun", "add", "left-pad", "--ignore-scripts"]]);
 });
 
 test("wnpm never silently switches a project to a different manager", async () => {
