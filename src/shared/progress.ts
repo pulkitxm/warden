@@ -5,6 +5,7 @@ export interface ProgressIo {
   write: (s: string) => unknown;
   tty: boolean;
   now: () => number;
+  columns: () => number;
   interval: (fn: () => void, ms: number) => { stop: () => void };
 }
 
@@ -42,6 +43,11 @@ function line(s: State): string {
   return parts.join(" · ");
 }
 
+function fit(body: string, width: number): string {
+  if (body.length <= width) return body;
+  return width <= 1 ? body.slice(0, Math.max(0, width)) : `${body.slice(0, width - 1)}…`;
+}
+
 function clear(s: State): void {
   if (s.painted) {
     s.io.write("\r\x1b[2K");
@@ -61,7 +67,10 @@ function paint(): void {
     return;
   }
   s.frame = (s.frame + 1) % FRAMES.length;
-  s.io.write(`\r\x1b[2K${FRAMES[s.frame]} ${line(s)} ${dim(elapsed(age))}`);
+  const took = elapsed(age);
+  const width = Math.max(8, s.io.columns() - 1);
+  const body = fit(line(s), width - took.length - 3);
+  s.io.write(`\r\x1b[2K${FRAMES[s.frame]} ${body} ${dim(took)}`);
   s.painted = true;
 }
 
@@ -70,7 +79,10 @@ function finish(s: State): void {
   clear(s);
   if (!s.step || took < KEEP_MS) return;
   const mark = s.io.tty ? c("32", "✓") : " ok";
-  s.io.write(`${mark} ${s.step}${s.count ? ` · ${s.count}` : ""} ${dim(elapsed(took))}\n`);
+  const time = elapsed(took);
+  const width = s.io.tty ? Math.max(8, s.io.columns() - 1) : Number.MAX_SAFE_INTEGER;
+  const body = fit(`${s.step}${s.count ? ` · ${s.count}` : ""}`, width - time.length - 4);
+  s.io.write(`${mark} ${body} ${dim(time)}\n`);
 }
 
 export function startProgress(io: ProgressIo): void {
@@ -146,6 +158,7 @@ export function defaultProgressIo(): ProgressIo {
     write: (s) => process.stderr.write(s),
     tty: Boolean(process.stderr.isTTY),
     now: () => Date.now(),
+    columns: () => process.stderr.columns ?? 80,
     interval: (fn, ms) => {
       const handle = setInterval(fn, ms);
       handle.unref?.();

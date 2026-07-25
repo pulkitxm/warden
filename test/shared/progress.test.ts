@@ -19,15 +19,17 @@ afterEach(() => {
   setVerbosity("normal");
 });
 
-function harness(tty: boolean) {
+function harness(tty: boolean, startingColumns = 200) {
   const written: string[] = [];
   let clock = 0;
+  let columns = startingColumns;
   let tick: (() => void) | null = null;
   let stopped = false;
   const io: ProgressIo = {
     write: (s) => written.push(s),
     tty,
     now: () => clock,
+    columns: () => columns,
     interval: (fn) => {
       tick = fn;
       return {
@@ -45,6 +47,9 @@ function harness(tty: boolean) {
       clock += ms;
       tick?.();
     },
+    resize: (next: number) => {
+      columns = next;
+    },
     stopped: () => stopped,
   };
 }
@@ -61,6 +66,39 @@ test("a terminal run paints one line and rewrites it in place", () => {
   const last = h.written.at(-1) as string;
   expect(last).toContain("resolving the graph · 3/40 · left-pad");
   expect(last).toStartWith("\r\x1b[2K");
+});
+
+test("the painted line never exceeds the terminal width, at any width", () => {
+  setColor(false);
+  const h = harness(true, 60);
+  startProgress(h.io);
+  progressStep("vetting 60 changed packages");
+  progressCount(1, 60);
+  progressDetail("@biomejs/cli-darwin-arm64@2.4.16: diffing against 2.4.15");
+
+  for (const width of [60, 40, 24, 10, 6]) {
+    h.resize(width);
+    h.advance(100);
+    const painted = (h.written.at(-1) as string).replace("\r\x1b[2K", "");
+    expect(painted.length).toBeLessThanOrEqual(Math.max(8, width - 1));
+    expect(painted).not.toContain("\n");
+  }
+});
+
+test("a completed line is clamped too, so a narrow terminal never wraps it", () => {
+  setColor(false);
+  const h = harness(true, 30);
+  startProgress(h.io);
+  progressStep("resolving the prospective dependency graph");
+  progressCount(74, 74);
+  h.advance(3_000);
+  stopProgress();
+
+  const done = (h.written.at(-1) as string).trimEnd();
+  expect(done.length).toBeLessThanOrEqual(29);
+  expect(done).toStartWith("✓ resolving the prospe");
+  expect(done).toContain("…");
+  expect(done).toEndWith("3.0s");
 });
 
 test("a fast step leaves nothing behind, a slow one leaves a completed line", () => {
@@ -176,6 +214,7 @@ test("withProgress runs the command and stops the reporter afterwards", async ()
   const io = defaultProgressIo();
   expect(typeof io.now()).toBe("number");
   expect(typeof io.tty).toBe("boolean");
+  expect(io.columns()).toBeGreaterThan(0);
   expect(io.write("")).toBe(true);
   const timer = io.interval(() => {}, 1_000);
   timer.stop();
