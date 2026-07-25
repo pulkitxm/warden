@@ -83,7 +83,7 @@ launching: claude -p "Read .warden/handoff-expres.json and fix the finding. \
 > warden ci exits 0. The typosquat never installed; no cleanup needed.
 ```
 
-Non-interactive surfaces get the same thing explicitly: `warden check expres --handoff` writes the bundle and prints the launch command without running it, and `warden fix` runs the last failing check's handoff end to end.
+Non-interactive surfaces get the same thing explicitly: `warden check expres --handoff` writes the bundle and prints the launch command without running it, and `warden handoff` runs the last failing check's handoff end to end.
 
 ## The handoff bundle
 

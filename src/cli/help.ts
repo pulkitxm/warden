@@ -10,6 +10,7 @@ export interface CommandDefinition {
   name: string;
   description: string;
   learnMore?: string;
+  aliases?: readonly string[];
   flags: readonly CommandFlag[];
   positional?: { kind: string; values?: readonly string[] };
   exitCodes: string;
@@ -31,6 +32,10 @@ export function renderWardenHelp(commands: readonly CommandDefinition[]): string
     .map((command) => `  ${command.name.padEnd(width)}  ${command.description}`)
     .join("\n");
   return `warden: vets packages and enforces repo policy before code runs\n\nusage: warden <verb> [flags]\n\n${rows}\n\nglobal flags: --json  --no-color  --quiet  --verbose  -h  -v\n\nexit codes: 0 allow · 10 warn · 20 block · 30 error\ndocs: https://warden.pulkit.page/docs\n`;
+}
+
+export function matchesVerb(command: CommandDefinition, verb: string): boolean {
+  return command.name === verb || Boolean(command.aliases?.includes(verb));
 }
 
 export function renderCommandHelp(command: CommandDefinition): string {

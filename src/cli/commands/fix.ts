@@ -66,7 +66,7 @@ export async function runWardenFix(argv: string[], deps: WardenDeps): Promise<nu
       "analysis",
       "WARDEN_FIX_ERROR",
       (error as Error).message,
-      "run warden ci before warden fix",
+      "run warden ci before warden handoff",
     );
   }
 }

@@ -415,7 +415,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       {
         command: "warden ci --reporter agent",
         description:
-          "One JSON object carrying findings, intent, verdict, and exit code. This is what `warden fix` consumes.",
+          "One JSON object carrying findings, intent, verdict, and exit code. This is what `warden handoff` consumes.",
       },
       {
         command: 'warden ci --intent-prompt "add retry with backoff to the api client"',
@@ -536,15 +536,15 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "Nothing is overwritten without being shown first. The generated workflow uses `warden ci`, and the agent context files describe the pre-install check and the doctor repair loop.",
   },
 
-  fix: {
+  handoff: {
     intro:
-      "The handoff. `warden fix` reads the last CI run and produces a bundle a coding agent can act on, with adapters for the agent you actually use.",
+      "The handoff. `warden handoff` reads the last CI run and produces a bundle a coding agent can act on, with adapters for the agent you actually use.",
     whenToUse: [
       "After `warden ci` fails and you want an agent to resolve it.",
       "As the last step of the agent loop, feeding the finding back with its verify command.",
     ],
     examples: [
-      { command: "warden fix", description: "Print the handoff bundle for the last failing run." },
+      { command: "warden handoff", description: "Print the handoff bundle for the last failing run." },
     ],
     behaviour:
       "Reads `.warden/last-run.json`. Every finding carries both a `fix` and a `verify` field, so the agent is told the command that proves the fix worked rather than being left to guess. Adapters exist for Claude, Cursor, Codex, Copilot, Gemini, Aider, and OpenCode.",
@@ -567,7 +567,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       {
         command: "warden config agent codex",
         description:
-          "Choose which coding agent `warden fix` hands off to. One of claude, cursor, codex, copilot, gemini, aider, or opencode.",
+          "Choose which coding agent `warden handoff` hands off to. One of claude, cursor, codex, copilot, gemini, aider, or opencode.",
       },
     ],
     behaviour:

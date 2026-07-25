@@ -267,7 +267,7 @@ The reported verdict is the worst of the three.
 - \`agent\` for a single object carrying findings, intent, verdict, and exit code
 - \`sarif\` for GitHub code scanning, uploadable with \`github/codeql-action/upload-sarif\`
 
-Every run also writes \`.warden/last-run.json\`, which is what \`warden fix\` hands to a coding agent.
+Every run also writes \`.warden/last-run.json\`, which is what \`warden handoff\` hands to a coding agent.
 
 ## Policy
 
@@ -313,7 +313,7 @@ warden check <pkg> --json                # before installing anything
 warden check lockfile --json             # after any dependency edit
 warden doctor --json --no-apply          # what is already broken
 warden ci --reporter agent               # one object with findings + verdict
-warden fix                               # hand the last failure to an agent
+warden handoff                               # hand the last failure to an agent
 \`\`\`
 
 ## Before installing a package
@@ -334,7 +334,7 @@ wnpx some-cli --json
 
 ## Handoff
 
-\`warden fix\` reads \`.warden/last-run.json\` and produces a bundle for a coding agent, with adapters for Claude, Cursor, Codex, Copilot, Gemini, Aider, and OpenCode. Findings carry both a \`fix\` and a \`verify\` field, so the agent knows the command that proves the fix worked.
+\`warden handoff\` reads \`.warden/last-run.json\` and produces a bundle for a coding agent, with adapters for Claude, Cursor, Codex, Copilot, Gemini, Aider, and OpenCode. Findings carry both a \`fix\` and a \`verify\` field, so the agent knows the command that proves the fix worked.
 
 ## Untrusted text
 
@@ -472,7 +472,7 @@ warden config intercept off
 warden config agent codex
 \`\`\`
 
-\`mode\` is one of \`verbose\`, \`brief\`, \`block\`, or \`log\`. \`intercept\` controls whether the shims vet installs and executions. \`agent\` selects which coding agent [\`warden fix\`](/docs/cli/fix) hands off to: \`claude\`, \`cursor\`, \`codex\`, \`copilot\`, \`gemini\`, \`aider\`, or \`opencode\`.
+\`mode\` is one of \`verbose\`, \`brief\`, \`block\`, or \`log\`. \`intercept\` controls whether the shims vet installs and executions. \`agent\` selects which coding agent [\`warden handoff\`](/docs/cli/fix) hands off to: \`claude\`, \`cursor\`, \`codex\`, \`copilot\`, \`gemini\`, \`aider\`, or \`opencode\`.
 
 ## Project config
 
@@ -519,7 +519,7 @@ The installer can place shims ahead of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`n
 | --- | --- |
 | \`~/.warden/config.json\` | User settings |
 | \`~/.warden/log.jsonl\` | Verdict log, read by \`warden log\` |
-| \`.warden/last-run.json\` | Last CI run, read by \`warden fix\` |
+| \`.warden/last-run.json\` | Last CI run, read by \`warden handoff\` |
 | \`.warden/prompt.txt\` | Prompt used by [intent](/docs/intent) |
 `;
 
