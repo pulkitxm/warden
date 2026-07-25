@@ -157,7 +157,7 @@ async function main() {
   const pct = (n: number, d: number) => (d ? `${((100 * n) / d).toFixed(0)}%` : "n/a");
 
   const L: string[] = [];
-  L.push("# WNPM — Generalization Pressure-Test (fresh, untuned batch)\n");
+  L.push("# WNPM Generalization Pressure-Test (fresh, untuned batch)\n");
   L.push(`Fresh attacks: ${MAL.length} · fresh real benign: ${BENIGN.length}. No LLM.\n`);
   L.push("## Matrix (positive = should block)\n```");
   L.push(`malicious   TP=${tp}   FN=${fn}`);

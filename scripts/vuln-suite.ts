@@ -204,7 +204,7 @@ async function main() {
   }
 
   const L: string[] = [];
-  L.push("# WNPM — Vulnerability Suite Results\n");
+  L.push("# WNPM Vulnerability Suite Results\n");
   L.push(
     `Cases: ${CASES.length} (malicious ${MAL_FIXTURES.length + MAL_NAMES.length}, benign ${BENIGN.length}). No LLM (pure heuristics).\n`,
   );
@@ -222,7 +222,7 @@ async function main() {
   if (errors.length) L.push(`- Errors (analysis failures): ${errors.length}`);
   L.push("");
   L.push("## Failure points (analyze these)\n");
-  L.push("### False negatives — malicious NOT blocked (misses)");
+  L.push("### False negatives: malicious NOT blocked (misses)");
   const fns = failures.filter((r) => r.label === "malicious");
   if (!fns.length) L.push("_(none)_");
   for (const r of fns)
@@ -230,7 +230,7 @@ async function main() {
       `- **${r.type}** \`${r.spec}\` -> ${r.verdict.toUpperCase()} (score ${r.score}) [${r.categories.join(",")}]${r.error ? ` err=${r.error}` : ""}`,
     );
   L.push("");
-  L.push("### False positives — benign blocked (false alarms)");
+  L.push("### False positives: benign blocked (false alarms)");
   const fps = failures.filter((r) => r.label === "benign");
   if (!fps.length) L.push("_(none)_");
   for (const r of fps)

@@ -124,7 +124,7 @@ test("renderIntentReport shows every row class with references and proof", () =>
   expect(rendered).toContain("[no matching change found]");
   expect(rendered).toContain("❌ NOT PRESERVED: keep the retry logic");
   expect(rendered).toContain("⚠️ handle empty responses");
-  expect(rendered).toContain("⚠️ SCOPE CREEP: pagination.ts — 62 lines changed, never requested");
+  expect(rendered).toContain("⚠️ SCOPE CREEP: pagination.ts, 62 lines changed, never requested");
   expect(rendered).toContain("🚨 HALLUCINATED: axios.instance.throttle");
   expect(rendered).toContain("axios instance has no member 'throttle'");
   expect(rendered).toContain("merge-base abc123def456");

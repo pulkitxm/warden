@@ -1,7 +1,7 @@
 # Warden Intent × Claude Code
 
 Automatic intent verification for Claude Code sessions. Nobody pastes their prompt into a
-verifier by hand — these two hooks do it:
+verifier by hand, these two hooks do it:
 
 - **UserPromptSubmit** → `capture-prompt.ts` appends every prompt you type to
   `.warden/prompt.txt` (reset when a new session starts, slash commands ignored).
@@ -24,9 +24,9 @@ Requirements:
 
 - `warden` on PATH (or set `WARDEN_BIN=/path/to/warden` in your environment)
 - `bun` on PATH (runs the hook scripts)
-- an LLM: with no API key configured, the hook auto-detects a CLI provider — it prefers the
+- an LLM: with no API key configured, the hook auto-detects a CLI provider, it prefers the
   `claude` CLI (`WNPM_LLM_PROVIDER=claude`, haiku by default), then falls back to `codex`
-  (`codex exec`) — so your existing Claude or Codex subscription pays, no key needed. To use
+  (`codex exec`), so your existing Claude or Codex subscription pays, no key needed. To use
   an HTTP provider instead, set `GROQ_API_KEY`, `OLLAMA_API_KEY`, or `OPENAI_API_KEY` in a
   project-local gitignored `.env`; bun auto-loads it
 
@@ -52,7 +52,7 @@ hook  > warden intent check → all ✅ → silence
   cannot loop the session.
 - **No changes, no tokens**: the hook fingerprints the git diff (tracked + untracked,
   `.warden/` excluded) and skips verification when nothing changed since the last verified
-  state — question-and-answer turns cost zero LLM calls.
+  state, question-and-answer turns cost zero LLM calls.
 - **Prompt ledger**: the whole session's prompts accumulate as one spec, matching the diff
   against the merge base. Edit `.warden/prompt.txt` if a stale requirement lingers.
 - **Provider trade-off**: HTTP providers run at temperature 0 for reproducible verdicts;

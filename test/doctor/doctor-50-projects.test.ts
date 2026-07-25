@@ -954,7 +954,7 @@ function harness(c: TestCase): Harness {
 }
 
 for (const c of ALL_CASES) {
-  test(`doctor-50 audit: ${c.name} — ${c.description}`, async () => {
+  test(`doctor-50 audit: ${c.name}: ${c.description}`, async () => {
     const { deps } = harness(c);
     const report = await runDoctor("/p", { verify: false, apply: false }, deps);
 
@@ -979,7 +979,7 @@ for (const c of ALL_CASES) {
 const FIXABLE = ALL_CASES.filter((c) => c.expectFix && Object.keys(c.expectFix).length > 0);
 
 for (const c of FIXABLE) {
-  test(`doctor-50 apply: ${c.name} — ${c.description}`, async () => {
+  test(`doctor-50 apply: ${c.name}: ${c.description}`, async () => {
     const h = harness(c);
     const report = await runDoctor("/p", { verify: false, apply: true }, h.deps);
 

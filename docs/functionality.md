@@ -88,7 +88,7 @@ BLOCK  chalk@5.6.1  risk 100/100 · blocklist
   • blocklist entry MAL-CHALK-2025
 
   verdict: chalk@5.6.1 is on the known-malware blocklist (MAL-CHALK-2025). Installation blocked.
-  blocked before any script ran — override with --allow-risky
+  blocked before any script ran, override with --allow-risky
 $ echo $?
 20
 ```
@@ -104,7 +104,7 @@ BLOCK  lodahs@0.0.1-security  risk 60/100 · heuristics
   • low install history (42 weekly downloads) (package.json)
 
   verdict: lodahs@0.0.1-security should not be installed: name is 1 edit from popular package "lodash" (~300M weekly downloads); low install history (42 weekly downloads).
-  blocked before any script ran — override with --allow-risky
+  blocked before any script ran, override with --allow-risky
 ```
 
 Every verb takes `--json` and returns a versioned verdict, with the schema published via `warden schema`:
@@ -128,7 +128,7 @@ BLOCK  chalk@5.6.1  risk 100/100 · blocklist
   • blocklist entry MAL-CHALK-2025
 
   verdict: chalk@5.6.1 is on the known-malware blocklist (MAL-CHALK-2025). Installation blocked.
-  blocked before any script ran — override with --allow-risky
+  blocked before any script ran, override with --allow-risky
 warden: blocked chalk@5.6.1; override with --allow-risky
 $ echo $?
 20
@@ -162,7 +162,7 @@ BLOCK  chalk@5.6.1  risk 100/100 · blocklist
   • blocklist entry MAL-CHALK-2025
 
   verdict: chalk@5.6.1 is on the known-malware blocklist (MAL-CHALK-2025). Installation blocked.
-  blocked before any script ran — override with --allow-risky
+  blocked before any script ran, override with --allow-risky
 
 install blocked: 1 package(s) failed the trust check. Override with --allow-risky.
 $ echo $?
@@ -275,9 +275,9 @@ Warden CI · diff vs merge-base 1c216f09730c · 0 packages changed
 
 ```
 $ wnpm doctor
-Warden doctor — doctor-demo
+Warden doctor: doctor-demo
 
-  2 issue(s) found — 2 affect production
+  2 issue(s) found, 2 affect production
   critical  acme-http@1.0.0 [GHSA-ACME-HTTP-0001]
     acme-http request smuggling via keep-alive header handling (fixed in 1.0.1)
   high  acme-json@2.1.0 [GHSA-ACME-JSON-0001]
@@ -286,11 +286,11 @@ Warden doctor — doctor-demo
   BLOCK  acme-http@1.0.1  install_script, exfiltration, provenance_downgrade, metadata_anomaly
     postinstall lifecycle script added; code requires child_process; code contains a raw IP address literal.
 
-  UNFIXABLE acme-http — every candidate fix was blocked by the supply-chain gate
+  UNFIXABLE acme-http: every candidate fix was blocked by the supply-chain gate
 
-  plan minimal — smallest safe upgrade  ▸ recommended
+  plan minimal: smallest safe upgrade  ▸ recommended
     acme-json 2.1.0 -> 2.1.4  patch, in range
-    verification: install ok 339ms · test ok 260ms — passed
+    verification: install ok 339ms · test ok 260ms (passed)
 
   recommended plan applied to package.json
 ```
@@ -311,7 +311,7 @@ VERDICT: 2 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
   ✅ Add rate limiting to the API client.  [api-client.ts:1-39]
   ✅ Preserve the existing retry logic.  [no change touches it]
   ❌ DROPPED: Log every request affected by rate limiting.  [no matching change found]
-  ⚠️ SCOPE CREEP: pagination.ts — 55 lines changed, never requested  [pagination.ts:1-57]
+  ⚠️ SCOPE CREEP: pagination.ts, 55 lines changed, never requested  [pagination.ts:1-57]
   🚨 HALLUCINATED: axios.instance.throttle  [api-client.ts:27]
      axios instance has no member 'throttle'. Known: get, post, put, delete, patch, head, options, request, …
 $ echo $?
