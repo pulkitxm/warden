@@ -127,3 +127,16 @@ test("every audited hook is a real npm lifecycle hook", () => {
     "prepublish",
   ]);
 });
+
+test("an unreadable node_modules degrades to a note instead of failing the scan", () => {
+  const report = auditScripts("/proj", {
+    exists: () => false,
+    readFile: () => '{"name":"root"}',
+    glob: () => {
+      throw new Error("ENOENT: no such directory");
+    },
+  });
+  expect(report.findings).toEqual([]);
+  expect(report.notes[0]).toContain("could not be listed");
+  expect(report.scanned).toBe(1);
+});

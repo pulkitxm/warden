@@ -63,4 +63,10 @@ A package check reads a published tarball. These three surfaces are where trust 
 - Lifecycle scripts decide **what runs** at install time, which is how Shai-Hulud 2.0 propagated through `preinstall`.
 - `.npmrc` decides **which registry is trusted** and **which token is sent to it**, which is what a lookalike host is trying to collect.
 
+## In CI
+
+`warden ci` runs a surface audit when that surface changed in the diff: a `package-lock.json` change triggers the lockfile audit, a `package.json` change triggers the scripts audit, and an `.npmrc` change triggers the config audit. Untouched surfaces are not scanned, so the gate stays scoped to the pull request.
+
+This closes the gap where a pull request changes no dependency version, and so passes a version-diff check, while rewriting where those dependencies resolve from or what runs at install time. Surface findings merge into the same finding list, honour `ci.failOn`, appear in `--reporter github` annotations, and are written to `.warden/last-run.json` for `warden fix`.
+
 See [the threat research](../research/citations.md) for the incidents behind each rule.
