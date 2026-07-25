@@ -119,6 +119,6 @@ The inventory is published on the verdict contract as an optional `inventory` ob
 
 ## Known limits
 
-- The baseline is the previous published release. An attacker who publishes two bad releases in a row moves the baseline with them. Trusted baselines drawn from a known-good release are a better answer and are not implemented yet.
+- A delta is measured against a trusted baseline: an explicitly recorded version, then one a verified transaction installed, then the version in your lockfile, then, only as a last resort, the previous published release. `warden baseline list` grades what each package currently rests on, and `warden baseline record <pkg@version>` pins a version you have actually audited.
 - Static analysis has language and obfuscation limits.
 - Warden evaluates risk signals and policy. It cannot prove that code is safe.
