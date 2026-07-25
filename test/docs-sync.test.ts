@@ -19,7 +19,10 @@ const LOCKFILES = ["package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml",
 
 test("every public verb has a page on the site and a written overview", () => {
   for (const command of COMMAND_REGISTRY.filter((entry) => !entry.hidden)) {
-    expect(commandNotes).toContain(`  ${command.name}: {`);
+    const declared =
+      commandNotes.includes(`  ${command.name}: {`) ||
+      commandNotes.includes(`  "${command.name}": {`);
+    expect(`${command.name}: ${declared}`).toBe(`${command.name}: true`);
   }
 });
 
