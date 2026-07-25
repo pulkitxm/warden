@@ -371,6 +371,10 @@ test("the rendered explanation answers all four questions in order", () => {
     prevented: ["the install script did not execute"],
     next_actions: ["warden compare react-codeshift jscodeshift"],
     baseline: null,
+    analysis_limits: [
+      "3 of 5 files in the tarball were read as source",
+      "1 native binaries are present and were not analyzed; static analysis reads source, not compiled code",
+    ],
     heuristic_score: 62,
     evidence: Array.from({ length: 10 }, (_, index) => ({
       file: `f${index}.js`,
@@ -382,6 +386,9 @@ test("the rendered explanation answers all four questions in order", () => {
   expect(text.indexOf("What changed")).toBeLessThan(text.indexOf("Why that matters"));
   expect(text.indexOf("Why that matters")).toBeLessThan(text.indexOf("Prevented"));
   expect(text.indexOf("Prevented")).toBeLessThan(text.indexOf("Safe next action"));
+  expect(text).toContain("Analysis limits");
+  expect(text).toContain("3 of 5 files in the tarball were read as source");
+  expect(text.indexOf("Analysis limits")).toBeLessThan(text.indexOf("Safe next action"));
   expect(text).toContain("and 2 more findings");
   expect(text).toContain("heuristic score 62/100");
   expect(text).toContain("baseline: none");

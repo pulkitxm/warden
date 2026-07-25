@@ -13,6 +13,7 @@ export interface ExplainReport {
   prevented: string[];
   next_actions: string[];
   baseline: { version: string; source: string } | null;
+  analysis_limits: string[];
   heuristic_score: number;
   evidence: Array<{ file: string; line?: number; detail: string }>;
   analyzer_version: string;
@@ -102,6 +103,12 @@ export function buildExplain(
     baseline: meta?.previousVersion
       ? { version: meta.previousVersion, source: "the previous published release" }
       : null,
+    analysis_limits: verdict.inventory
+      ? [
+          `${verdict.inventory.analyzed} of ${verdict.inventory.total} files in the tarball were read as source`,
+          ...verdict.inventory.notes,
+        ]
+      : [],
     heuristic_score: verdict.risk_score,
     evidence: verdict.evidence,
     analyzer_version: analyzerVersion,
