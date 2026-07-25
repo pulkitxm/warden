@@ -40,6 +40,9 @@ ci:
 	./dist/wnpx --schema >/dev/null
 	./dist/wnpm invalid-command 2>&1 | grep -F 'unknown command "invalid-command"' >/dev/null
 	./dist/wnpm --help 2>&1 | grep -F 'usage:' >/dev/null
+	./dist/warden doctor --help 2>&1 | grep -F 'usage: warden doctor' >/dev/null
+	./dist/warden schema doctor >/dev/null
+	./dist/warden schema intent >/dev/null
 
 doctor-demo: build
 	bun scripts/doctor-demo.ts

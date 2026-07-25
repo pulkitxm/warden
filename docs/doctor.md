@@ -2,12 +2,15 @@
 
 ## What it does
 
-`wnpm doctor` audits direct dependencies, gates possible repairs through the normal package check, builds minimal and latest upgrade plans, verifies each plan in an isolated workspace, then applies the recommended verified plan by default.
+Doctor audits direct dependencies, gates possible repairs through the normal package check, builds minimal and latest upgrade plans, verifies each plan in an isolated workspace, then applies the recommended verified plan by default.
 
 ## Usage
 
+Doctor has two entry points that share one core. Use `warden doctor` when you are already in the Warden CLI, and `wnpm doctor` when you are in a package-manager mindset. The flags, report, and exit codes are identical.
+
 ```text
-wnpm doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+warden doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+wnpm doctor   [--dir <path>] [--json] [--no-apply] [--no-verify]
 ```
 
 - `--dir <path>` selects the project directory. The default is `.`.
@@ -61,6 +64,8 @@ Registry or OSV failures skip the affected dependency and add a note. An OSV loo
 | `audited` | Number of dependencies successfully audited. |
 | `skipped` | Number of dependencies that could not be audited. |
 | `notes` | Degraded-run and operational notes. |
+
+Run `warden schema doctor` to print this schema, or `warden schema list` to see every report type Warden publishes.
 
 ## Trying it
 
