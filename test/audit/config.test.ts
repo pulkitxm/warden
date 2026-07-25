@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import {
   auditConfig,
   auditNpmrcEntry,
-  editDistance,
   lookalikeOf,
   type NpmrcEntry,
   parseNpmrc,
@@ -101,11 +100,8 @@ test("lookalikeOf accepts the known registries and rejects impostors", () => {
   expect(lookalikeOf("packages.internal.example")).toBeNull();
 });
 
-test("editDistance measures real edits", () => {
-  expect(editDistance("", "abc")).toBe(3);
-  expect(editDistance("abc", "")).toBe(3);
-  expect(editDistance("abc", "abc")).toBe(0);
-  expect(editDistance("kitten", "sitting")).toBe(3);
+test("a transposed registry host is still caught as a lookalike", () => {
+  expect(lookalikeOf("registry.npmsj.org")).toBe("registry.npmjs.org");
 });
 
 test("parseNpmrc keeps line numbers and drops comments and blanks", () => {
