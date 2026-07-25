@@ -151,3 +151,79 @@ test("the published benchmark matches what the binary produces today", async () 
     published.default.results.map((row) => `${row.id}:${row.actual}`),
   );
 });
+
+test("every doc page belongs to a declared section", async () => {
+  const { DOC_PAGES, DOC_SECTIONS } = await import("../web/src/lib/docs.ts");
+  for (const page of DOC_PAGES) {
+    expect(`${page.slug}: ${DOC_SECTIONS.includes(page.section as never)}`).toBe(
+      `${page.slug}: true`,
+    );
+  }
+});
+
+test("every section has pages and an introduction, so none renders as a bare heading", async () => {
+  const { DOC_PAGES, DOC_SECTIONS, SECTION_INTROS } = await import("../web/src/lib/docs.ts");
+  for (const section of DOC_SECTIONS) {
+    expect(`${section}: ${DOC_PAGES.some((page) => page.section === section)}`).toBe(
+      `${section}: true`,
+    );
+    expect(`${section}: ${Boolean(SECTION_INTROS[section])}`).toBe(`${section}: true`);
+  }
+});
+
+test("the page order covers every page exactly once, so none falls to the end silently", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const slugs = DOC_PAGES.map((page) => page.slug);
+  expect(new Set(slugs).size).toBe(slugs.length);
+  const sections = DOC_PAGES.map((page) => page.section);
+  const firstIndex = new Map<string, number>();
+  sections.forEach((section, index) => {
+    if (!firstIndex.has(section)) firstIndex.set(section, index);
+  });
+  const grouped = sections.every(
+    (section, index) =>
+      index === 0 ||
+      section === sections[index - 1] ||
+      !firstIndex.has(section) ||
+      firstIndex.get(section) === index,
+  );
+  expect(grouped).toBe(true);
+});
+
+test("every related link points at a page that exists", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const slugs = new Set(DOC_PAGES.map((page) => page.slug));
+  for (const page of DOC_PAGES) {
+    for (const related of page.related ?? []) {
+      if (related === "cli") continue;
+      expect(`${page.slug} -> ${related}: ${slugs.has(related)}`).toBe(
+        `${page.slug} -> ${related}: true`,
+      );
+    }
+  }
+});
+
+test("every in-site docs link in a page body resolves to a real page", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const slugs = new Set(DOC_PAGES.map((page) => page.slug));
+  for (const page of DOC_PAGES) {
+    for (const match of page.body.matchAll(/\]\(\/docs\/([a-z-]+)\)/g)) {
+      const target = match[1] as string;
+      if (target === "cli") continue;
+      expect(`${page.slug} -> /docs/${target}: ${slugs.has(target)}`).toBe(
+        `${page.slug} -> /docs/${target}: true`,
+      );
+    }
+  }
+});
+
+test("a reader can reach every verb from the docs, not only from --help", async () => {
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  const notes = await import("../web/src/lib/command-notes.ts");
+  const prose = DOC_PAGES.map((page) => page.body).join("\n");
+  for (const command of COMMAND_REGISTRY.filter((entry) => !entry.hidden)) {
+    const documented =
+      prose.includes(`warden ${command.name}`) || Boolean(notes.COMMAND_NOTES[command.name]);
+    expect(`${command.name}: ${documented}`).toBe(`${command.name}: true`);
+  }
+});

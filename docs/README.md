@@ -1,6 +1,8 @@
 # Engineering docs
 
-User documentation lives on the website at **[warden.pulkit.page/docs](https://warden.pulkit.page/docs)**, which is generated from the command registry and cannot drift from the binary. This directory holds the longer-form engineering notes behind it.
+**The website is the source of truth for using Warden.** [warden.pulkit.page/docs](https://warden.pulkit.page/docs) carries the whole picture: the transaction model, interception, explanations, policy, coverage, limitations, the benchmark, and the release trust chain, arranged as reading paths so you can stop once you have what you need. The CLI reference there is generated from the command registry and cannot drift from the binary.
+
+This directory holds engineering notes: the same ground covered for someone changing the code rather than using it, plus material that has no place on a user-facing site. If the two ever disagree, the website is correct, and a test enforces the parts that must match.
 
 | Doc | Covers | Status |
 | --- | --- | --- |

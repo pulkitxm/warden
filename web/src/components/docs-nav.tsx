@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { CommandRef, DocPage } from "@/lib/docs";
+import { type CommandRef, type DocPage, DOC_SECTIONS } from "@/lib/docs";
 
 interface Group {
   heading: string;
@@ -14,35 +14,24 @@ export function DocsNav({ pages, commands }: { pages: DocPage[]; commands: Comma
 
   const groups: Group[] = [
     {
-      heading: "Sections",
-      links: [
-        { href: "/docs", label: "Overview" },
-        ...pages
-          .filter((page) => page.section === "Start")
-          .map((page) => ({ href: `/docs/${page.slug}`, label: page.title })),
-      ],
+      heading: "Overview",
+      links: [{ href: "/docs", label: "All docs" }],
     },
-    {
-      heading: "Guides",
+    ...DOC_SECTIONS.map((section) => ({
+      heading: section,
       links: pages
-        .filter((page) => page.section === "Guides")
+        .filter((page) => page.section === section)
         .map((page) => ({ href: `/docs/${page.slug}`, label: page.title })),
-    },
+    })),
     {
-      heading: "Reference",
+      heading: "CLI",
       links: [
-        { href: "/docs/cli", label: "CLI reference" },
-        ...pages
-          .filter((page) => page.section === "Reference")
-          .map((page) => ({ href: `/docs/${page.slug}`, label: page.title })),
+        { href: "/docs/cli", label: "All commands" },
+        ...commands.map((command) => ({
+          href: `/docs/cli/${command.name}`,
+          label: command.name,
+        })),
       ],
-    },
-    {
-      heading: "Commands",
-      links: commands.map((command) => ({
-        href: `/docs/cli/${command.name}`,
-        label: `warden ${command.name}`,
-      })),
     },
   ];
 

@@ -90,6 +90,31 @@ warden ci --reporter github --base origin/main
 ## Next
 
 Read [concepts](/docs/concepts) for the model behind the verdicts, then the [CLI reference](/docs/cli).
+[Doctor](/docs/doctor) and [intent](/docs/intent) are the two deepest features. [Agents](/docs/agents) covers the machine-readable surface.
+## Onboarding an existing repository
+
+Warden can tell you what it is looking at before you change anything.
+
+\`\`\`sh
+warden detect
+\`\`\`
+
+Classifies the workspace topology, the package manager actually in use, the framework, the role of each package, and the tooling. Every conclusion carries the evidence that produced it, so a wrong answer is debuggable rather than mysterious.
+
+\`\`\`sh
+warden init
+\`\`\`
+
+Writes the project config, a CI workflow that gates pull requests, and the agent context files that teach a coding agent to plan before it installs. Nothing is overwritten without being shown first, and \`--yes\` accepts every offered change for scripted setup.
+
+\`\`\`sh
+warden integrations doctor
+warden scripts pending
+warden baseline list
+\`\`\`
+
+Three commands worth running once on a repository you have just adopted: whether the wiring actually works, which install scripts you inherited, and how much evidence stands behind each package's trusted baseline.
+
 `;
 
 const concepts = `
@@ -143,7 +168,6 @@ A package check asks "is this dependency safe". Intent asks a different question
 
 ## Next
 
-[Doctor](/docs/doctor) and [intent](/docs/intent) are the two deepest features. [Agents](/docs/agents) covers the machine-readable surface.
 `;
 
 const doctor = `
@@ -894,7 +918,258 @@ PATH shims are a convenience mechanism, not an operating-system sandbox. An abso
 Run \`warden integrations doctor\` to confirm the shims are actually first on your \`PATH\` on this machine, and read [limitations](/docs/limitations) for the rest of the boundary.
 `;
 
-export const DOC_PAGES: DocPage[] = [
+const interception = `
+Warden works best when you do not have to remember it. The installer places small shims ahead of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`npx\`, and \`bunx\` on your \`PATH\`, so the commands you already type are the ones that get checked.
+
+## What a shim does
+
+1. Classifies the command against a published grammar. Anything outside it passes straight through, untouched.
+2. Blocks sources with no registry provenance: git, url, and local paths.
+3. Builds the full transaction plan for an install, exactly as \`warden plan\` would.
+4. Delegates to the real package manager with lifecycle scripts suppressed by that manager's own mechanism.
+
+## An install is gated on the whole graph
+
+The shim used to vet only the package names you typed, which is precisely how a malicious transitive dependency slips through. It now gates on the complete prospective graph.
+
+\`\`\`text
+$ npm install @fastify/jwt
+
+warden: install scripts new to this graph are suppressed and will not run:
+warden:   fast-jwt@5.0.6 (postinstall)
+warden:     approve with: warden approve-script fast-jwt@5.0.6 --hook postinstall
+\`\`\`
+
+\`\`\`text
+$ npm install some-package
+
+warden: this change was blocked on the whole prospective graph, not only on npm
+warden:   byte-utils@2.0.0: known malicious release
+warden: run warden plan -- npm install some-package to see the full graph, or override with --allow-risky
+\`\`\`
+
+| Decision | What the shim does |
+| --- | --- |
+| \`ALLOW\` | Delegates with scripts suppressed |
+| \`WARN\` | Same, after printing the findings |
+| \`NEEDS_APPROVAL\` | Installs with scripts suppressed, and names every new install script with the exact approval command |
+| \`BLOCK\` | Refuses and points at \`warden plan\`. \`--allow-risky\` overrides |
+| unplannable | Fails closed, like any other analysis error |
+
+\`NEEDS_APPROVAL\` behaves differently here than in \`warden apply\`, deliberately. \`apply\` refuses, because you asked to apply a specific plan and the approval is part of it. The shim intercepted a command you already ran, and the install itself is safe with scripts suppressed, so it proceeds and tells you what is waiting. Nothing from an unapproved script runs in either case.
+
+\`exec\` and \`rebuild\` commands are not gated: they do not change the dependency graph.
+
+## Modes
+
+\`warden config mode <mode>\` controls how loud interception is.
+
+| Mode | Behaviour |
+| --- | --- |
+| \`brief\` | One line for an allow, full detail for a warning or block. The default |
+| \`verbose\` | Full evidence on every command |
+| \`quiet\` | Nothing on an allow |
+| \`log\` | Records verdicts to \`~/.warden/log.jsonl\` and never blocks. Use this to observe before enforcing |
+
+Turn interception off entirely with \`warden config intercept off\`, per scope with \`install\` or \`exec\`.
+
+## Drop-in commands
+
+If you would rather not install shims, \`wnpm\` and \`wnpx\` are drop-in replacements that vet first and then delegate, propagating the real exit code.
+
+## The honest part
+
+PATH shims are a convenience mechanism, not an operating-system sandbox. An absolute path, a container, Corepack, or a remote build machine all bypass them. Run \`warden integrations doctor\` to confirm the shims really are first on your \`PATH\`, \`warden coverage\` for the command matrix, and read [limitations](/docs/limitations) for the rest. The backstop that does not depend on any of this is \`warden ci --require-transaction-receipt\`.
+`;
+
+const explain = `
+A verdict you cannot act on is a verdict you will eventually route around. Warden's explanation surface exists so that a block leads somewhere.
+
+Every finding answers four questions, in this order:
+
+1. What changed?
+2. Why is that dangerous here?
+3. What did Warden prevent?
+4. What is the safest next action?
+
+\`\`\`text
+$ warden explain react-codeshift@0.1.0
+
+BLOCK  react-codeshift@0.1.0
+  confidence high · slopsquat
+
+What changed
+  react-codeshift@0.1.0 is the first release seen here
+  published less than a day ago
+
+Why that matters here
+  the name matches a pattern language models are known to invent
+
+Prevented
+  the install script did not execute
+
+Analysis limits
+  12 of 12 files in the tarball were read as source
+
+Safe next action
+  warden compare react-codeshift jscodeshift
+  warden history react-codeshift
+
+  baseline: none; this is the first release
+  heuristic score 62/100, analyzer 0.1.0
+\`\`\`
+
+## Decision, confidence, reason code
+
+The decision leads. Confidence follows, because a block resting on curated malware intelligence is a different claim from one resting on a single heuristic.
+
+| Situation | Confidence |
+| --- | --- |
+| Blocklist hit, or a known-malware category | high |
+| A fresh clean analysis | high |
+| A cached allow | medium |
+| A block or warning with more than one piece of evidence | high |
+| A warning with a single piece of evidence | medium |
+| A block with no evidence attached | low |
+
+## The score is a heuristic, and labelled as one
+
+Warden still computes a 0 to 100 score from weighted signals, and reports it, at the bottom, as \`heuristic score\`. It is not the headline and not a probability. A summed score reads as more precise than it is. The decision, the confidence, and the reason code are what to act on.
+
+## Artifact inventory
+
+An AST scan reads JavaScript and TypeScript. A tarball can also hold native binaries, WebAssembly, nested archives, and scripts in shell, PowerShell, Python, Ruby, or Perl. Every verdict built from a fetched tarball reports how many files were read as source and names what was not, so an allow never implies the whole package was understood. Files are classified by magic bytes first, so a Mach-O binary named \`index.js\` is still reported as a native binary.
+
+## Trusted baselines
+
+A delta is only as good as what it is measured against. Baselines resolve in order of evidence:
+
+| Source | Strength |
+| --- | --- |
+| A version you explicitly recorded | strong |
+| A version a verified Warden transaction installed | strong |
+| The version in your lockfile | moderate |
+| The previous published release | weak |
+
+That last case is genuinely weak, because an attacker who publishes twice moves it along with them, and \`warden baseline list\` grades it as such rather than hiding it. Pin what you have actually audited with \`warden baseline record esbuild@0.25.8 --note "audited in PR 412"\`.
+
+## Comparing candidates
+
+\`\`\`sh
+warden compare jscodeshift react-codeshift
+\`\`\`
+
+Ranking penalises a block, then an unanalyzable candidate, then deprecation, then install scripts, and rewards provenance and real download volume. It is a summary of evidence. Warden does not install an alternative for you, and it does not pick one on the strength of a model's opinion.
+
+## History and the standing script surface
+
+\`warden history <pkg>\` lists releases newest first, annotating the current one with a changed publisher, lost provenance, newly added scripts, or deprecation.
+
+\`warden scripts pending\` shows the install scripts already in your installed graph and which still need approval. It exits \`10\` while anything is pending and \`0\` once every script carries an approval, so it works as a check.
+`;
+
+const benchmark = `
+A detection rate published without the corpus behind it is a number you are asked to take on faith. Warden's is reproducible: \`warden benchmark\` runs a curated corpus through the same resolver and decision logic the CLI uses, and the figures on the [benchmark dashboard](/benchmark) are generated from that run.
+
+\`\`\`text
+$ warden benchmark
+
+Warden benchmark  analyzer 0.1.0
+
+  detection       100.0%  12/12 malicious shapes stopped
+  false positives 0.0%  0/8 benign shapes stopped
+  mean coverage   100.0%  of changed packages analyzed
+
+  every case matched its expected decision
+\`\`\`
+
+## What counts as caught
+
+A malicious shape counts as caught only when the decision **stops the install**, which means \`BLOCK\` or \`NEEDS_APPROVAL\`. A warning does not count: a warning a developer scrolls past has prevented nothing.
+
+A benign shape counts as a false positive when the decision stops it. False positives are the failure mode that gets a security tool uninstalled, so they sit next to detection rather than in a footnote.
+
+## The corpus
+
+Twelve attack shapes, each exercising a path that per-package checking misses:
+
+| Case | Shape |
+| --- | --- |
+| \`mal-grandchild\` | a malicious package three levels below the one typed |
+| \`mal-transitive-postinstall\` | a clean direct dependency whose child runs at install time |
+| \`mal-preinstall\` | a preinstall script, which runs before anything is unpacked |
+| \`mal-compromised-patch\` | a patch release adding a script the trusted version lacked |
+| \`mal-vanished-dep\` | a dependency that no longer resolves |
+| \`mal-transitive-git\` | a child pulled straight from a git repository |
+| \`mal-transitive-url\` | a child resolving to an arbitrary https tarball |
+| \`mal-needle-in-haystack\` | one malicious leaf among twelve clean siblings |
+| \`mal-optional-dep\` | a malicious optional dependency |
+| \`mal-diamond\` | a diamond whose shared package is compromised |
+| \`mal-cycle\` | a dependency cycle containing a malicious node |
+| \`mal-prepare-hook\` | a prepare script, which npm also runs at install time |
+
+Eight benign shapes that must not be stopped: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, an unchanged project, and an upgrade of a package whose install script was already trusted.
+
+## Regression, not marketing
+
+\`warden benchmark\` exits \`20\` if any case no longer matches its recorded decision, so a rule that quietly weakens fails the build instead of moving an average. A test asserts the figures published on this site match what the binary produces today.
+
+## What these numbers are not
+
+These are curated shapes, not a sample of the registry. They measure whether the decision logic still behaves as designed on the paths it was built for. They are not field accuracy against real-world malware and should not be read as a claim about it.
+
+The heuristic score is deliberately absent from this benchmark. It has not been calibrated against a labelled corpus, which is why it is labelled a heuristic everywhere it appears.
+`;
+
+const releases = `
+Warden is a security tool, so how it reaches your machine is part of its threat model.
+
+## One install script
+
+\`\`\`sh
+curl -fsSL https://warden.pulkit.page/install.sh | sh
+\`\`\`
+
+Read the script before running it. That advice applies to every install script, including this one, which is why it is served as plain text at [/install.sh](/install.sh) and is the same file published as a release asset.
+
+The installer places \`warden\`, \`wnpm\`, and \`wnpx\` under \`~/.warden/bin\`, offers shims for the package managers it detects, and configures your shell.
+
+## The release trust chain
+
+Everything the installer executes comes from one immutable release tag, and everything is verified before it is used.
+
+1. Request \`releases/latest/download/<asset>\` and read the tag from the URL actually redirected to. If no tag resolves, stop rather than guess.
+2. Fetch \`sha256sums.txt\` from that exact tag.
+3. Verify the platform tarball against it before extracting.
+4. Fetch \`install.sh\` and \`shim.sh\` from the same tag and verify them against the same sums file before either is written to disk.
+
+Nothing is fetched from a mutable branch. Earlier versions pulled \`install.sh\` and \`shim.sh\` from \`main\`, unverified, which meant a push between a release and an install changed executable content on a user's machine. Two tests enforce the rule now: one greps the installer for any reference to a mutable ref, and the shell harness fails the install outright if the installer ever asks for one.
+
+Three failure modes are covered by tests:
+
+- a tampered \`install.sh\` whose digest does not match fails the install and says so
+- a release that does not list the support files is refused rather than falling back
+- a missing or mismatched tarball checksum fails, as it always did
+
+## Verify what you installed
+
+\`\`\`sh
+warden --version
+warden integrations doctor
+\`\`\`
+
+The first prints the analyzer version, which is the same value stamped into every verdict as \`analyzer_version\`. The second checks that the shims are actually in front of your package managers on this machine.
+
+## Removing it
+
+\`\`\`sh
+warden uninstall
+\`\`\`
+
+Removes the binaries, the shims, the config, the cache, and the lines Warden added to your shell rc. Lines it did not add are left alone.
+`;
+
+const PAGES: DocPage[] = [
   {
     slug: "getting-started",
     title: "Getting started",
@@ -918,7 +1193,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Doctor",
     description:
       "Audit dependencies against OSV, gate every candidate fix through the supply-chain engine, verify in isolation, then apply.",
-    section: "Guides",
+    section: "Using Warden",
     body: doctor,
     related: ["concepts", "ci", "security"],
   },
@@ -927,7 +1202,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Intent",
     description:
       "Verify that an agent's diff does what the prompt asked, and catch calls to APIs that do not exist.",
-    section: "Guides",
+    section: "Using Warden",
     body: intent,
     related: ["agents", "security"],
   },
@@ -936,7 +1211,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "CI",
     description:
       "One command that gates a pull request on dependency changes, lockfile and script edits, and agent intent.",
-    section: "Guides",
+    section: "Using Warden",
     body: ci,
     related: ["check-surfaces", "agents", "configuration"],
   },
@@ -945,7 +1220,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Check surfaces",
     description:
       "Audit the lockfile, install scripts, and registry config: the places trust is lost without any package changing.",
-    section: "Guides",
+    section: "Using Warden",
     body: checkSurfaces,
     related: ["ci", "security"],
   },
@@ -954,7 +1229,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Transactions",
     description:
       "Plan the complete prospective graph, approve exactly what needs approving, apply with scripts suppressed, and leave a receipt CI can verify.",
-    section: "Guides",
+    section: "Start",
     body: transactions,
     related: ["policy", "coverage", "limitations"],
   },
@@ -963,7 +1238,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Policy",
     description:
       "One manager-neutral policy compiled into npm, pnpm, Yarn, and Bun's own controls, with every gap named.",
-    section: "Guides",
+    section: "Using Warden",
     body: policy,
     related: ["transactions", "configuration"],
   },
@@ -972,7 +1247,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Agents",
     description:
       "The machine-readable surface: JSON on stdout, published schemas, stable exit codes, and the handoff bundle.",
-    section: "Guides",
+    section: "Using Warden",
     body: agents,
     related: ["schemas", "intent", "cli"],
   },
@@ -981,7 +1256,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Threat model",
     description:
       "The documented incidents behind each rule: axios provenance downgrade, Shai-Hulud preinstall, npmjs.help, lockfile injection, and slopsquatting.",
-    section: "Reference",
+    section: "Trust and boundaries",
     body: security,
     related: ["doctor", "check-surfaces"],
   },
@@ -990,7 +1265,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Command coverage",
     description:
       "Exactly which package-manager commands the shims mediate, generated from the same grammar the shim executes.",
-    section: "Reference",
+    section: "Trust and boundaries",
     body: coverage,
     related: ["limitations", "transactions"],
   },
@@ -999,7 +1274,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Limitations",
     description:
       "What Warden does not cover: shim bypasses, analysis limits, flat resolution, baselines, and what a score is not.",
-    section: "Reference",
+    section: "Trust and boundaries",
     body: limitations,
     related: ["security", "coverage", "transactions"],
   },
@@ -1030,9 +1305,76 @@ export const DOC_PAGES: DocPage[] = [
     body: troubleshooting,
     related: ["configuration", "cli"],
   },
+  {
+    slug: "interception",
+    title: "Interception",
+    description:
+      "How the shims put Warden in front of npm, pnpm, yarn, and Bun, what each decision does to your install, and where interception genuinely ends.",
+    section: "Using Warden",
+    body: interception,
+    related: ["coverage", "transactions", "limitations"],
+  },
+  {
+    slug: "explain",
+    title: "Explaining a decision",
+    description:
+      "What changed, why it matters, what was prevented, and what to do next, plus artifact inventory, trusted baselines, comparison, and history.",
+    section: "Using Warden",
+    body: explain,
+    related: ["concepts", "transactions", "limitations"],
+  },
+  {
+    slug: "benchmark",
+    title: "Benchmark",
+    description:
+      "Detection and false-positive rates against a published corpus, what counts as caught, and what these numbers deliberately are not.",
+    section: "Trust and boundaries",
+    body: benchmark,
+    related: ["limitations", "security", "coverage"],
+  },
+  {
+    slug: "releases",
+    title: "Releases and trust chain",
+    description:
+      "How Warden reaches your machine: one immutable release tag, every executable file checksum-verified, and nothing fetched from a mutable branch.",
+    section: "Reference",
+    body: releases,
+    related: ["troubleshooting", "limitations"],
+  },
 ];
 
-export const DOC_SECTIONS = ["Start", "Guides", "Reference"] as const;
+const PAGE_ORDER = [
+  "getting-started",
+  "concepts",
+  "transactions",
+  "interception",
+  "explain",
+  "ci",
+  "agents",
+  "policy",
+  "doctor",
+  "intent",
+  "check-surfaces",
+  "coverage",
+  "limitations",
+  "security",
+  "benchmark",
+  "configuration",
+  "schemas",
+  "troubleshooting",
+  "releases",
+];
+
+export const DOC_PAGES: DocPage[] = [...PAGES].sort(
+  (a, b) => PAGE_ORDER.indexOf(a.slug) - PAGE_ORDER.indexOf(b.slug),
+);
+
+export const DOC_SECTIONS = [
+  "Start",
+  "Using Warden",
+  "Trust and boundaries",
+  "Reference",
+] as const;
 
 export function docBySlug(slug: string): DocPage | undefined {
   return DOC_PAGES.find((page) => page.slug === slug);
@@ -1041,3 +1383,15 @@ export function docBySlug(slug: string): DocPage | undefined {
 export function commandBySlug(name: string): CommandRef | undefined {
   return COMMANDS.find((command) => command.name === name);
 }
+
+export function readingMinutes(page: DocPage): number {
+  return Math.max(1, Math.round(page.body.trim().split(/\s+/).length / 220));
+}
+
+export const SECTION_INTROS: Record<string, string> = {
+  Start: "The mental model. Three pages, about fifteen minutes, and everything else follows from them.",
+  "Using Warden": "Task guides. Read the one that matches what you are doing; they do not need to be read in order.",
+  "Trust and boundaries":
+    "What is actually covered, what is not, and the measured numbers behind the claims.",
+  Reference: "Lookup material. Come here when you need a specific flag, file, or schema.",
+};
