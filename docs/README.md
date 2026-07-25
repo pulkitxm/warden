@@ -18,6 +18,7 @@ User documentation lives on the website at **[warden.pulkit.page/docs](https://w
 | [config](config.md) | Config cascade and cache semantics | Shipped |
 | [autocomplete](autocomplete.md) | Registry-driven completions | Shipped |
 | [distribution](distribution.md) | Releases, installer, Docker | Shipped |
+| [benchmark](benchmark.md) | The published corpus, and how detection and false positives are measured | Shipped |
 | [test-coverage-plan](test-coverage-plan.md) | What each test layer must prove | Process |
 | [system-integration](system-integration.md) | Product plan | **Plan, partly unimplemented** |
 
