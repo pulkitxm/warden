@@ -2,13 +2,16 @@
 
 ## What it does
 
-`wnpm doctor` audits direct dependencies, gates possible repairs through the normal package check, builds minimal and latest upgrade plans, verifies each plan in an isolated workspace, then applies the recommended verified plan by default.
+The doctor audits direct dependencies, gates possible repairs through the normal package check, builds minimal and latest upgrade plans, verifies each plan in an isolated workspace, then applies the recommended verified plan by default.
 
 ## Usage
 
 ```text
-wnpm doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+warden doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+wnpm doctor   [--dir <path>] [--json] [--no-apply] [--no-verify]
 ```
+
+Both entry points run the same implementation and produce byte-identical reports. Use `warden doctor` alongside the other Warden verbs, or `wnpm doctor` next to `wnpm install`.
 
 - `--dir <path>` selects the project directory. The default is `.`.
 - `--json` writes the doctor report JSON to stdout.
@@ -16,6 +19,8 @@ wnpm doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
 - `--no-verify` skips isolated-workspace verification of plans.
 
 Exit code `0` means the project is clean or fully fixed. Exit code `10` means unresolved issues remain. Exit code `30` means an error, such as an unreadable `package.json` or a run with nothing auditable.
+
+`warden schema doctor` prints the JSON Schema for the report that `--json` emits.
 
 ## What it detects
 

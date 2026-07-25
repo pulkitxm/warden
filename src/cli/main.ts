@@ -10,6 +10,7 @@ import type { IntentReport } from "../intent/types.ts";
 import {
   ANALYZER_VERSION,
   type CiFinding,
+  DOCTOR_JSON_SCHEMA,
   EXIT,
   exitCodeFor,
   FINDINGS_JSON_SCHEMA,
@@ -269,8 +270,9 @@ function directDeps(deps: RunDeps): string[] {
 async function runDoctorCommand(
   values: { json?: boolean; "no-apply"?: boolean; "no-verify"?: boolean; dir?: string },
   deps: RunDeps,
+  tool = "wnpm doctor",
 ): Promise<number> {
-  return guarded("wnpm doctor", deps, async () => {
+  return guarded(tool, deps, async () => {
     const doctor = deps.doctor ?? runDoctor;
     const report = await doctor(values.dir ?? ".", {
       apply: !values["no-apply"],
@@ -803,12 +805,17 @@ function renderDetection(manifest: DetectionManifest): string {
   return `${heading} · ${manager} · ${manifest.topology.runtime} · ${manifest.packages.length} package${manifest.packages.length === 1 ? "" : "s"}\n\n${rows}\n\nevidence:\n  topology     ${manifest.topology.evidence.join(", ")}\n${evidence}\n`;
 }
 
+const SCHEMAS: Record<string, unknown> = {
+  check: VERDICT_JSON_SCHEMA,
+  ci: FINDINGS_JSON_SCHEMA,
+  doctor: DOCTOR_JSON_SCHEMA,
+};
+
 function runWardenSchema(argv: string[], deps: WardenDeps): number {
   const verb = argv[0] ?? "check";
-  if (verb === "check" || verb === "ci") {
-    deps.stdout(
-      `${JSON.stringify(verb === "check" ? VERDICT_JSON_SCHEMA : FINDINGS_JSON_SCHEMA, null, 2)}\n`,
-    );
+  const schema = SCHEMAS[verb];
+  if (schema) {
+    deps.stdout(`${JSON.stringify(schema, null, 2)}\n`);
     return EXIT.allow;
   }
   return wardenFailure(
@@ -1166,6 +1173,29 @@ async function runWardenCi(argv: string[], deps: WardenDeps): Promise<number> {
   }
 }
 
+async function runWardenDoctor(argv: string[], deps: WardenDeps): Promise<number> {
+  const parsed = parseArgsSafe({
+    args: argv,
+    options: {
+      json: { type: "boolean" },
+      "no-apply": { type: "boolean" },
+      "no-verify": { type: "boolean" },
+      dir: { type: "string" },
+    },
+  });
+  if (!parsed) {
+    return wardenFailure(
+      deps,
+      argv.includes("--json"),
+      "usage",
+      "WARDEN_DOCTOR_USAGE",
+      "invalid doctor flags",
+      "run warden doctor --help",
+    );
+  }
+  return runDoctorCommand(parsed.values, deps, "warden doctor");
+}
+
 async function runWardenFix(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
   try {
@@ -1418,6 +1448,20 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     run: runWardenCheck,
   },
   {
+    name: "doctor",
+    description: "audit dependencies, gate candidate fixes, verify and apply the safest plan",
+    flags: [
+      { name: "--dir", valueHint: "<path>", description: "project directory (default: cwd)" },
+      { name: "--json", description: "write the doctor report JSON to stdout" },
+      { name: "--no-apply", description: "report and plan only, do not modify package.json" },
+      { name: "--no-verify", description: "skip isolated-workspace verification of plans" },
+      helpFlag,
+    ],
+    exitCodes: "0 clean or fully fixed · 10 issues remain · 30 error",
+    example: "warden doctor --dir ./api --no-apply",
+    run: runWardenDoctor,
+  },
+  {
     name: "ci",
     description: "run all checks against the merge-base diff",
     flags: [
@@ -1512,10 +1556,10 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
   {
     name: "schema",
     description: "print the JSON schema for structured output",
-    positional: { kind: "[check|ci]" },
+    positional: { kind: "[check|ci|doctor]", values: ["check", "ci", "doctor"] },
     flags: [helpFlag],
     exitCodes: "0 success",
-    example: "warden schema ci",
+    example: "warden schema doctor",
     run: runWardenSchema,
   },
   {

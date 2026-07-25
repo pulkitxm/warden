@@ -4,8 +4,12 @@ import { basename, join } from "node:path";
 import type { Change } from "./plan.ts";
 import { type Project, stripBom } from "./project.ts";
 
+export interface ExecResult {
+  code: number;
+}
+
 export interface VerifyDeps {
-  exec: (cmd: string[], cwd: string) => { code: number };
+  exec: (cmd: string[], cwd: string) => ExecResult | Promise<ExecResult>;
   mkWorkspace: (fromDir: string) => string;
   rm: (path: string) => void;
   readFile: (path: string) => string;
@@ -17,12 +21,18 @@ export interface VerifyDeps {
 const SKIP_COPY = new Set(["node_modules", ".git", "dist", "coverage"]);
 
 export const defaultVerifyDeps: VerifyDeps = {
-  exec: (cmd, cwd) => {
+  exec: async (cmd, cwd) => {
     const env: Record<string, string | undefined> = { ...process.env };
     if (process.env.WNPM_REGISTRY) env.npm_config_registry = process.env.WNPM_REGISTRY;
     try {
-      const r = Bun.spawnSync(cmd, { cwd, stdout: "pipe", stderr: "pipe", env, timeout: 600_000 });
-      return { code: r.exitCode ?? 1 };
+      const proc = Bun.spawn(cmd, {
+        cwd,
+        stdout: "ignore",
+        stderr: "ignore",
+        env,
+        timeout: 600_000,
+      });
+      return { code: await proc.exited };
     } catch {
       return { code: 127 };
     }
@@ -81,51 +91,51 @@ export function availablePm(project: Project, deps: VerifyDeps): "bun" | "npm" |
   return null;
 }
 
-function runSteps(
+async function runSteps(
   dir: string,
   project: Project,
   pm: "bun" | "npm",
   deps: VerifyDeps,
-): { passed: boolean; steps: StepResult[] } {
+): Promise<{ passed: boolean; steps: StepResult[] }> {
   const steps: StepResult[] = [];
-  const run = (name: string, cmd: string[]): boolean => {
+  const run = async (name: string, cmd: string[]): Promise<boolean> => {
     const started = deps.now();
-    const { code } = deps.exec(cmd, dir);
+    const { code } = await deps.exec(cmd, dir);
     steps.push({ name, ok: code === 0, ms: deps.now() - started });
     return code === 0;
   };
-  let ok = run("install", installCommand(pm));
+  let ok = await run("install", installCommand(pm));
   for (const script of ["test", "typecheck", "build"]) {
     if (!ok) break;
     if (!project.scripts[script]) continue;
-    ok = run(script, [pm, "run", script]);
+    ok = await run(script, [pm, "run", script]);
   }
   return { passed: ok, steps };
 }
 
-export function verifyPlan(
+export async function verifyPlan(
   project: Project,
   changes: Change[],
   deps: VerifyDeps = defaultVerifyDeps,
-): VerificationResult {
+): Promise<VerificationResult> {
   const pm = availablePm(project, deps);
   if (!pm) return { workspace: "", passed: false, steps: [] };
   const workspace = deps.mkWorkspace(project.dir);
   try {
     const pkgPath = join(workspace, "package.json");
     deps.writeFile(pkgPath, applyChanges(deps.readFile(pkgPath), changes));
-    const { passed, steps } = runSteps(workspace, project, pm, deps);
+    const { passed, steps } = await runSteps(workspace, project, pm, deps);
     return { workspace, passed, steps };
   } finally {
     deps.rm(workspace);
   }
 }
 
-export function applyPlan(
+export async function applyPlan(
   project: Project,
   changes: Change[],
   deps: VerifyDeps = defaultVerifyDeps,
-): { applied: boolean; steps: StepResult[] } {
+): Promise<{ applied: boolean; steps: StepResult[] }> {
   const pm = availablePm(project, deps);
   if (!pm) return { applied: false, steps: [] };
   const pkgPath = join(project.dir, "package.json");
@@ -134,7 +144,7 @@ export function applyPlan(
   const started = deps.now();
   let code = 127;
   try {
-    code = deps.exec(installCommand(pm), project.dir).code;
+    code = (await deps.exec(installCommand(pm), project.dir)).code;
   } finally {
     if (code !== 0) deps.writeFile(pkgPath, original);
   }

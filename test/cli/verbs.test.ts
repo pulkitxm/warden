@@ -95,6 +95,11 @@ test("schema prints check and CI schemas, help, and typed errors", async () => {
     expect(JSON.parse(state.out.pop()!).properties.verdict).toBeDefined();
     expect(await runWarden(["schema", "ci"], state.deps)).toBe(0);
     expect(JSON.parse(state.out.pop()!).type).toBe("array");
+    expect(await runWarden(["schema", "doctor"], state.deps)).toBe(0);
+    const doctorSchema = JSON.parse(state.out.pop()!);
+    expect(doctorSchema.properties.plans).toBeDefined();
+    expect(doctorSchema.properties.schema_version.const).toBe(SCHEMA_VERSION);
+    expect(doctorSchema.required).toContain("unfixable");
     expect(await runWarden(["schema", "--help"], state.deps)).toBe(0);
     expect(state.err.join("")).toContain("usage: warden schema");
     expect(await runWarden(["schema", "missing"], state.deps)).toBe(30);

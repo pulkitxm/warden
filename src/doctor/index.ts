@@ -225,10 +225,13 @@ export async function runDoctor(
       notes.push("no package manager (bun or npm) found on PATH; verification skipped");
       recommended = plans[0]?.id;
     } else {
-      for (const plan of plans) {
-        const result = verifyPlan(project, plan.changes, verifier);
-        plan.verification = { passed: result.passed, steps: result.steps };
-      }
+      const results = await Promise.all(
+        plans.map((plan) => verifyPlan(project, plan.changes, verifier)),
+      );
+      plans.forEach((plan, index) => {
+        const result = results[index];
+        if (result) plan.verification = { passed: result.passed, steps: result.steps };
+      });
       recommended = plans.find((p) => p.verification?.passed)?.id;
     }
   }
@@ -237,7 +240,7 @@ export async function runDoctor(
   const recommendedPlan = plans.find((p) => p.id === recommended);
   if (opts.apply && recommendedPlan) {
     if (pm) {
-      applied = applyPlan(project, recommendedPlan.changes, verifier).applied;
+      applied = (await applyPlan(project, recommendedPlan.changes, verifier)).applied;
     } else {
       applied = false;
       notes.push("cannot apply: no package manager (bun or npm) found on PATH");

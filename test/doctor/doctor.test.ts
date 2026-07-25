@@ -358,3 +358,68 @@ test("doctor falls back to the latest pick when early candidates are blocked", a
   ]);
   expect(report.gate.filter((g) => g.verdict === "block")).toHaveLength(3);
 });
+
+test("a failed apply install rolls the manifest back and reports applied=false", async () => {
+  const verifier = fakeVerifier(fixturePkgJson);
+  verifier.deps.exec = (cmd, cwd) => {
+    verifier.calls.push({ cmd, cwd });
+    return { code: cwd === doctorProject ? 1 : 0 };
+  };
+
+  const report = await runDoctor(
+    doctorProject,
+    { apply: true },
+    { check: engineCheck, verifier: verifier.deps },
+  );
+
+  expect(report.recommended).toBe("minimal");
+  expect(report.applied).toBe(false);
+
+  const manifestPath = join(doctorProject, "package.json");
+  expect(verifier.written[manifestPath]).toBe(fixturePkgJson);
+  expect(verifier.calls.some((c) => c.cwd === doctorProject)).toBe(true);
+});
+
+test("verification runs each plan in its own workspace", async () => {
+  const workspaces: string[] = [];
+  const verifier = fakeVerifier(fixturePkgJson);
+  let next = 0;
+  verifier.deps.mkWorkspace = () => {
+    const dir = `/workspace-${next++}`;
+    workspaces.push(dir);
+    return dir;
+  };
+  const removed: string[] = [];
+  verifier.deps.rm = (path) => {
+    removed.push(path);
+  };
+
+  const report = await runDoctor(
+    doctorProject,
+    {},
+    { check: engineCheck, verifier: verifier.deps },
+  );
+
+  expect(report.plans.length).toBeGreaterThan(0);
+  expect(workspaces.length).toBe(report.plans.length);
+  expect(new Set(workspaces).size).toBe(workspaces.length);
+  expect(removed.sort()).toEqual(workspaces.sort());
+});
+
+test("an async verifier is awaited rather than treated as a passing step", async () => {
+  const verifier = fakeVerifier(fixturePkgJson);
+  verifier.deps.exec = async (cmd, cwd) => {
+    verifier.calls.push({ cmd, cwd });
+    await Promise.resolve();
+    return { code: 1 };
+  };
+
+  const report = await runDoctor(
+    doctorProject,
+    {},
+    { check: engineCheck, verifier: verifier.deps },
+  );
+
+  expect(report.plans.every((p) => p.verification?.passed === false)).toBe(true);
+  expect(report.recommended).toBeUndefined();
+});

@@ -45,9 +45,9 @@ See [interception](interception.md).
 
 ## Dependency doctor
 
-`wnpm doctor` turns the same trust signals into a safe repair loop for an existing project. It reads direct dependencies and their installed versions, queries OSV advisories, and makes both a minimal and a latest upgrade plan. Every candidate is checked by the normal supply-chain gate, so an advisory's nominal fix is rejected when the release itself is risky.
+`warden doctor` (also available as `wnpm doctor`) turns the same trust signals into a safe repair loop for an existing project. It reads direct dependencies and their installed versions, queries OSV advisories, and makes both a minimal and a latest upgrade plan. Every candidate is checked by the normal supply-chain gate, so an advisory's nominal fix is rejected when the release itself is risky.
 
-Before changing the project, doctor copies it to an isolated workspace, installs with lifecycle scripts disabled, and runs any present `test`, `typecheck`, and `build` scripts. By default it pins the recommended verified versions in `package.json` and reinstalls them. `wnpm doctor --no-apply` produces the report without changing the project; `--dir <path>` targets another workspace. The JSON report records issues, rejected candidates, plans, verification steps, and whether a plan was applied.
+Before changing the project, doctor copies it to an isolated workspace, installs with lifecycle scripts disabled, and runs any present `test`, `typecheck`, and `build` scripts. By default it pins the recommended verified versions in `package.json` and reinstalls them. `warden doctor --no-apply` produces the report without changing the project; `--dir <path>` targets another workspace. The JSON report records issues, rejected candidates, plans, verification steps, and whether a plan was applied.
 
 See [docs/doctor.md](doctor.md) for the full reference.
 

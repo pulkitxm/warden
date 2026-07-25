@@ -156,3 +156,41 @@ test("minSatisfying and maxSatisfying pick range endpoints", () => {
   expect(minSatisfying(versions, "^3.0.0")).toBeUndefined();
   expect(maxSatisfying(versions, "^3.0.0")).toBeUndefined();
 });
+
+test("satisfies: whitespace, prefixes, and metadata do not confuse ranges", () => {
+  expect(satisfies("1.2.3", "  ^1.2.3  ")).toBe(true);
+  expect(satisfies("1.2.3", "^1.0.0||^2.0.0")).toBe(true);
+  expect(satisfies("2.5.0", "^1.0.0||^2.0.0")).toBe(true);
+  expect(satisfies("1.2.3", "=v1.2.3")).toBe(true);
+  expect(satisfies("1.2.3", ">=1.2.3+build.7")).toBe(true);
+  expect(satisfies("1.2.4", "1.2.3+build.7")).toBe(false);
+});
+
+test("satisfies: exact bounds and tight tilde windows", () => {
+  expect(satisfies("1.0.0", ">=1.0.0 <=1.0.0")).toBe(true);
+  expect(satisfies("1.0.1", ">=1.0.0 <=1.0.0")).toBe(false);
+  expect(satisfies("0.0.9", "~0.0.1")).toBe(true);
+  expect(satisfies("0.1.0", "~0.0.1")).toBe(false);
+  expect(satisfies("1.5.0", "1 - 2")).toBe(true);
+  expect(satisfies("3.0.1", "1 - 2")).toBe(false);
+  expect(satisfies("2.9.0", "1 - 2")).toBe(true);
+});
+
+test("satisfies: prerelease tuple rules hold at range boundaries", () => {
+  expect(satisfies("2.0.0-alpha", "^2.0.0-alpha")).toBe(true);
+  expect(satisfies("2.0.0-beta", "^2.0.0-alpha")).toBe(true);
+  expect(satisfies("2.0.1-alpha", "^2.0.0-alpha")).toBe(false);
+  expect(satisfies("2.0.1-beta", ">2.0.0")).toBe(false);
+  expect(satisfies("2.0.1", ">2.0.0")).toBe(true);
+});
+
+test("sorting handles duplicates, prereleases, and unsorted input", () => {
+  expect(sortVersions(["1.0.0", "1.0.0-rc.1", "1.0.0", "0.9.0"])).toEqual([
+    "0.9.0",
+    "1.0.0-rc.1",
+    "1.0.0",
+    "1.0.0",
+  ]);
+  expect(minSatisfying(["2.0.0", "1.4.0", "1.4.0"], "^1.0.0")).toBe("1.4.0");
+  expect(diffLevel("1.0.0", "junk")).toBe("major");
+});

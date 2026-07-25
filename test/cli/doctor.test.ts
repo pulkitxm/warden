@@ -1,9 +1,18 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
-import { defaultDeps, type RunDeps, runWnpm } from "../../src/cli/main.ts";
+import {
+  defaultDeps,
+  defaultWardenDeps,
+  type RunDeps,
+  runWarden,
+  runWnpm,
+  type WardenDeps,
+} from "../../src/cli/main.ts";
 import { renderDoctorReport } from "../../src/cli/ui.ts";
 import { type DoctorOptions, type DoctorReport, runDoctor } from "../../src/doctor/index.ts";
+import { DOCTOR_JSON_SCHEMA } from "../../src/schema.ts";
+import { type JsonSchemaNode, validate } from "../helpers/json-schema.ts";
 
 const doctorProject = fileURLToPath(new URL("../../fixtures/doctor-project", import.meta.url));
 
@@ -363,4 +372,152 @@ test("wnpm doctor surfaces a readable error for a missing project directory", as
   delete deps.doctor;
   expect(await runWnpm(["doctor", "--dir", "/no/such/dir"], deps)).toBe(30);
   expect(err.join("")).toContain("wnpm doctor: analysis error: could not read package.json");
+});
+
+function makeWardenDeps(over: Partial<WardenDeps> = {}) {
+  const out: string[] = [];
+  const err: string[] = [];
+  const deps: WardenDeps = {
+    ...defaultWardenDeps,
+    check: () => Promise.reject(new Error("unused")),
+    stdout: (s) => out.push(s),
+    stderr: (s) => err.push(strip(s)),
+    which: () => null,
+    spawn: () => 0,
+    readFile: () => {
+      throw new Error("ENOENT");
+    },
+    ...over,
+  };
+  return { deps, out, err };
+}
+
+test("warden doctor and wnpm doctor drive the same implementation with the same flags", async () => {
+  const seen: Array<{ dir: string; opts: DoctorOptions }> = [];
+  const record = (dir: string, opts: DoctorOptions) => {
+    seen.push({ dir, opts });
+    return Promise.resolve(richReport());
+  };
+
+  const warden = makeWardenDeps({ doctor: record });
+  expect(await runWarden(["doctor", "--dir", "/proj", "--json"], warden.deps)).toBe(10);
+
+  const wnpm = makeDeps({ doctor: record });
+  expect(await runWnpm(["doctor", "--dir", "/proj", "--json"], wnpm.deps)).toBe(10);
+
+  expect(seen).toEqual([
+    { dir: "/proj", opts: { apply: true } },
+    { dir: "/proj", opts: { apply: true } },
+  ]);
+  expect(warden.out.join("")).toBe(wnpm.out.join(""));
+});
+
+test("warden doctor honours --no-apply and --no-verify like wnpm doctor", async () => {
+  const seen: DoctorOptions[] = [];
+  const record = (_dir: string, opts: DoctorOptions) => {
+    seen.push(opts);
+    return Promise.resolve(cleanReport());
+  };
+
+  const warden = makeWardenDeps({ doctor: record });
+  expect(await runWarden(["doctor", "--no-apply", "--no-verify"], warden.deps)).toBe(0);
+
+  const wnpm = makeDeps({ doctor: record });
+  expect(await runWnpm(["doctor", "--no-apply", "--no-verify"], wnpm.deps)).toBe(0);
+
+  expect(seen).toEqual([
+    { apply: false, verify: false },
+    { apply: false, verify: false },
+  ]);
+});
+
+test("warden doctor renders the human report and appears in help", async () => {
+  const human = makeWardenDeps({ doctor: () => Promise.resolve(richReport()) });
+  expect(await runWarden(["doctor"], human.deps)).toBe(10);
+  expect(human.err.join("")).toContain("Warden doctor");
+
+  const help = makeWardenDeps();
+  expect(await runWarden(["doctor", "--help"], help.deps)).toBe(0);
+  const helpText = help.err.join("");
+  expect(helpText).toContain("usage: warden doctor");
+  for (const flag of ["--dir", "--json", "--no-apply", "--no-verify"]) {
+    expect(helpText).toContain(flag);
+  }
+  expect(helpText).toContain("0 clean or fully fixed");
+
+  const top = makeWardenDeps();
+  expect(await runWarden(["--help"], top.deps)).toBe(0);
+  expect(top.err.join("")).toContain("doctor");
+});
+
+test("warden doctor rejects bad flags with a typed error envelope", async () => {
+  const human = makeWardenDeps();
+  expect(await runWarden(["doctor", "--nope"], human.deps)).toBe(30);
+  expect(human.err.join("")).toContain("invalid doctor flags");
+
+  const json = makeWardenDeps();
+  expect(await runWarden(["doctor", "--nope", "--json"], json.deps)).toBe(30);
+  const envelope = JSON.parse(json.out.join("")) as {
+    error: { kind: string; code: string; hint: string };
+  };
+  expect(envelope.error.kind).toBe("usage");
+  expect(envelope.error.code).toBe("WARDEN_DOCTOR_USAGE");
+  expect(envelope.error.hint).toContain("warden doctor --help");
+});
+
+test("warden doctor labels analysis errors with its own tool name", async () => {
+  const { deps, err } = makeWardenDeps({
+    doctor: () => Promise.reject(new Error("registry unreachable")),
+  });
+  expect(await runWarden(["doctor"], deps)).toBe(30);
+  expect(err.join("")).toContain("warden doctor: analysis error: registry unreachable");
+});
+
+test("doctor completions cover both binaries", async () => {
+  const { deps, out } = makeWardenDeps();
+  expect(await runWarden(["completions", "bash"], deps)).toBe(0);
+  const script = out.join("");
+  expect(script).toContain("doctor)");
+  expect(script).toContain("--no-verify");
+});
+
+test("a real doctor run against the offline registry matches the published schema", async () => {
+  const { deps, out } = makeDeps();
+  deps.doctor = (dir, opts) => runDoctor(dir, { ...opts, verify: false, apply: false });
+  expect(await runWnpm(["doctor", "--dir", doctorProject, "--json"], deps)).toBe(10);
+
+  const report = JSON.parse(out.join("")) as DoctorReport;
+  expect(validate(DOCTOR_JSON_SCHEMA as JsonSchemaNode, report)).toEqual([]);
+
+  const schemaDump = makeWardenDeps();
+  expect(await runWarden(["schema", "doctor"], schemaDump.deps)).toBe(0);
+  expect(JSON.parse(schemaDump.out.join(""))).toEqual(DOCTOR_JSON_SCHEMA);
+});
+
+test("a deprecated-only project reports the issue and exits 10 with no plan to apply", async () => {
+  const report = cleanReport({
+    audited: 1,
+    issues: [
+      {
+        name: "old-lib",
+        group: "prod",
+        installed: "1.0.0",
+        kind: "deprecated",
+        summary: "old-lib is deprecated",
+      },
+    ],
+  });
+
+  for (const [binary, run] of [
+    ["warden", (deps: WardenDeps) => runWarden(["doctor"], deps)],
+    ["wnpm", (deps: RunDeps) => runWnpm(["doctor"], deps)],
+  ] as const) {
+    const state =
+      binary === "warden"
+        ? makeWardenDeps({ doctor: () => Promise.resolve(report) })
+        : makeDeps({ doctor: () => Promise.resolve(report) });
+    expect(await run(state.deps as WardenDeps & RunDeps)).toBe(10);
+    expect(state.err.join("")).toContain("old-lib is deprecated");
+    expect(state.err.join("")).not.toContain("applied to package.json");
+  }
 });

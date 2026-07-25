@@ -145,6 +145,119 @@ export const FINDINGS_JSON_SCHEMA = {
 
 export const CI_FINDINGS_JSON_SCHEMA = FINDINGS_JSON_SCHEMA;
 
+const DOCTOR_CHANGE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "from", "to", "inRange", "level"],
+  properties: {
+    name: { type: "string" },
+    from: { type: "string" },
+    to: { type: "string" },
+    inRange: { type: "boolean" },
+    level: { type: "string", enum: ["none", "patch", "minor", "major"] },
+  },
+} as const;
+
+const DOCTOR_STEP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "ok", "ms"],
+  properties: {
+    name: { type: "string" },
+    ok: { type: "boolean" },
+    ms: { type: "number" },
+  },
+} as const;
+
+export const DOCTOR_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema_version",
+    "project",
+    "issues",
+    "gate",
+    "unfixable",
+    "plans",
+    "audited",
+    "skipped",
+    "notes",
+  ],
+  properties: {
+    schema_version: { type: "integer", const: SCHEMA_VERSION },
+    project: { type: "string" },
+    issues: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "group", "kind", "summary"],
+        properties: {
+          name: { type: "string" },
+          group: { type: "string", enum: ["prod", "dev"] },
+          installed: { type: "string" },
+          kind: { type: "string", enum: ["vulnerability", "compromised", "deprecated"] },
+          id: { type: "string" },
+          severity: { type: "string" },
+          summary: { type: "string" },
+          fixedIn: { type: "string" },
+        },
+      },
+    },
+    gate: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "version", "verdict", "categories", "summary"],
+        properties: {
+          name: { type: "string" },
+          version: { type: "string" },
+          verdict: { type: "string", enum: ["allow", "warn", "block"] },
+          categories: { type: "array", items: { type: "string" } },
+          summary: { type: "string" },
+        },
+      },
+    },
+    unfixable: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "reason"],
+        properties: { name: { type: "string" }, reason: { type: "string" } },
+      },
+    },
+    plans: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "changes"],
+        properties: {
+          id: { type: "string" },
+          label: { type: "string" },
+          changes: { type: "array", items: DOCTOR_CHANGE_SCHEMA },
+          verification: {
+            type: "object",
+            additionalProperties: false,
+            required: ["passed", "steps"],
+            properties: {
+              passed: { type: "boolean" },
+              steps: { type: "array", items: DOCTOR_STEP_SCHEMA },
+            },
+          },
+        },
+      },
+    },
+    recommended: { type: "string" },
+    applied: { type: "boolean" },
+    audited: { type: "integer" },
+    skipped: { type: "integer" },
+    notes: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
 export const INTENT_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,

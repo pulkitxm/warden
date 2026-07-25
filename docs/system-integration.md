@@ -12,7 +12,7 @@ Goal: users keep their existing package manager (npm, pnpm, yarn, Bun) and their
 | [Detection and init](detection-and-init.md) | `warden detect` evidence-based classification, `warden init` onboarding |
 | [Config](config.md) | `warden.config.json` cascade, user-level config, cache semantics, CLAUDE.md integration |
 | [Shell autocomplete](autocomplete.md) | Registry-driven help and generated bash, zsh, and fish completions |
-| [Dependency doctor](doctor.md) | `wnpm doctor` audit, gate, verify, and apply loop for existing dependencies |
+| [Dependency doctor](doctor.md) | `warden doctor` / `wnpm doctor` audit, gate, verify, and apply loop for existing dependencies |
 | [Intent verification](intent.md) | `warden intent check` prompt-as-spec diff verification and hallucinated-API scan |
 
 ## Product shape
