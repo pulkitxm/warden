@@ -4,6 +4,7 @@ import {
   manifestRequirements,
   readInstalledGraph,
 } from "../../src/graph/installed.ts";
+import { LOCK_FORMATS } from "../../src/lockfile.ts";
 
 function fsWith(files: Record<string, string>): InstalledFs {
   return {
@@ -56,6 +57,27 @@ test("a yarn lockfile is understood", () => {
   const graph = readInstalledGraph(fsWith({ "/repo/yarn.lock": lock }), "/repo");
   expect(graph.source).toBe("yarn.lock");
   expect(graph.nodes.get("left-pad")?.version).toBe("1.3.0");
+});
+
+test("a bun lockfile is understood, so a bun project has a graph at all", () => {
+  const lock = JSON.stringify({
+    lockfileVersion: 1,
+    packages: {
+      "left-pad": ["left-pad@1.3.0", "", {}, "sha512-lp"],
+      "pkg-a": ["pkg-a@workspace:pkg-a"],
+    },
+  });
+  const graph = readInstalledGraph(fsWith({ "/repo/bun.lock": lock }), "/repo");
+  expect(graph.source).toBe("bun.lock");
+  expect(graph.nodes.get("left-pad")).toMatchObject({
+    version: "1.3.0",
+    integrity: "sha512-lp",
+  });
+  expect(graph.nodes.has("pkg-a")).toBe(false);
+});
+
+test("every lockfile the audit surface reads also produces a graph", () => {
+  expect(LOCK_FORMATS.map((format) => format.file)).toContain("bun.lock");
 });
 
 test("hooks are read from what is actually installed, so the baseline is real", () => {

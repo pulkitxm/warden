@@ -1,16 +1,14 @@
 import { expect, test } from "bun:test";
+import { auditLockEntry, auditLockfile, hostOf } from "../../src/audit/lockfile.ts";
+import type { AuditFs } from "../../src/audit/types.ts";
 import {
-  auditLockEntry,
-  auditLockfile,
   entriesFromBunLock,
   entriesFromNpmLock,
   entriesFromPnpmLock,
   entriesFromYarnLock,
-  hostOf,
   type LockEntry,
   parseJsonc,
-} from "../../src/audit/lockfile.ts";
-import type { AuditFs } from "../../src/audit/types.ts";
+} from "../../src/lockfile.ts";
 
 const clean: LockEntry = {
   name: "good",

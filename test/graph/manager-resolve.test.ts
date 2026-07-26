@@ -83,8 +83,20 @@ test("yarn can refresh a lockfile but cannot add a package without installing", 
   expect(lockfileOnlyCommand("yarn", request(["zod"]))).toBeNull();
 });
 
-test("bun has no lockfile-only mode, so warden does not pretend otherwise", () => {
-  expect(lockfileOnlyCommand("bun", request(["zod"]))).toBeNull();
+test("bun resolves lockfile-only too, so bun projects get the same fidelity", () => {
+  expect(lockfileOnlyCommand("bun", request(["zod"]))).toEqual([
+    "bun",
+    "add",
+    "zod",
+    "--lockfile-only",
+    "--ignore-scripts",
+  ]);
+  expect(lockfileOnlyCommand("bun", request([]))).toEqual([
+    "bun",
+    "install",
+    "--lockfile-only",
+    "--ignore-scripts",
+  ]);
 });
 
 test("a successful resolution returns the manager's own graph", () => {
@@ -133,9 +145,9 @@ test("a manager that writes no lockfile falls back", () => {
   expect(resolveWithManager("npm", request(["left-pad"]), "/repo", deps)).toBeNull();
 });
 
-test("an unsupported manager never reaches the workspace", () => {
+test("a manager with no lockfile-only mode never reaches the workspace", () => {
   const { deps, commands } = makeDeps();
-  expect(resolveWithManager("bun", request(["zod"]), "/repo", deps)).toBeNull();
+  expect(resolveWithManager("yarn", request(["zod"]), "/repo", deps)).toBeNull();
   expect(commands).toEqual([]);
 });
 
