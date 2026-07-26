@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { EXIT } from "../../schema.ts";
+import { ANALYZER_VERSION, EXIT } from "../../schema.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { detectWorkspace, renderDetection } from "./detect.ts";
@@ -41,6 +41,8 @@ export async function runWardenInit(argv: string[], deps: WardenDeps): Promise<n
           "        with:",
           "          fetch-depth: 0",
           "      - name: Install Warden",
+          "        env:",
+          `          WARDEN_VERSION: "${ANALYZER_VERSION}"`,
           "        run: |",
           "          curl -fsSL https://warden.pulkit.page/install.sh | sh",
           '          echo "$HOME/.warden/bin" >> "$GITHUB_PATH"',
