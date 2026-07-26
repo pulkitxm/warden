@@ -143,7 +143,7 @@ if [ "$graph_transaction" = true ] && [ "$mode" != log ]; then
 fi
 
 if [ "$mediate_install" = true ] && [ "$mode" != log ]; then
-  txn=$("$warden" shim-transaction "$tool" "$@" 2>/dev/null)
+  txn=$("$warden" shim-transaction "$tool" "$@")
   txn_decision=$(json_field "$txn" decision)
   txn_exit=$(printf '%s' "$txn" | sed -n 's/.*"exit"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' | head -n 1)
   [ -n "$txn_exit" ] || txn_exit=0

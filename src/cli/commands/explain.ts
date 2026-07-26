@@ -6,6 +6,7 @@ import { bold, c, dim } from "../../shared/ansi.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { isQuiet } from "../../shared/output.ts";
+import { progressStep } from "../../shared/progress.ts";
 import { LABEL } from "./verdict-label.ts";
 
 async function metaOrNull(name: string, version: string): Promise<PackageMeta | null> {
@@ -88,6 +89,7 @@ export async function runWardenExplain(argv: string[], deps: WardenDeps): Promis
 
   const parsed = parseSpec(spec);
   try {
+    progressStep(`explaining the verdict for ${spec}`);
     const verdict = await deps.check(spec);
     const meta = await metaOrNull(parsed.name, parsed.version ?? "latest");
     const report = buildExplain(verdict, meta, ANALYZER_VERSION);

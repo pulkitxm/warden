@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { join } from "node:path";
-import { PLAN_DIR, renderPlan, specsFromArgv } from "../../src/cli/commands/plan.ts";
+import {
+  managerFromArgv,
+  PLAN_DIR,
+  renderPlan,
+  specsFromArgv,
+} from "../../src/cli/commands/plan.ts";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
 import type { TransactionPlan } from "../../src/graph/plan.ts";
 import type { Verdict } from "../../src/schema.ts";
@@ -118,6 +123,29 @@ test("bare package names work without the manager preamble", () => {
   expect(specsFromArgv(["left-pad", "chalk"])).toEqual(["left-pad", "chalk"]);
 });
 
+test("the manager named in the command is the one the plan is built for", () => {
+  expect(managerFromArgv(["--", "pnpm", "add", "chalk"])).toBe("pnpm");
+  expect(managerFromArgv(["--json", "--", "npm", "install", "left-pad"])).toBe("npm");
+  expect(managerFromArgv(["left-pad"])).toBeUndefined();
+});
+
+test("a manager flag plans for that manager without the -- preamble", () => {
+  expect(managerFromArgv(["--bun", "express"])).toBe("bun");
+  expect(managerFromArgv(["--yarn", "--", "npm", "install", "left-pad"])).toBe("yarn");
+  expect(specsFromArgv(["--bun", "express"])).toEqual(["express"]);
+});
+
+test("planning npm install does not report it as a bun install", async () => {
+  const { deps, written } = makeDeps({
+    [join(CWD, "package.json")]: manifest(),
+    [join(CWD, "bun.lock")]: "{}",
+  });
+  expect(await runWarden(["plan", "--", "npm", "install", "left-pad"], deps)).toBe(0);
+  const plan = JSON.parse(Object.values(written)[0] as string) as TransactionPlan;
+  expect(plan.manager).toBe("npm");
+  expect(plan.command).toBe("npm install left-pad");
+});
+
 test("flags never become package specs", () => {
   expect(specsFromArgv(["--json", "--", "npm", "install", "left-pad", "--save-dev"])).toEqual([
     "left-pad",
@@ -136,7 +164,7 @@ test("planning a clean package allows and writes the plan to disk", async () => 
   const plan = JSON.parse(written[path] as string) as TransactionPlan;
   expect(plan.decision).toBe("allow");
   expect(plan.direct).toEqual([{ name: "left-pad", range: "latest" }]);
-  expect(err.join("")).toContain("WARDEN PLAN");
+  expect(err.join("")).toContain("Warden plan: npm install left-pad");
 });
 
 test("--json emits exactly one plan object and no human text", async () => {

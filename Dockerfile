@@ -1,5 +1,6 @@
 FROM oven/bun:1
 RUN apt-get update && apt-get install -y --no-install-recommends git nodejs npm && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@9 && npm cache clean --force
 RUN mkdir /play && printf '{\n  "name": "play",\n  "private": true\n}\n' > /play/package.json
 WORKDIR /app
 COPY . .

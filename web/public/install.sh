@@ -190,7 +190,9 @@ for binary in warden wnpm wnpx; do
   chmod 755 "$bin_dir/$binary"
 done
 if [ -n "$source_dir" ]; then
-  cp "$source_dir/install.sh" "$root/install.sh"
+  installer=$source_dir/install.sh
+  [ -f "$installer" ] || installer=$source_dir/web/public/install.sh
+  cp "$installer" "$root/install.sh"
 else
   fetch_release_file install.sh "$root/install.sh"
 fi

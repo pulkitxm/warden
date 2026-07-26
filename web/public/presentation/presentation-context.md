@@ -145,6 +145,9 @@ Warden already provides the core end-to-end path shown in the deck:
 - `warden detect` maps the workspace and its package manager, framework, role, and tooling with evidence.
 - `warden init` writes repository configuration, CI wiring, hooks, and agent context.
 - `warden fix` writes a structured handoff for the configured coding agent.
+- `warden plan` decides a whole prospective graph before anything installs, `warden apply` installs it with scripts suppressed and leaves a receipt, and `warden install` is the short vetted install for when you only want the gate.
+- Every long command reports its phase, its progress through that phase, and the package it is on: a single rewritten line on a terminal, and announce-then-heartbeat lines with durations when the output is a pipe, a CI log, or a coding agent. Nothing waits in silence, and a phase shorter than a second stays quiet.
+- `--npm`, `--pnpm`, `--yarn`, and `--bun` choose the package manager explicitly on `warden install`, `warden plan`, `wnpm`, and `wnpx`; without them Warden reports which manager it detected and from which signal.
 - Stable exit codes provide an unambiguous contract: `0` allow, `10` warn, `20` block, and `30` analysis error.
 
 The current engine detects:
@@ -209,6 +212,10 @@ Explain that no single weak signal blocks a package. Warden resolves identity, v
 ### Slide 4: Live package check
 
 Emphasize that the package is blocked before its lifecycle script runs. Exit code 20 makes the same decision enforceable by a terminal, shell script, CI job, or coding agent.
+
+### Slide 4b: Nothing is silent
+
+Planning a real graph is minutes of registry work. The slide shows what that wait looks like: the phase, the count, the package being read or vetted, and a clock that keeps moving. Make the point that this is not decoration. A tool that goes quiet for two minutes gets killed and disabled, and an agent that sees no output assumes a hang. The same information reaches a log without a spinner, as announce-then-heartbeat lines. Press SKIP in the terminal title bar if the room is short on time.
 
 ### Slide 5: No habit change
 

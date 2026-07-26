@@ -48,16 +48,25 @@
         <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="check">
           <div class="terminal-heading auto auto-1"><p class="eyebrow">The core loop</p><h2>Resolve, verify, diff, scan, score: before anything runs.</h2></div>
           <div class="terminal-shell auto auto-2">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><button class="terminal-skip" type="button" aria-label="Skip the animation"><svg viewBox="0 0 20 12" aria-hidden="true"><path d="M1 1l6 5-6 5z"/><path d="M9 1l6 5-6 5z"/><rect x="16" y="1" width="2" height="10" rx="1"/></svg>SKIP</button><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
           </div>
           <div class="terminal-meter auto auto-4"><i></i><span>blocked before any script ran</span></div>
         </section>
 
+        <section class="terminal-slide dark" data-background-color="#101a38" data-terminal="plan">
+          <div class="terminal-heading auto auto-1"><p class="eyebrow">Nothing is silent</p><h2>A real dependency graph takes minutes. Warden says what it is doing, the whole time.</h2></div>
+          <div class="terminal-shell auto auto-2">
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><button class="terminal-skip" type="button" aria-label="Skip the animation"><svg viewBox="0 0 20 12" aria-hidden="true"><path d="M1 1l6 5-6 5z"/><path d="M9 1l6 5-6 5z"/><rect x="16" y="1" width="2" height="10" rx="1"/></svg>SKIP</button><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-screen" aria-live="polite"></div>
+          </div>
+          <div class="terminal-meter auto auto-4"><i></i><span>a spinner on a terminal, announce-then-heartbeat lines in a log or an agent</span></div>
+        </section>
+
         <section class="terminal-slide paper" data-background-color="#f4f7ff" data-terminal="doctor">
           <div class="terminal-heading auto auto-1"><p class="eyebrow ink">Live product</p><h2 class="ink">The same gate, run backward across what's already installed.</h2></div>
           <div class="terminal-shell light-shell auto auto-2">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><button class="terminal-skip" type="button" aria-label="Skip the animation"><svg viewBox="0 0 20 12" aria-hidden="true"><path d="M1 1l6 5-6 5z"/><path d="M9 1l6 5-6 5z"/><rect x="16" y="1" width="2" height="10" rx="1"/></svg>SKIP</button><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
           </div>
           <div class="terminal-meter auto auto-4"><i></i><span>the official fix gets rejected when the release itself is compromised</span></div>
@@ -66,7 +75,7 @@
         <section class="terminal-slide dark" data-background-color="#081022" data-terminal="intent">
           <div class="terminal-heading auto auto-1"><p class="eyebrow">Live product</p><h2>Claims from the prompt, checked against the diff.</h2></div>
           <div class="terminal-shell auto auto-2">
-            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><span class="terminal-live"><i></i> LIVE</span></div>
+            <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>~/project</b><button class="terminal-skip" type="button" aria-label="Skip the animation"><svg viewBox="0 0 20 12" aria-hidden="true"><path d="M1 1l6 5-6 5z"/><path d="M9 1l6 5-6 5z"/><rect x="16" y="1" width="2" height="10" rx="1"/></svg>SKIP</button><span class="terminal-live"><i></i> LIVE</span></div>
             <div class="terminal-screen" aria-live="polite"></div>
           </div>
           <div class="terminal-meter auto auto-4"><i></i><span>flags drift before the PR merges</span></div>
@@ -78,15 +87,19 @@
           <p class="trust-layer-sub ink auto auto-2">Every verb resolves to the same contract: allow, warn, or block.</p>
           <div class="command-grid auto auto-3">
             <div class="grid-pill"><code>check</code><span>vet a package</span></div>
+            <div class="grid-pill"><code>plan</code><span>decide the graph</span></div>
+            <div class="grid-pill"><code>apply</code><span>install with a receipt</span></div>
+            <div class="grid-pill"><code>install</code><span>vet, then install</span></div>
             <div class="grid-pill"><code>ci</code><span>vet changed deps</span></div>
             <div class="grid-pill"><code>doctor</code><span>audit &amp; repair</span></div>
             <div class="grid-pill"><code>intent</code><span>diff vs. prompt</span></div>
+            <div class="grid-pill"><code>policy</code><span>compile the rules</span></div>
             <div class="grid-pill"><code>detect</code><span>map workspace</span></div>
             <div class="grid-pill"><code>init</code><span>wire guardrails</span></div>
             <div class="grid-pill"><code>fix</code><span>agent handoff</span></div>
             <div class="grid-pill"><code>log</code><span>observe safely</span></div>
           </div>
-          <p class="trust-layer-note auto auto-4">shims for npm, pnpm, yarn, bun, npx, and bunx &middot; protect blocks, observe just records</p>
+          <p class="trust-layer-note auto auto-4">shims for npm, pnpm, yarn, bun, npx, and bunx &middot; pick one with --npm, --pnpm, --yarn, --bun &middot; protect blocks, observe just records</p>
         </section>
 
         <section class="agent-slide dark" data-background-color="#081022" data-terminal="agent">
@@ -94,7 +107,7 @@
           <h2 class="auto auto-1">Your agent gets evidence, a fix, and a finish line.</h2>
           <div class="agent-layout">
             <div class="terminal-shell agent-terminal auto auto-2">
-              <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>structured handoff</b><span class="terminal-live"><i></i> LIVE</span></div>
+              <div class="terminal-top"><span class="terminal-dots"><i></i><i></i><i></i></span><b>structured handoff</b><button class="terminal-skip" type="button" aria-label="Skip the animation"><svg viewBox="0 0 20 12" aria-hidden="true"><path d="M1 1l6 5-6 5z"/><path d="M9 1l6 5-6 5z"/><rect x="16" y="1" width="2" height="10" rx="1"/></svg>SKIP</button><span class="terminal-live"><i></i> LIVE</span></div>
               <div class="terminal-screen" aria-live="polite"></div>
             </div>
             <div class="agent-field auto auto-3">

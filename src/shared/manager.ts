@@ -90,6 +90,32 @@ export function detectManager(fs: ManagerFs, dir: string, invoked?: string): Man
   return { manager: "npm", source: "default", evidence: "no signal; defaulting to npm" };
 }
 
+export const MANAGER_NAMES: readonly PackageManager[] = NAMES;
+
+export const MANAGER_OPTIONS: Record<PackageManager, { type: "boolean" }> = {
+  npm: { type: "boolean" },
+  pnpm: { type: "boolean" },
+  yarn: { type: "boolean" },
+  bun: { type: "boolean" },
+};
+
+export function hoistManagerFlags(argv: string[]): string[] {
+  const flags = NAMES.map((name) => `--${name}`);
+  const named = argv.filter((arg) => flags.includes(arg));
+  if (!named.length) return argv;
+  return [...argv.filter((arg) => !flags.includes(arg)), ...named];
+}
+
+export function managerFlag(values: Record<string, unknown>): PackageManager | undefined {
+  return NAMES.find((name) => values[name] === true);
+}
+
+export function execCommand(manager: PackageManager, spec: string, args: string[] = []): string[] {
+  if (manager === "bun") return ["bunx", spec, ...args];
+  if (manager === "npm") return ["npx", spec, ...args];
+  return [manager, "dlx", spec, ...args];
+}
+
 export function installCommand(
   manager: PackageManager,
   packages: string[],

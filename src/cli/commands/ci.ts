@@ -9,6 +9,7 @@ import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { gitResult, resolveMergeBase } from "../../shared/git.ts";
 import { isQuiet } from "../../shared/output.ts";
+import { progressCount, progressStep } from "../../shared/progress.ts";
 import { toSarif } from "../../shared/sarif.ts";
 import { type CheckSurface, runSurfaceAudit } from "./check.ts";
 import { jsonFile, type PackageJson } from "./detect.ts";
@@ -168,10 +169,13 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
         work.push({ name, version, file, ...(line ? { line } : {}) });
       }
     }
+    progressStep(`vetting ${work.length} changed dependencies`);
+    let vetted = 0;
     const findings: CiFinding[] = (
       await Promise.all(
         work.map(async (item) => {
           const verdict = await deps.check(`${item.name}@${item.version}`);
+          progressCount(++vetted, work.length);
           if (verdict.verdict === "allow") return null;
           const level = failOn === "warn" && verdict.verdict === "warn" ? "block" : verdict.verdict;
           return findingFor(verdict, item.file, item.line, level);
@@ -180,6 +184,7 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
     ).filter((finding): finding is CiFinding => finding !== null);
     for (const trigger of SURFACE_TRIGGERS) {
       if (!changedFiles.some((file) => trigger.matches(file))) continue;
+      progressStep(`auditing the ${trigger.surface} surface`);
       const report = runSurfaceAudit(trigger.surface, root, deps);
       for (const item of report.findings)
         if (item.level !== "allow") findings.push(surfaceFinding(item, failOn));
@@ -194,10 +199,12 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
     const intentPrompt =
       values["intent-prompt"] ??
       (deps.exists(promptPath) ? deps.readFile(promptPath).trim() : undefined);
-    const intent: IntentReport | undefined =
-      intentPrompt && changedFiles.some((file) => /\.[cm]?[jt]sx?$/.test(file))
-        ? (await runIntentPipeline(deps, root, mergeBase, intentPrompt)).report
-        : undefined;
+    const runsIntent =
+      Boolean(intentPrompt) && changedFiles.some((file) => /\.[cm]?[jt]sx?$/.test(file));
+    if (runsIntent) progressStep("checking the diff against the prompt");
+    const intent: IntentReport | undefined = runsIntent
+      ? (await runIntentPipeline(deps, root, mergeBase, intentPrompt as string)).report
+      : undefined;
     const guardLevel = findings.some((finding) => finding.level === "block")
       ? "block"
       : findings.some((finding) => finding.level === "warn")

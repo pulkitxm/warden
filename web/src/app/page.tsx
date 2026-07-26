@@ -75,7 +75,7 @@ const facts = [
   { value: ">99%", label: "of open-source malware is on npm", source: "Sonatype, 2026" },
 ];
 
-const planSample = `WARDEN PLAN  npm install @fastify/jwt
+const planSample = `Warden plan: npm install @fastify/jwt
 
 Direct changes
   + @fastify/jwt 9.1.0

@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { installCommand, type PackageManager } from "../shared/manager.ts";
+import { progressStep } from "../shared/progress.ts";
 import { type ApprovalRequest, findApproval, type ScriptApproval } from "./approvals.ts";
 import type { GraphChange } from "./delta.ts";
 import type { TransactionPlan } from "./plan.ts";
@@ -130,6 +131,7 @@ export async function applyTransaction(
   deps: ApplyDeps,
   options: ApplyOptions = {},
 ): Promise<TransactionReceipt> {
+  progressStep("checking script approvals against the plan");
   const { approved, missing } = await pendingApprovals(plan, deps);
 
   if (plan.decision === "block")
@@ -170,6 +172,7 @@ export async function applyTransaction(
     build: "skipped",
   };
 
+  progressStep(`installing with ${plan.manager}, lifecycle scripts suppressed`);
   const install = deps.exec(command, plan.root);
   verification.install = install.code === 0 ? "pass" : "fail";
   if (install.code !== 0) {
@@ -186,6 +189,7 @@ export async function applyTransaction(
     const scripts = projectScripts(deps, plan.root);
     for (const step of VERIFY_STEPS) {
       if (!scripts[step]) continue;
+      progressStep(`running ${plan.manager} run ${step}`);
       const result = deps.exec([plan.manager, "run", step], plan.root);
       verification[step] = result.code === 0 ? "pass" : "fail";
       if (result.code !== 0) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
 import { runWarden } from "../cli/main.ts";
+import { withProgress } from "../shared/progress.ts";
 
-process.exit(await runWarden(Bun.argv.slice(2)));
+process.exit(await withProgress(() => runWarden(Bun.argv.slice(2))));

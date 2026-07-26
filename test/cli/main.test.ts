@@ -362,6 +362,82 @@ test("wnpm falls back to package.json direct deps and preserves the project mana
   expect(spawns).toEqual([["pnpm", "install", "--ignore-scripts"]]);
 });
 
+test("warden install vets and installs, with the manager flag on either side of the verb", async () => {
+  for (const argv of [
+    ["install", "--bun", "express"],
+    ["--bun", "install", "express"],
+    ["--bun", "i", "express"],
+    ["add", "--bun", "express"],
+  ]) {
+    const { deps, spawns, err } = makeWardenDeps();
+    expect(await runWarden(argv, deps)).toBe(0);
+    expect(spawns).toEqual([["bun", "add", "express", "--ignore-scripts"]]);
+    expect(err.join("")).toContain("vetting 1 package(s)");
+  }
+});
+
+test("warden install --help documents the manager flags", async () => {
+  const { deps, err } = makeWardenDeps();
+  expect(await runWarden(["install", "--help"], deps)).toBe(0);
+  expect(err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
+});
+
+test("wnpm --bun installs with bun even when the project looks like npm", async () => {
+  const { deps, err, spawns } = makeDeps({
+    readFile: (path) => {
+      if (String(path).endsWith("package.json"))
+        return JSON.stringify({ packageManager: "npm@10.0.0", dependencies: { a: "1" } });
+      throw new Error("ENOENT");
+    },
+    which: () => "/usr/bin/npm",
+  });
+  expect(await runWnpm(["--bun", "install", "express"], deps)).toBe(0);
+  expect(err.join("")).toContain("installing via bun (invoked as bun)");
+  expect(spawns).toEqual([["bun", "add", "express", "--ignore-scripts"]]);
+});
+
+test("every manager flag is accepted by wnpm", async () => {
+  const expected: Record<string, string[]> = {
+    "--npm": ["npm", "install", "express", "--ignore-scripts"],
+    "--pnpm": ["pnpm", "add", "express", "--ignore-scripts"],
+    "--yarn": ["yarn", "add", "express"],
+    "--bun": ["bun", "add", "express", "--ignore-scripts"],
+  };
+  for (const [flag, command] of Object.entries(expected)) {
+    const { deps, spawns } = makeDeps();
+    expect(await runWnpm([flag, "install", "express"], deps)).toBe(0);
+    expect(spawns).toEqual([command]);
+  }
+});
+
+test("wnpx runs the named manager's own runner", async () => {
+  const expected: Record<string, string[]> = {
+    "--npm": ["npx", "cowsay", "hello"],
+    "--pnpm": ["pnpm", "dlx", "cowsay", "hello"],
+    "--yarn": ["yarn", "dlx", "cowsay", "hello"],
+    "--bun": ["bunx", "cowsay", "hello"],
+  };
+  for (const [flag, command] of Object.entries(expected)) {
+    const { deps, spawns } = makeDeps();
+    expect(await runWnpx([flag, "cowsay", "hello"], deps)).toBe(0);
+    expect(spawns).toEqual([command]);
+  }
+});
+
+test("the wnpm and wnpx usage lines name the manager flags", async () => {
+  const help = makeDeps();
+  await runWnpm(["--help"], help.deps);
+  expect(help.err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
+
+  const bad = makeDeps();
+  expect(await runWnpm(["--nope"], bad.deps)).toBe(2);
+  expect(bad.err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
+
+  const wnpx = makeDeps();
+  expect(await runWnpx([], wnpx.deps)).toBe(2);
+  expect(wnpx.err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
+});
+
 test("wnpm via bun suppresses scripts, because bun ships a default trusted list", async () => {
   const { deps, spawns } = makeDeps({ which: (p) => (p === "bun" ? "/usr/bin/bun" : null) });
   expect(await runWnpm(["add", "left-pad"], deps)).toBe(0);
@@ -456,4 +532,6 @@ test("defaultDeps: spawn returns the command's exit code, readFile reads files",
     defaultDeps.readFile(fileURLToPath(new URL("../../package.json", import.meta.url))),
   ).toContain('"name": "wnpm"');
   expect(typeof defaultDeps.which("sh")).toBe("string");
+  expect(defaultDeps.stdout("")).toBe(true);
+  expect(defaultDeps.stderr("")).toBe(true);
 });

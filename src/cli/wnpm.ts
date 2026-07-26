@@ -2,7 +2,16 @@ import { EXIT, exitCodeFor, VERDICT_JSON_SCHEMA, type Verdict } from "../schema.
 import { parseArgsSafe } from "../shared/args.ts";
 import type { RunDeps } from "../shared/deps.ts";
 import { guarded } from "../shared/errors.ts";
-import { detectManager, installCommand } from "../shared/manager.ts";
+import {
+  detectManager,
+  execCommand,
+  installCommand,
+  MANAGER_NAMES,
+  MANAGER_OPTIONS,
+  managerFlag,
+  type PackageManager,
+} from "../shared/manager.ts";
+import { progressCount, progressStep } from "../shared/progress.ts";
 import { runDoctorCommand } from "./commands/doctor.ts";
 import { defaultDeps } from "./deps.ts";
 import { bold, dim, renderLine, renderVerdict } from "./ui.ts";
@@ -31,8 +40,11 @@ function directDeps(deps: RunDeps): string[] {
 const WNPM_HELP = `wnpm: vets packages with Warden before installing
 
 usage:
-  wnpm install [packages...] [--json] [--allow-risky]
+  wnpm [--npm|--pnpm|--yarn|--bun] install [packages...] [--json] [--allow-risky]
   wnpm doctor [--dir <path>] [--json] [--no-apply] [--no-verify]
+
+manager flags:
+  --npm --pnpm --yarn --bun   install with that manager instead of the detected one
 
 doctor flags:
   --dir <path>   project directory (default .)
@@ -53,12 +65,13 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
       "no-verify": { type: "boolean" },
       dir: { type: "string" },
       help: { type: "boolean" },
+      ...MANAGER_OPTIONS,
     },
     allowPositionals: true,
   });
   if (!parsed) {
     deps.stderr(
-      "usage: wnpm install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply] [--no-verify]\n",
+      "usage: wnpm [--npm|--pnpm|--yarn|--bun] install [packages...] [--json] [--allow-risky] | wnpm doctor [--dir path] [--json] [--no-apply] [--no-verify]\n",
     );
     return 2;
   }
@@ -87,11 +100,14 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     const LIMIT = 8;
     const verdicts: Verdict[] = new Array(targets.length);
     let next = 0;
+    let done = 0;
+    progressStep(`vetting ${targets.length} package(s)`);
     await Promise.all(
       Array.from({ length: Math.min(LIMIT, targets.length) }, async () => {
         while (next < targets.length) {
           const idx = next++;
           verdicts[idx] = await deps.check(targets[idx]!);
+          progressCount(++done, targets.length);
         }
       }),
     );
@@ -119,6 +135,7 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
     const detection = detectManager(
       { readFile: deps.readFile, exists: (path) => existsFor(deps, path), which: deps.which },
       ".",
+      managerFlag(values),
     );
     const command = installCommand(detection.manager, explicit, true);
     deps.stderr(
@@ -130,9 +147,14 @@ export async function runWnpm(argv: string[], deps: RunDeps = defaultDeps): Prom
   });
 }
 
+const WNPX_USAGE =
+  "usage: wnpx [--npm|--pnpm|--yarn|--bun] <pkg[@version]> [--json] [--allow-risky]\n";
+
 export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Promise<number> {
-  const own = new Set(["--json", "--allow-risky", "--schema"]);
+  const managerFlags = MANAGER_NAMES.map((name) => `--${name}`);
+  const own = new Set(["--json", "--allow-risky", "--schema", ...managerFlags]);
   const values = { json: false, "allow-risky": false, schema: false };
+  let runner: PackageManager | undefined;
   let specIndex = -1;
 
   for (let index = 0; index < argv.length; index++) {
@@ -145,10 +167,11 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
       if (arg === "--json") values.json = true;
       if (arg === "--allow-risky") values["allow-risky"] = true;
       if (arg === "--schema") values.schema = true;
+      if (managerFlags.includes(arg)) runner = arg.slice(2) as PackageManager;
       continue;
     }
     if (specIndex === -1) {
-      deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+      deps.stderr(WNPX_USAGE);
       return 2;
     }
   }
@@ -160,7 +183,7 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
 
   const spec = specIndex === -1 ? undefined : (argv[specIndex] as string);
   if (!spec) {
-    deps.stderr("usage: wnpx <pkg[@version]> [--json] [--allow-risky]\n");
+    deps.stderr(WNPX_USAGE);
     return 2;
   }
   const positionals = argv.slice(specIndex).filter((arg) => !own.has(arg));
@@ -180,9 +203,9 @@ export async function runWnpx(argv: string[], deps: RunDeps = defaultDeps): Prom
       );
       return EXIT.block;
     }
-    const runner = deps.which("npx") ? "npx" : "bunx";
-    const passthrough = positionals.slice(1);
-    deps.stderr(dim(`vetted; executing via ${runner}...\n`));
-    return deps.spawn([runner, spec, ...passthrough]);
+    const via = runner ?? (deps.which("npx") ? "npm" : "bun");
+    const command = execCommand(via, spec, positionals.slice(1));
+    deps.stderr(dim(`vetted; executing via ${command[0]}...\n`));
+    return deps.spawn(command);
   });
 }

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Verdict, VerdictLevel } from "../schema.ts";
+import { progressCount, progressDetail, progressStep } from "../shared/progress.ts";
 import { digestGraph, type GraphChange, type GraphDelta, graphDelta } from "./delta.ts";
 import type { InstalledGraph } from "./installed.ts";
 import type { GraphResolution, RootRequirement, resolveGraph } from "./resolve.ts";
@@ -66,8 +67,11 @@ async function vet(
   const budget = deps.maxChecks ?? DEFAULT_MAX_CHECKS;
   const artifacts: PlanArtifact[] = [];
   let analyzed = 0;
+  const vetting = Math.min(changes.length, budget);
+  progressStep(`vetting ${vetting} changed packages`);
   for (const change of changes) {
     const spec = `${change.name}@${change.version}`;
+    progressDetail(spec);
     if (analyzed >= budget) {
       artifacts.push({
         package: change.name,
@@ -82,6 +86,7 @@ async function vet(
     let verdict: Verdict;
     try {
       verdict = await deps.check(spec);
+      progressCount(analyzed, vetting);
     } catch (error) {
       artifacts.push({
         package: change.name,
@@ -158,6 +163,7 @@ function nextActions(delta: GraphDelta, plan: { decision: PlanDecision; id: stri
 
 export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<TransactionPlan> {
   const requirements = [...input.existing, ...input.direct];
+  progressStep("resolving the prospective dependency graph");
   const resolution = await deps.resolve(requirements, {
     packument: deps.packument,
     ...(deps.maxNodes === undefined ? {} : { maxNodes: deps.maxNodes }),

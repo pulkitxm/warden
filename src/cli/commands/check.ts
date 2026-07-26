@@ -8,6 +8,7 @@ import { exitCodeFor } from "../../schema.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
 import { isQuiet } from "../../shared/output.ts";
+import { progressStep } from "../../shared/progress.ts";
 import { renderAuditReport, renderLine, renderVerdict } from "../ui.ts";
 
 export const CHECK_SURFACES = ["lockfile", "scripts", "config"] as const;
@@ -65,6 +66,7 @@ export async function runWardenCheck(argv: string[], deps: WardenDeps): Promise<
         `run warden check <pkg>, or a surface: ${CHECK_SURFACES.join(", ")}`,
       );
     }
+    progressStep(`vetting ${positionals.length} package(s)`);
     const verdicts = await Promise.all(positionals.map((spec) => deps.check(spec)));
     if (values.json) {
       deps.stdout(`${JSON.stringify(verdicts.length === 1 ? verdicts[0] : verdicts)}\n`);
