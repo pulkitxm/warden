@@ -75,7 +75,7 @@ See [docs/doctor.md](doctor.md) for the full reference.
 
 A package check reads a published tarball. Three surfaces live in your repository instead, and `warden check lockfile`, `warden check scripts`, and `warden check config` audit them offline without executing anything.
 
-- **Lockfile**: off-registry and impersonating hosts, plaintext transport, missing or weak integrity, git and file dependencies. Reads npm, pnpm, and yarn lockfiles.
+- **Lockfile**: off-registry and impersonating hosts, plaintext transport, missing or weak integrity, git and file dependencies. Reads npm, pnpm, yarn, and bun lockfiles.
 - **Scripts**: the five npm lifecycle hooks across the installed tree, flagging pipe-to-shell, raw IP endpoints, base64 payloads, credential paths, and environment exfiltration.
 - **Config**: `.npmrc` in the project and home directory, flagging lookalike registries, plaintext tokens, and disabled TLS. Values are never echoed back.
 

@@ -43,7 +43,10 @@ function findingFor(
 const SURFACE_TRIGGERS: Array<{ surface: CheckSurface; matches: (file: string) => boolean }> = [
   {
     surface: "lockfile",
-    matches: (file) => /(^|\/)(package-lock\.json|npm-shrinkwrap\.json)$/.test(file),
+    matches: (file) =>
+      /(^|\/)(package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lock)$/.test(
+        file,
+      ),
   },
   { surface: "scripts", matches: (file) => /(^|\/)package\.json$/.test(file) },
   { surface: "config", matches: (file) => /(^|\/)\.npmrc$/.test(file) },

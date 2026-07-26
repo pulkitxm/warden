@@ -151,6 +151,64 @@ export function entriesFromPnpmLock(text: string): LockEntry[] {
   return out;
 }
 
+export function parseJsonc(text: string): unknown {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index] as string;
+    if (inString) {
+      out += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      out += char;
+      continue;
+    }
+    if (char === ",") {
+      let ahead = index + 1;
+      while (ahead < text.length && /\s/.test(text[ahead] as string)) ahead += 1;
+      const next = text[ahead];
+      if (next === "}" || next === "]") continue;
+    }
+    out += char;
+  }
+  return JSON.parse(out);
+}
+
+const LOCAL_SPECS = ["workspace:", "link:", "root:"];
+const DEFAULT_REGISTRY = "https://registry.npmjs.org/";
+
+export function entriesFromBunLock(text: string): LockEntry[] {
+  const lock = parseJsonc(text) as { packages?: Record<string, unknown> };
+  const out: LockEntry[] = [];
+  for (const value of Object.values(lock.packages ?? {})) {
+    if (!Array.isArray(value)) continue;
+    const descriptor = typeof value[0] === "string" ? value[0] : "";
+    const at = descriptor.lastIndexOf("@");
+    if (at <= 0) continue;
+    const name = descriptor.slice(0, at);
+    const spec = descriptor.slice(at + 1);
+    if (LOCAL_SPECS.some((prefix) => spec.startsWith(prefix))) continue;
+    const integrity = value.find(
+      (item): item is string => typeof item === "string" && /^sha\d+-/.test(item),
+    );
+    const entry: LockEntry = { name, ...(integrity ? { integrity } : {}) };
+    if (/^[a-z+]+:/i.test(spec)) {
+      entry.resolved = spec;
+    } else {
+      entry.version = spec;
+      entry.resolved = typeof value[1] === "string" && value[1] ? value[1] : DEFAULT_REGISTRY;
+    }
+    out.push(entry);
+  }
+  return out;
+}
+
 export function hostOf(resolved: string): string | null {
   try {
     return new URL(resolved).hostname;
@@ -265,13 +323,10 @@ const FORMATS: LockFormat[] = [
   { file: "npm-shrinkwrap.json", parse: entriesFromNpmLock },
   { file: "pnpm-lock.yaml", parse: entriesFromPnpmLock },
   { file: "yarn.lock", parse: entriesFromYarnLock },
+  { file: "bun.lock", parse: entriesFromBunLock },
 ];
 
 const UNSUPPORTED: Array<{ file: string; note: string }> = [
-  {
-    file: "bun.lock",
-    note: "bun.lock is not parsed yet; warden reads npm, pnpm, and yarn lockfiles",
-  },
   {
     file: "bun.lockb",
     note: "bun.lockb is a binary lockfile; run bun install --save-text-lockfile first",

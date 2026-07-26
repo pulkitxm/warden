@@ -476,7 +476,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       },
     ],
     behaviour:
-      "Three gates run and the worst verdict wins. Changed dependencies are vetted through the engine. A surface is audited only when it appears in the diff: a `package-lock.json`, `pnpm-lock.yaml`, or `yarn.lock` change triggers the lockfile audit, a `package.json` change triggers the scripts audit, and an `.npmrc` change triggers the config audit. Intent runs when a prompt is available and the diff touches JavaScript or TypeScript. Every run writes `.warden/last-run.json` for the handoff.",
+      "Three gates run and the worst verdict wins. Changed dependencies are vetted through the engine. A surface is audited only when it appears in the diff: a `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, or `bun.lock` change triggers the lockfile audit, a `package.json` change triggers the scripts audit, and an `.npmrc` change triggers the config audit. Intent runs when a prompt is available and the diff touches JavaScript or TypeScript. Every run writes `.warden/last-run.json` for the handoff.",
     gotchas: [
       "The merge base must exist. In GitHub Actions check out with `fetch-depth: 0`.",
       "Surfaces untouched by the diff are not scanned, which keeps the gate scoped to the pull request rather than to the whole repository's history.",
