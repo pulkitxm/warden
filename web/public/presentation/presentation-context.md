@@ -1,100 +1,307 @@
 # Warden presentation context
 
-Everything you need to present. Sections 1 to 5 are the pitch; the rest is reference for questions.
+Everything needed to present the hackathon deck and answer product questions.
 
-## 1. The one sentence
+## The one sentence
 
-Warden turns every dependency change, whether a human or a coding agent makes it, into a planned, policy-checked, narrowly approved, verified transaction.
+Warden turns every dependency change into a planned, policy-checked, narrowly authorized, verified transaction that CI can require evidence for.
 
-## 2. The problem, in one minute
+## The communication job
 
-Installing a package executes code with your permissions, and that code can reach your environment variables, source, cloud credentials, SSH keys, and registry tokens. The dangerous moment is not when a scanner reports a vulnerability later. It is the instant between requesting a package and letting it run.
+By the end, judges should understand that Warden protects the dependency-change moment scanners miss because it plans the whole graph before package code executes and proves that the reviewed result is the result that landed.
 
-Three things made that moment worse. Popular packages are takeover targets, so one phished maintainer reaches millions of machines. Malicious releases live for hours, faster than human review but not faster than a pipeline. And coding agents now install packages autonomously, repeating names from instructions and prior output without proving the package is real.
+## The narrative rule
 
-Sonatype counted 454,648 new malicious open-source packages in 2025. A USENIX Security 2025 study found 19.7 percent of 576,000 model package recommendations were hallucinated, producing 205,474 unique names, and 43 percent recurred across runs, which makes them predictable enough to register in advance.
+Every product slide begins with the failure Warden is closing, then shows the command or workflow that closes it, then ends on the proof produced. Commands are evidence of the product rather than the organizing structure of the presentation.
 
-## 3. Why checking the package is not enough
+The middle of the deck follows this progression:
 
-This is the part that separates Warden from a scanner, so land it.
+1. A package request hides the graph. `warden plan` reveals every changed artifact and the exact authority required.
+2. Installation can drift from review. `warden apply` replays the reviewed request, suppresses scripts, verifies the project, compares graph digests, and writes a receipt.
+3. Local interception can be bypassed. `warden ci --require-transaction-receipt` moves enforcement to the pull request.
+4. Package reputation does not prove release safety. `warden check` examines the artifact, release delta, lockfile, scripts, and registry configuration.
+5. Native safety settings diverge across managers. `warden policy` compiles one intent into the strongest available npm, pnpm, Yarn, and Bun controls.
+6. An advisory fix can introduce a new supply-chain risk. `warden doctor` gates and verifies repair candidates before applying one.
+7. Compiling code can still violate the request. `warden intent check` compares the prompt with the diff and verifies added API calls.
+8. Automation cannot depend on prose output. JSON schemas, typed errors, stable exit codes, handoff bundles, and CI reporters provide a machine contract.
 
-`npm install esbuild` adds one name to your manifest and 27 packages to your graph. Vetting the one name you typed leaves 26 unexamined, and a transitive addition is exactly where a compromised release hides.
+## The problem
 
-So Warden treats the change as a transaction:
+Installing a package can execute code with the developer's permissions. That code can reach environment variables, source, cloud credentials, SSH keys, and registry tokens.
 
-1. **Plan.** Ask your own package manager to resolve the complete prospective graph, without running a line of package code, then diff it against your lockfile and vet every added or changed package.
-2. **Approve.** Anything that needs authority is named as a typed requirement: an install script, packages left unanalyzed, a truncated graph. A script approval is bound to the exact version, tarball digest, hook, and script body, and it authorizes nothing else.
-3. **Apply.** Install through your own manager with lifecycle scripts suppressed by that manager's native setting, run your tests, and restore the manifest and every lockfile if anything fails or the installed graph is not the one that was reviewed.
-4. **Verify.** Emit a receipt. In CI, `warden ci --require-transaction-receipt` fails a pull request whose graph changed without one.
+The dangerous moment is not when a scanner reports a vulnerability later. It is the instant between requesting a dependency and allowing package code to run.
 
-The honest part of the pitch: PATH shims are convenience, not a sandbox, and an absolute path or a container bypasses them. The CI receipt gate is the control that does not depend on anything having worked on a developer's machine.
+## The industry blast radius
 
-## 4. The demo, with real numbers
+Open-source compromise combines high release velocity, enormous reach, automated propagation, and trusted access:
 
-`warden plan -- npm install esbuild`:
+- Sonatype identified 454,648 new malicious open-source packages in 2025, more than one every seventy seconds.
+- chalk, debug, and roughly a dozen related packages were collectively downloaded more than two billion times each week before poisoned versions were published in September 2025.
+- Datadog found at least 796 packages and 1,092 package versions carrying the self-propagating Shai-Hulud 2.0 campaign.
+- Third parties were involved in thirty percent of breaches in Verizon's 2025 dataset, double the prior year's share.
 
-- 27 packages resolved, 27 analyzed, complete coverage
-- one package, `esbuild` itself, carries a `postinstall`, and 26 platform-specific binaries would be added
-- decision `NEEDS_APPROVAL`, with the exact approval command printed
-- about ten seconds cold, about one second warm, though this is machine and network dependent, so measure it on the machine you present from
+These datasets measure different layers and should not be combined into one rate. Together, they establish the pitch premise: short registry exposure can create an industry-scale response because dependency relationships distribute trust automatically.
 
-Then `warden apply <id>` refuses, naming the unapproved script. Approve it, apply again, and the receipt records `result: applied`, `script_policy: suppressed`, the approval, and an observed graph digest equal to the planned one.
+## Live package identity demonstration
 
-A scanner says "esbuild is fine." Warden says "esbuild is fine, and here is the one piece of code in this change that wants to execute, and here is proof of what was installed."
+The interactive slide compares two real npm packages:
 
-Two more slides carry the parts people ask about.
+- `expres` is a response-helper package published from `cpsubrian/node-expres`. It is not the official Express web framework.
+- `express` is the official Express project published from `expressjs/express`.
 
-**Policy.** Every manager already has safety settings, and almost nobody sets them, because there are four managers and four spellings. `warden policy` takes one statement of intent and writes each manager's own keys: `ignore-scripts`, `min-release-age`, `allow-git` and friends for npm, the equivalents for pnpm, yarn and bun. The honest half of that slide is the section headed "not natively supported": npm has no downgrade policy, so warden names the gap instead of pretending the setting exists, and enforces it itself in the plan.
+The viewer fetches the last completed week's download count from npm's public downloads API and the latest version, description, and repository from the npm registry. It defaults to `expres`, then lets the presenter switch to `express`.
 
-**The receipt gate.** This is the answer to "what stops someone bypassing the shim". Nothing, on their machine. `warden verify` checks the installed graph against the receipt, and `warden ci --require-transaction-receipt` fails a pull request whose dependency graph changed without one. An absolute path or a container walks past a shim; nothing walks past a pull request that will not merge.
+The captured July 18 to 24, 2026 fallback is:
 
-Measured detection, reproducible with `warden benchmark`: 12 of 12 curated attack shapes stopped, 0 of 9 benign shapes stopped. Say "curated regression shapes," not "field accuracy."
+- `expres`: 7,348 downloads
+- `express`: 122,913,839 downloads
 
-## 5. What to say about maturity
+Do not describe `expres` as malicious without separate evidence. The demonstration proves that both names resolve while representing different software. A successful install does not prove that the requested identity matches the developer's intent.
 
-Say it is a technical alpha with a working core, not a production security boundary. Specifically:
+npm package pages cannot be embedded cross-origin because npm responds with `X-Frame-Options: SAMEORIGIN`. The deck therefore renders a reliable package viewer from npm's public APIs and provides a direct link to the real npm page.
 
-- An approval authorizes the transaction, not the code. Install scripts never run, even approved ones, so a package that needs its install step to fetch or compile a binary may not work. Verification is what surfaces that.
-- Rollback restores the manifest and every lockfile. It does not restore `node_modules` or anything verification touched, so it is not a full transaction rollback.
-- Receipts are unsigned local JSON. Reproducible evidence, not an independent attestation.
-- When your manager cannot do a lockfile-only resolve, Warden falls back to walking registry metadata, one version per package name, which is close to what a manager picks but not identical.
+Four forces increase the risk:
 
-Saying this out loud is a strength in a security pitch. The site has a Limitations page for the same reason.
+- Popular packages are takeover targets, so a compromised maintainer account can affect a large graph quickly.
+- Malicious releases may remain live for only hours, which is faster than manual review but not faster than an automated pre-execution gate.
+- Automated coding workflows can repeat plausible package names without proving that the package is real or intended.
+- Third-party code executes inside trusted build, developer, and deployment environments.
 
-## Recent attacks and what they teach
+The USENIX Security 2025 package hallucination study found that 19.7 percent of 2.23 million generated package references did not exist, producing 205,474 unique fake package names.
 
-Four incidents, four different failure modes. Together they show why a known-vulnerability database is not enough.
+## Why one-package checking is insufficient
 
-**chalk and debug takeover, September 2025.** A maintainer was phished through the lookalike domain `npmjs.help`. The compromised account published malicious versions across 18 packages including `chalk`, `debug`, and `ansi-styles`, more than two billion weekly downloads combined, available for roughly two hours, targeting browser cryptocurrency activity. The names were legitimate, the account had a long history, and popularity could not distinguish the poisoned release. Warden's answer is release-level trust: check known-malicious versions, diff the release against the previous one, scan capabilities, block the exact versions.
+`npm install esbuild` names one direct dependency but resolves a much larger graph. The captured demonstration changes twenty-seven packages. Twenty-six are transitive.
 
-**Shai-Hulud 2.0, November 2025.** A self-replicating npm worm across 796 packages and 1,092 versions, about 20 million weekly downloads. It added a `preinstall` script, stole credentials, and used compromised publishing access to spread. It could reproduce its own content, making the ecosystem itself the propagation mechanism. Warden's answer is pre-execution interception: detect newly added or changed lifecycle scripts and stop the manager before any script runs.
+Vetting only the name typed by the developer leaves the transitive changes unexamined. A compromised leaf, optional dependency, shared node, or newly introduced lifecycle script can hide there.
 
-**react-codeshift agent slopsquat, January 2026.** A plausible name blending `jscodeshift` and `react-codemod` that never existed, traced to a commit with 47 generated agent skill files, propagated to 237 repositories through forks, causing daily execution attempts. Typosquat detection looks for misspellings of a real package; a hallucinated name is a convincing new string. Warden's answer is an agent-aware slopsquat guard over `npx`, `bunx`, and installs, with a machine-readable verdict and an explicit stop condition.
+Warden treats the graph delta as the security decision.
 
-**axios maintainer compromise, March 2026.** Malicious `axios@1.14.1` and `axios@0.30.4` published 39 minutes apart, available about three hours, introducing `plain-crypto-js@4.2.1` with a cross-platform remote access payload. The attacker had published a clean version of the added dependency earlier to build history. The strongest signals were the dependency change and a provenance downgrade to a bare command-line publish. Warden's answer is release comparison: integrity, maintainer and publisher changes, provenance downgrades, new dependencies and capabilities.
+## The transaction
+
+### Plan
+
+`warden plan` asks the project's own package manager for a lockfile-only resolution in a throwaway directory when the manager supports it. Otherwise, Warden resolves through registry metadata.
+
+It reads the existing lockfile, resolves the prospective direct and transitive graph, computes additions, version moves, removals, and new lifecycle hooks, then vets every added or changed package.
+
+The plan records:
+
+- the manager, operation, exact arguments, working directory, specs, and dependency class
+- the graph before and graph after as integrity-aware digests
+- every graph change and artifact verdict
+- analysis coverage
+- typed requirements for scripts, truncated resolution, or unanalyzed packages
+- one decision: `ALLOW`, `WARN`, `NEEDS_APPROVAL`, or `BLOCK`
+
+A truncated graph or partial analysis cannot become `ALLOW`.
+
+### Approve
+
+`warden approve-script` records one approval bound to:
+
+- package name
+- exact version
+- tarball integrity
+- lifecycle hook
+- normalized script-body hash
+
+The approval authorizes the transaction. It never authorizes the package script to execute. Every Warden-managed install suppresses lifecycle scripts.
+
+Repository approvals can be committed for team review. A repository can require repository-scoped approvals so a personal local approval does not authorize the project.
+
+### Apply
+
+`warden apply` refuses blocked, stale, incomplete, or unapproved plans unless the caller uses the corresponding explicit exception.
+
+It replays the exact request that was planned through the project's manager, with lifecycle scripts suppressed by the manager's native mechanism. It then runs project scripts in this order when present:
+
+1. test
+2. typecheck
+3. build
+
+The observed graph digest must match the reviewed graph digest.
+
+When installation, verification, or graph comparison fails, Warden restores the root manifest and every lockfile. It does not restore node_modules or side effects created by project verification.
+
+### Verify
+
+Apply writes a receipt containing the request digest, policy digest, graph digests, artifact verdicts, approvals, suppressed scripts, verification results, and final transaction result.
+
+`warden verify` checks the installed graph against that receipt.
+
+`warden ci --require-transaction-receipt` fails a pull request when a dependency manifest or lockfile changed without a valid receipt.
+
+This is the answer to local bypass. PATH shims are convenience, not a sandbox. CI verification does not assume that local interception succeeded.
+
+## Shipped functionality by problem
+
+### What will this dependency introduce?
+
+- `warden check`: vet packages before installation or execution
+- `warden plan`: resolve and decide the full prospective graph
+- `warden explain`: show what changed, why it matters, and what to do
+- `warden history`: trace publisher, provenance, and lifecycle-script changes
+- `warden compare`: compare candidate packages on evidence
+- `warden baseline`: record a trusted release for later comparison
+- `warden scripts`: inventory current lifecycle hooks and pending approvals
+
+The deterministic vetting pipeline covers integrity, release deltas, lifecycle-script changes, maintainer and publisher changes, provenance downgrades, name attacks, known malicious versions, known hallucinated names, and static code capabilities.
+
+### Can the repository itself redirect or execute unsafe code?
+
+- `warden check lockfile`: off-registry and impersonating hosts, plaintext transport, weak integrity, git and file sources
+- `warden check scripts`: risky lifecycle hooks across the installed tree
+- `warden check config`: lookalike registries, plaintext tokens, and disabled TLS
+
+Secret values are not echoed into reports.
+
+### Can we state policy once across package managers?
+
+`warden policy` compiles repository intent into native npm, pnpm, Yarn, and Bun settings.
+
+The policy covers approved scripts, minimum release age, exotic sources, lockfile reverification, and semantic downgrades. Warden reports which controls each manager can express natively and which remain enforced by the transaction and CI layers.
+
+Manager detection preserves the project's selected tool. Precedence is the invoked binary, the `packageManager` field, the lockfile, project config, tools on PATH, then a documented npm default.
+
+### How are ordinary commands intercepted?
+
+The installer places shims for npm, pnpm, Yarn, Bun, npx, and bunx on PATH.
+
+The command grammar mediates install, add, ci, exec, dlx, rebuild, global-install, and related execution paths. Unsupported or non-registry sources are named rather than silently skipped.
+
+`warden coverage` prints the interception matrix from the same grammar the shims execute.
+
+Protect mode blocks. Observe mode records verdicts without blocking. `warden log` renders that history.
+
+### How do we repair an existing vulnerable project safely?
+
+`warden doctor` and `wnpm doctor`:
+
+1. audit direct dependencies through OSV
+2. build minimal and latest repair plans
+3. gate every candidate fix through the package engine
+4. verify surviving plans in an isolated project copy with scripts disabled
+5. apply the recommended verified version by default
+
+An advisory's official fix can be marked unfixable when the candidate release fails the supply-chain gate.
+
+### How do we verify that a change matches the request?
+
+`warden intent check` decomposes a prompt into atomic claims and compares them with the merge-base diff.
+
+It reports delivered requirements, preserved requirements, dropped requirements, scope creep, and calls to package members that the static export surface proves do not exist.
+
+Claim extraction and unmatched semantic comparison use the configured provider. The hallucinated-API check is deterministic static analysis and never executes project code.
+
+`warden ci` runs intent verification automatically when `.warden/prompt.txt` exists and JavaScript or TypeScript changed.
+
+### How do automated systems consume the result safely?
+
+Every reporting surface follows stable exit codes:
+
+- `0`: allow or success
+- `10`: warn, partial, or needs approval
+- `20`: block
+- `30`: analysis or operational error
+
+Structured output includes versioned schemas and typed error envelopes. Registry-authored strings are stripped of ANSI escapes, zero-width characters, bidirectional overrides, and control characters, then quarantined as untrusted data.
+
+The generated tool manifest exposes read-only decision commands and excludes mutating commands. The handoff bundle includes the finding, evidence, concrete fix, and verification command.
+
+CI supports summary, JSON, workflow annotation, agent, and SARIF reporters.
+
+### Are the guardrails actually wired correctly?
+
+- `warden detect`: classify topology, package manager, framework, role, and tooling with evidence
+- `warden init`: add repository config, workflow, hooks, and context files
+- `warden integrations doctor`: inspect PATH order, shim presence, interception settings, adapter selection, project manager, and CI workflow
+- `warden agent doctor`: report adapter capability and fallback layers
+- `warden schema`: publish report contracts
+- `warden completions`: generate bash, zsh, and fish completion scripts from the command registry
+- `warden uninstall`: remove binaries, shims, config, cache, and shell setup
+
+## Demonstration beats
+
+### Plan: hidden graph to exact authority
+
+`warden plan -- npm install esbuild`
+
+- twenty-seven changed packages resolved
+- twenty-seven artifacts analyzed
+- one postinstall requirement
+- decision `NEEDS_APPROVAL`
+- lifecycle scripts remain suppressed
+
+The problem is hidden transitive change. The response is the whole-graph plan. The proof is complete artifact coverage plus one narrowly typed authority requirement.
+
+### Doctor: vulnerable dependency to safe candidate
+
+`warden doctor`
+
+- one advisory fix is rejected because the candidate release adds an install script, exposes exfiltration capability, and loses provenance
+- a separate safe candidate installs and passes the project's test in isolation
+
+The problem is that a version fixing a CVE can still be an unsafe release. The response is candidate gating and isolated verification. The proof is an accepted plan or an explicit unfixable result.
+
+### Intent: compiling change to verified request
+
+`warden intent check`
+
+- rate limiting delivered
+- retry behavior preserved
+- logging requirement dropped
+- unrelated pagination file changed
+- added call references an export that does not exist
+
+The problem is that compilation success does not prove instruction fidelity. The response is prompt-to-diff comparison plus deterministic API validation. The proof separates delivered requirements from dropped work, scope creep, and impossible calls.
+
+## Benchmark
+
+`warden benchmark` runs twenty-one published regression cases through the real graph resolver and plan decision:
+
+- twelve of twelve curated attack shapes stop
+- zero of nine benign shapes stop
+- mean changed-artifact coverage is complete
+
+These are curated regression shapes, not a registry sample and not field accuracy.
+
+## Maturity and limits
+
+Describe Warden as a technical alpha with a working transaction core.
+
+- PATH shims are convenience, not a sandbox.
+- Approvals authorize a transaction, not package code execution.
+- A package that requires an install hook may fail verification because scripts remain suppressed.
+- Rollback restores the root manifest and lockfiles, not node_modules or verification side effects.
+- Receipts are unsigned local JSON, so they are evidence rather than independent attestation.
+- Registry-metadata fallback resolution uses one version per package name and is not identical to every manager's solver.
+- Intent verification only reports hallucinated members when the export surface can be proven closed and the call appears on an added line.
+
+Stating these limits is part of the security case.
 
 ## Claims to avoid
 
-- Not "no free supply-chain tools exist" but "existing tools solve fragments; Warden unifies the pre-execution decision across package managers, CI, and coding agents."
-- Not "package managers have no security controls" but "native controls reduce exposure; Warden adds cross-manager analysis and one portable verdict."
-- Not "Warden prevents every supply-chain attack" but "Warden blocks the attack patterns it detects before package code runs."
-- Do not describe roadmap work as shipped, and do not claim a generated explanation makes the decision. Deterministic rules decide the verdict.
+- Do not say that package scanners are useless. Say that Warden adds a pre-execution whole-graph decision and transaction evidence.
+- Do not say package managers lack security controls. Say that Warden compiles intent into their native controls and fills explicitly named gaps.
+- Do not say Warden prevents every supply-chain attack. Say that it stops the attack shapes its deterministic rules detect before package code runs.
+- Do not present benchmark regression rates as field accuracy.
+- Do not claim local shims cannot be bypassed.
+- Do not claim rollback restores the full working directory.
+- Do not claim receipts are signed attestations.
 
 ## Sources
 
-- [CVE Program metrics](https://www.cve.org/About/Metrics)
-- [Verizon 2026 Data Breach Investigations Report summary](https://www.verizon.com/about/news/breach-industry-wide-dbir-finds)
-- [Sonatype 2026 software supply-chain report](https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware)
+- [Sonatype software supply-chain report](https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware)
+- [GitHub package compromise reach](https://github.blog/security/supply-chain-security/the-case-for-a-cooldown-why-dependabot-now-waits-before-issuing-version-updates/)
+- [Datadog Shai-Hulud 2.0 analysis](https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/)
+- [Verizon 2025 Data Breach Investigations Report](https://www.verizon.com/about/news/2025-data-breach-investigations-report)
 - [USENIX Security 2025 package hallucination study](https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen)
-- [Datadog analysis of Shai-Hulud 2.0](https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/)
-- [Aikido analysis of the chalk and debug compromise](https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised)
-- [Vercel response to the September 2025 npm attack](https://vercel.com/blog/critical-npm-supply-chain-attack-response-september-8-2025)
-- [axios maintainer incident report](https://github.com/axios/axios/issues/10636)
-- [Microsoft analysis of the axios compromise](https://www.microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/)
-- [Aikido analysis of react-codeshift propagation](https://www.aikido.dev/blog/agent-skills-spreading-hallucinated-npx-commands)
-- [GuardDog project documentation](https://github.com/DataDog/guarddog)
+- [npm package page for expres](https://www.npmjs.com/package/expres)
+- [npm package page for express](https://www.npmjs.com/package/express)
+- [npm downloads API](https://api.npmjs.org/downloads/)
+- [npm registry API](https://registry.npmjs.org/)
 - [OSV-Scanner documentation](https://google.github.io/osv-scanner/)
-- [Socket CLI documentation](https://docs.socket.dev/docs/socket-cli)
-- [npm install security settings](https://docs.npmjs.com/cli/install/)
-- [Yarn security features](https://yarnpkg.com/features/security)
-- [Bun trusted dependency documentation](https://bun.com/docs/guides/install/trusted)
+- [Warden benchmark](https://warden.pulkit.page/benchmark)
+- [Transactions](https://warden.pulkit.page/docs/transactions)
+- [Command coverage](https://warden.pulkit.page/docs/coverage)

@@ -10,11 +10,14 @@ import {
   parseJsonc,
 } from "../../src/lockfile.ts";
 
+const SHA1 = `sha1-${Buffer.alloc(20).toString("base64")}`;
+const SHA512 = `sha512-${Buffer.alloc(64).toString("base64")}`;
+
 const clean: LockEntry = {
   name: "good",
   version: "1.0.0",
   resolved: "https://registry.npmjs.org/good/-/good-1.0.0.tgz",
-  integrity: "sha512-aaa",
+  integrity: SHA512,
 };
 
 function fsWith(files: Record<string, string>): AuditFs {
@@ -58,7 +61,7 @@ const cases: Array<[string, Partial<LockEntry>, string, "warn" | "block"]> = [
     "lockfile_missing_integrity",
     "block",
   ],
-  ["weak integrity", { integrity: "sha1-aaa" }, "lockfile_weak_integrity", "warn"],
+  ["weak integrity", { integrity: SHA1 }, "lockfile_weak_integrity", "warn"],
   [
     "git dependency",
     { resolved: "git+ssh://git@github.com/a/b.git#abc", integrity: undefined },

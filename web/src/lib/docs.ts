@@ -1839,7 +1839,7 @@ curl -fsSL https://warden.pulkit.page/install.sh | sh
 
 This installs \`warden\`, \`wnpm\`, and \`wnpx\`, and offers to place shims ahead of the package managers it detects.
 
-Read the script before running it. That advice applies to every install script, including this one, so it is served as plain text at [warden.pulkit.page/install.sh](/install.sh) and is the same file as [install.sh](https://github.com/pulkitxm/warden/blob/main/install.sh) in the repository.
+Read the script before running it. That advice applies to every install script, including this one, so it is served as plain text at [warden.pulkit.page/install.sh](/install.sh) and is the same file as [install.sh](https://github.com/pulkitxm/warden/blob/main/web/public/install.sh) in the repository.
 
 ## From source
 

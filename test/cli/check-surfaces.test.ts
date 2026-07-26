@@ -6,6 +6,8 @@ import { AUDIT_JSON_SCHEMA } from "../../src/schema.ts";
 const strip = (s: string) =>
   s.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), "");
 
+const SHA512 = `sha512-${Buffer.alloc(64).toString("base64")}`;
+
 function makeDeps(files: Record<string, string>, globbed: string[] = []) {
   const out: string[] = [];
   const err: string[] = [];
@@ -32,7 +34,7 @@ const cleanLock = JSON.stringify({
     "node_modules/a": {
       version: "1.0.0",
       resolved: "https://registry.npmjs.org/a.tgz",
-      integrity: "sha512-a",
+      integrity: SHA512,
     },
   },
 });

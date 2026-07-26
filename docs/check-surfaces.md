@@ -18,6 +18,9 @@ Reads `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, and `yarn.lo
 
 | Rule | Level | What it means |
 | --- | --- | --- |
+| `lockfile_known_malware` | block | The resolved version is on the known-malware blocklist, so a compromised release is caught in the tree even when nothing about the entry looks unusual. |
+| `lockfile_hallucinated_name` | block | The name is one LLMs are known to invent, a standing slopsquat target. |
+| `lockfile_malformed_integrity` | block | The integrity value is not a valid SRI hash, so it can never be verified. |
 | `lockfile_lookalike_registry` | block | An entry resolves from a host impersonating a real registry, the shape of the September 2025 `npmjs.help` phishing campaign. |
 | `lockfile_off_registry_host` | block | An entry resolves from a host that is not a known public registry. |
 | `lockfile_insecure_transport` | block | An entry resolves over plaintext `http`, so the tarball can be swapped in transit. |
@@ -25,6 +28,7 @@ Reads `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, and `yarn.lo
 | `lockfile_weak_integrity` | warn | The integrity hash is `sha1`, which is not collision resistant. |
 | `lockfile_git_dependency` | warn | The dependency comes from a git remote, so its contents can change under a tag. |
 | `lockfile_file_dependency` | warn | The dependency comes from a local path and is not reproducible elsewhere. |
+| `lockfile_typosquat` | warn | The name is one edit from a popular package. |
 
 ## check scripts
 
@@ -39,8 +43,17 @@ Reads the root manifest and every `node_modules/*/package.json`, and inspects on
 | `script_env_exfiltration` | block | A hook reads the environment and sends it over the network. |
 | `script_inline_node_eval` | warn | A hook evaluates inline JavaScript instead of a reviewable file. |
 | `script_lifecycle_present` | warn | A hook exists and did not match a dangerous pattern. |
+| `script_not_allowlisted` | warn | The package declares an install hook but no approval in the active package manager covers it. |
+| `script_allowlist_overbroad` | warn | The approval is name-only or uses a non-exact range, so future releases can run unreviewed. |
+| `script_allowlist_stale` | warn | Exact approvals exist for the package, but none covers the installed version. |
 
 If `node_modules` is absent, only the root manifest is scanned and a note says so, so a clean result is not misread as a clean tree.
+
+### The install-script allowlist
+
+npm records approvals as boolean package matchers in `package.json#allowScripts`. pnpm 11 uses `allowBuilds` in `pnpm-workspace.yaml`; older pnpm projects may still use `pnpm.onlyBuiltDependencies`. Bun uses `trustedDependencies`, and Yarn uses `dependenciesMeta.<pkg>.built`. Warden selects the active package manager from `packageManager` or the lockfile, then reads that manager's policy. Explicit denials are treated as intentional.
+
+The three allowlist rules cover missing, broad, and stale approvals. npm and pnpm exact pins such as `pkg@1.2.3` are clean, while bare names and non-exact ranges are broad. Bun approvals are necessarily name-only, so they remain visible as upgrade-sensitive. Each installed version is judged separately, and the root manifest is never judged against a dependency policy.
 
 ## check config
 
