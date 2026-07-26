@@ -409,7 +409,14 @@ test("every source path the docs cite actually exists", async () => {
   }
 });
 
-const NOT_IN_SOURCE = new Set(["l0dash", "peerDependencies"]);
+const NOT_IN_SOURCE = new Set([
+  "l0dash",
+  "peerDependencies",
+  "checkJs",
+  "noEmit",
+  "depcheck",
+  "eslint",
+]);
 
 test("every code identifier the docs name still exists in the source", async () => {
   const { DOC_PAGES } = await import("../web/src/lib/docs.ts");

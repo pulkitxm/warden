@@ -138,7 +138,7 @@
     "name": "intent",
     "description": "verify the diff does what the prompt asked",
     "positional": {
-      "kind": "[check|extract|diff|symbols|schema]"
+      "kind": "[check|extract|diff|symbols|bench|schema]"
     },
     "flags": [
       {
@@ -154,6 +154,11 @@
       {
         "name": "--json",
         "description": "write the intent report JSON to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--offline",
+        "description": "skip the registry lookup for added imports",
         "valueHint": null
       },
       {

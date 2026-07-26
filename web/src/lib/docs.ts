@@ -236,22 +236,47 @@ warden intent check --prompt "add rate limiting to the api client"
 warden intent extract --prompt "..."
 warden intent diff
 warden intent symbols
+warden intent bench
 warden intent schema
 \`\`\`
+
+## Should you turn it on?
+
+**Yes, for the deterministic half.** Added imports of packages that are undeclared or that do not exist on the registry, and calls to APIs a package does not export, are found without any model, measured at 100% precision on the published corpus, and cost nothing per run.
+
+**Not as a blocking gate on claim matching.** Measured precision for the claim-matching rule is 60% against a stated false-positive budget of 5%. The rule is useful for reading a diff; it should not be the reason a pull request fails.
+
+**If you already run \`tsc --noEmit\` with \`checkJs\`,** the member-level hallucination scan adds close to nothing: the type checker finds the same calls faster, more completely, and for zero tokens. Where it does not help you is an untyped package, a repo with no type check at all, or a package name that has never been published, and that last case no type checker, linter, \`knip\`, or \`depcheck\` distinguishes at all.
+
+**Cost.** At most two LLM calls per run, on hunk summaries and excerpts rather than the raw diff, plus one registry lookup per added import that is neither declared nor installed. \`warden intent diff\`, \`warden intent symbols\`, and the dependency scan need no model. \`--offline\` removes the network entirely.
 
 ## What it reports
 
 - **Dropped requirements.** A claim in the prompt with no matching change in the diff.
-- **Scope creep.** Diff hunks that no claim accounts for.
+- **Scope creep.** Diff hunks that no claim accounts for, at 5 or more added lines. An uncalibrated heuristic.
 - **Hallucinated APIs.** Calls to functions and methods that do not exist in the packages actually installed, checked against both a curated surface database and your real \`node_modules\`.
+- **Undeclared and unpublished imports.** An added import of a package no dependency group declares warns; one whose name is on Warden's slopsquat intel list, or that the registry says was never published, blocks.
 
-## Exit codes
+## Verdict to action
 
-\`0\` met, \`10\` partial or scope creep, \`20\` a dropped requirement or a hallucinated API, \`30\` error.
+| Verdict | Exit | Means | Human | Agent |
+| --- | --- | --- | --- | --- |
+| \`allow\` | \`0\` | every claim delivered, nothing flagged | nothing | proceed |
+| \`warn\` | \`10\` | partial claim, scope creep, undeclared import, or claims not verifiable | read \`notes\`; advisory | report and proceed |
+| \`block\` | \`20\` | dropped claim, nonexistent API, or a package that does not exist | fix or override deliberately | fix before handing back |
+| error | \`30\` | the diff could not be read at all | fix the invocation | fix the invocation |
+
+There is no waiver mechanism yet. A verdict you disagree with can only be silenced by removing the prompt, which turns the whole check off. That is a real gap, not an omission from this page.
 
 ## Degradation
 
-Claim extraction can use an LLM when one is configured, including zero-key providers via the Claude or Codex CLI. When no provider is available, or the provider fails, the deterministic passes still run: hunk classification and hallucinated-API detection do not need a model. A failed extraction reports what the static scan found rather than silently reporting success.
+Claim extraction can use an LLM when one is configured, including zero-key providers via the Claude or Codex CLI. When no provider is available, or the provider fails, the deterministic passes still run and the report is still published, with \`claims_status: "unverifiable"\`, the reason in \`notes\`, and an exit code of \`20\` if a deterministic rule found something or \`10\` if it did not. Scope creep is not assessed in that state, because it needs a claim set, and the report says so rather than reporting zero.
+
+The two zero-key CLI providers cannot set temperature, so borderline verdicts can reword between runs. The HTTP providers run at temperature 0.
+
+## Measured accuracy
+
+\`warden intent bench\` runs a curated corpus of prompt-and-diff cases through the same pipeline the CLI uses, with recorded provider responses replayed so it runs offline and free, and reports precision and recall **per rule**. The published figures, the stated false-positive budget, and what the corpus does not measure are in the repository's \`docs/intent-corpus.md\`, which is the single place those numbers live.
 
 ## Why this is a supply-chain feature
 
@@ -576,7 +601,22 @@ The installer can place shims ahead of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`n
 | \`~/.warden/config.json\` | User settings |
 | \`~/.warden/log.jsonl\` | Verdict log, read by \`warden log\` |
 | \`.warden/last-run.json\` | Last CI run, read by \`warden handoff\` |
-| \`.warden/prompt.txt\` | Prompt used by [intent](/docs/intent) |
+| \`.warden/prompt.txt\` | Prompt read by [intent](/docs/intent), and by the agent Stop hook |
+| \`.warden/claims.json\` | Claim ledger written by \`warden intent check\` and \`warden intent extract\` |
+| \`.warden/intent-report.json\` | Last intent report. \`.warden/\` is gitignored, so this is not durable evidence |
+
+## Environment variables intent reads
+
+| Variable | Purpose |
+| --- | --- |
+| \`WNPM_LLM_PROVIDER\` | \`claude\`, \`codex\`, \`openai\`, \`groq\`, or \`ollama\`. The first two shell out to a local CLI and need no key |
+| \`WNPM_LLM_MODEL\` | Overrides the provider default model |
+| \`WNPM_CLAUDE_BIN\` | Path to the \`claude\` binary, when it is not on \`PATH\` |
+| \`WNPM_CODEX_BIN\` | Path to the \`codex\` binary, when it is not on \`PATH\` |
+| \`OPENAI_API_KEY\` / \`GROQ_API_KEY\` / \`OLLAMA_API_KEY\` | Selected in that order when no provider is forced |
+| \`WARDEN_INTENT_CORPUS_LIVE\` | Set to \`1\` to make \`warden intent bench\` call the live provider instead of the recorded fixtures |
+
+Neither zero-key CLI provider exposes temperature, so verdicts can reword between runs on those. The HTTP providers send temperature 0. Nothing here is required for \`warden intent diff\`, \`warden intent symbols\`, or \`warden intent bench\`.
 `;
 
 const troubleshooting = `
@@ -940,9 +980,23 @@ A delta is measured against a trusted baseline, resolved in order of evidence: a
 
 The 0 to 100 number is a weighted sum of heuristic signals. It is labelled a heuristic score everywhere it appears, and it is deliberately not the headline. The decision, the confidence, and the reason code are the parts to act on. The score has not been calibrated against a published benchmark corpus.
 
+## Intent verification has the weakest measurements in the product
+
+Everything above concerns dependency analysis. [Intent](/docs/intent) is measured separately, and worse.
+
+- **Its claim-matching rule does not meet its own false-positive budget.** The budget is 5%. The corpus in the repository's \`docs/intent-corpus.md\` measures the rule's precision well below what a blocking gate should have, and publishes the number rather than a rounded summary. Treat a claim-matching \`block\` as a prompt to look, not as a fact.
+- **Automated requirement-to-code matching has a known ceiling.** Two decades of traceability research put keyword-similarity precision near a third and decline to claim the technique is good enough to run without human oversight. Warden's implementation is a naive instance of it.
+- **The deterministic rules are the ones that measure well.** The hallucinated-API scan and the undeclared-or-unpublished import scan measure at 100% precision on that corpus, need no model, and are the parts worth gating on.
+- **On a typed repo, \`tsc --noEmit\` with \`checkJs\` beats the member-level scan.** It finds the same nonexistent members faster, more completely, and for zero tokens. The scan earns its place on untyped packages, on repos with no type check, and on package names that were never published, which no type checker distinguishes from an uninstalled one.
+- **The corpus is 18 to 23 curated shapes, not a sample of real pull requests,** and its conforming population is too small to resolve a 5% budget. The floor of the measurement is stated on that page.
+- **Scope creep is a fixed 5-added-line threshold** with a single positive corpus case behind it. It is an uncalibrated heuristic and is labelled one.
+- **There is no waiver mechanism.** A verdict you disagree with can only be silenced by deleting the prompt, which disables the whole check.
+- **A non-JavaScript file in the diff cannot be keyword-matched to a claim,** because no symbols are extracted from it, so whether it is flagged as scope creep depends entirely on the LLM match pass citing it.
+- **One recorded provider sample per corpus case.** Nothing measures how much a verdict moves between providers or between runs, and the two flagship zero-key CLI providers cannot set temperature.
+
 ## Model use
 
-A model can help extract claims from a prompt and rank alternatives. No model decides a block. The enforcement core is deterministic, and every model-assisted step reports when it degraded to the deterministic path.
+A model can help extract claims from a prompt and rank alternatives. No model decides a block in the dependency engine: that enforcement core is deterministic, and every model-assisted step reports when it degraded to the deterministic path. Intent is the exception, and it is stated as one above: a dropped claim reported by the match model does currently produce a \`block\`, which is why its measured precision is published next to its budget.
 
 Instructions, skills, and the generated MCP tool manifest improve how well an agent cooperates with Warden. The manifest is a description of the CLI surface, not a running server: Warden does not speak MCP over stdio yet, and an agent uses it by invoking the binary. They are not enforcement by themselves; an agent that ignores them is caught by the shim, and an agent that bypasses the shim is caught in CI.
 `;
@@ -1569,11 +1623,13 @@ Rollback restores \`package.json\` and every lockfile, but \`node_modules\` and 
 `;
 
 const intentInternals = `
-Warden's intent subsystem answers a narrow question: given the prompt an agent was told to implement, does the resulting diff actually implement it, and does it call APIs that exist? It lives in \`src/intent/\` and is driven by \`warden intent <verb>\` (\`check\`, \`extract\`, \`diff\`, \`symbols\`, \`schema\`; \`check\` is the default when no verb is given). The pipeline is deliberately heuristic-first. Diff parsing, hunk classification, the hallucinated-API scan, preservation checking, and scope-creep detection are all deterministic. A model is used in exactly two places, and one of them has no fallback.
+Warden's intent subsystem answers a narrow question: given the prompt an agent was told to implement, does the resulting diff actually implement it, and does it call APIs that exist? It lives in \`src/intent/\` and is driven by \`warden intent <verb>\` (\`check\`, \`extract\`, \`diff\`, \`symbols\`, \`bench\`, \`schema\`; \`check\` is the default when no verb is given). The pipeline is deliberately heuristic-first. Diff parsing, hunk classification, the hallucinated-API scan, the undeclared-and-unpublished import scan, preservation checking, and scope-creep detection are all deterministic. A model is used in exactly two places, and neither is load-bearing for whether a report is produced.
 
 ## Exit codes and the verdict rule
 
-\`decide()\` in \`match.ts\` computes the verdict last, from the assembled rows. The rule is a strict cascade: \`block\` if any claim row is \`dropped\` **or** any hallucination was found; otherwise \`warn\` if any row is \`partial\` **or** \`scope_creep\` is non-empty; otherwise \`allow\`. \`exitCodeFor\` maps these through \`EXIT\` to 0 / 10 / 20, and \`wardenFailure\` returns 30 for usage and analysis errors. \`warden intent symbols\` bypasses \`decide\` entirely and returns 20 if it found anything, 0 otherwise.
+\`decide()\` in \`match.ts\` computes the verdict last, from the assembled rows. It resolves non-preservation claims first so the set of hunks a matched claim cited is known, then resolves preservation claims against that set. The rule is a strict cascade: \`block\` if any claim row is \`dropped\`, any hallucination was found, **or** any dependency finding is at \`block\`; otherwise \`warn\` if any row is \`partial\`, \`scope_creep\` is non-empty, any dependency finding exists, **or** \`claims_status\` is \`unverifiable\`; otherwise \`allow\`. \`exitCodeFor\` maps these through \`EXIT\` to 0 / 10 / 20, and \`wardenFailure\` returns 30 for usage and analysis errors. \`warden intent symbols\` bypasses \`decide\` entirely and returns 20 if it found anything, 0 otherwise.
+
+The report is \`schema_version: 2\`. Version 1 lacked \`claims_status\`, \`notes\`, and \`dependencies\`; nothing was renamed or removed, so a reader that tolerates unknown fields is unaffected.
 
 ## The diff becomes classified hunks
 
@@ -1628,11 +1684,19 @@ Two real limits: \`extractSurface\` always returns an empty \`instances\` map, s
 
 Exactly two calls: claim extraction and the second matching pass. \`resolveProvider\` honours \`WNPM_LLM_PROVIDER\` (including \`claude\` and \`codex\`, which shell out to a local CLI with a 120 second timeout and need no key), otherwise picks the first of \`openai\`, \`groq\`, \`ollama\` whose key is set. \`WNPM_LLM_MODEL\` overrides the defaults \`gpt-4o-mini\`, \`openai/gpt-oss-20b\`, \`gpt-oss:20b\`. HTTP calls use temperature 0 and a 60 second timeout.
 
-Claim extraction has **no fallback**. If it fails, \`warden intent check\` exits 30, and the error message appends a note naming any hallucinated APIs the deterministic scan already found. The match pass degrades gracefully: \`llmPass\` catches everything and returns \`failed: true\`, which turns unmatched claims into \`partial\` and caps the run at \`warn\` for those claims, while hallucinations still block. \`warden intent diff\` and \`warden intent symbols\` need no model at all, so the symbol scan is fully usable with zero credentials. Note that the reported \`llm.match_calls\` is derived from whether leftover claims existed, so it can read 1 when \`llmPass\` returned early because there were no hunks.
+A failed claim extraction no longer erases the run. \`runIntentPipeline\` catches it and calls \`decide\` with an empty claim set, \`claimsStatus: "unverifiable"\`, and \`notes\` carrying the provider error plus a count of what the deterministic passes did find. Scope creep is suppressed in that state, because it cannot be judged without claims, and a note says so rather than the array reading empty. The exit code is 20 if a deterministic rule found something and 10 if it did not. The match pass degrades separately: \`llmPass\` catches everything and returns \`failed: true\`, which turns unmatched claims into \`partial\` and caps those claims at \`warn\`. \`warden intent diff\`, \`warden intent symbols\`, and \`warden intent bench\` need no model at all.
+
+\`llm.extract_calls\` and \`llm.match_calls\` are read from \`intentLlmStats\`, the counter \`completeJson\` increments, rather than inferred from whether leftover claims existed. A run that made no call reports zero.
 
 ## Integration with warden ci
 
-\`warden ci\` runs the intent pass only when a prompt is available (\`--intent-prompt\` or \`.warden/prompt.txt\`) **and** at least one changed file matches the JS/TS extension pattern. The final CI verdict is the higher of the dependency-guard verdict and the intent verdict on the \`allow < warn < block\` ranking, so a blocking guard finding keeps its own verdict. The GitHub reporter emits an error annotation per dropped claim and per hallucination.
+\`warden ci\` runs the intent pass only when a prompt is available (\`--intent-prompt\` or \`.warden/prompt.txt\`) **and** at least one changed file matches the JS/TS extension pattern. The final CI verdict is the higher of the dependency-guard verdict and the intent verdict on the \`allow < warn < block\` ranking, so a blocking guard finding keeps its own verdict. The GitHub reporter emits an error annotation per dropped claim, per hallucination, and per dependency finding, the last at \`warning\` level when the finding is a plain undeclared import.
+
+## Measured accuracy, and the rule that does not meet its budget
+
+\`warden intent bench\` runs \`src/intent/corpus/\` through the same \`runIntentPipeline\` the CLI calls, swapping only the LLM for a recorded response, and scores four rules separately: whether a dropped claim was detected, whether scope creep fired, whether the hallucination scan fired, and whether the dependency scan fired with the right rule. Diffs are synthesized from before-and-after file images by an LCS differ whose hunk boundaries were checked against \`git diff\` byte for byte. The published numbers, the stated false-positive budget of 5%, and the list of what the corpus cannot resolve live in the repository's \`docs/intent-corpus.md\`, generated by \`bun scripts/export-intent-corpus.ts\`.
+
+The result that decides how you configure this: the deterministic rules measure at 100% precision, and claim matching does not meet the budget. Two decades of automated requirement-to-code trace-link research put keyword-similarity precision near a third, which is where the first measurement of this rule landed.
 `;
 
 const doctorInternals = `

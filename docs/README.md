@@ -10,6 +10,7 @@ This directory holds engineering notes: the same ground covered for someone chan
 | [functionality](functionality.md) | Captured output for every command | Shipped |
 | [doctor](doctor.md) | The audit, gate, verify, apply loop | Shipped |
 | [intent](intent.md) | Prompt-as-spec verification | Shipped |
+| [intent-corpus](intent-corpus.md) | The measured accuracy of intent, per rule, and the false-positive budget it is held to | Shipped |
 | [check-surfaces](check-surfaces.md) | Lockfile, install script, and registry config audits | Shipped |
 | [transactions](transactions.md) | Prospective graph resolution and the plan decision | Shipped |
 | [explainability](explainability.md) | explain, history, compare, and the standing script surface | Shipped |
