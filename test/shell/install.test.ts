@@ -169,14 +169,17 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$url" in
-  */latest/download/*) cp "$CURL_TARBALL" "$output" ;;
-  */sha256sums.txt) cp "$CURL_SUMS" "$output" ;;
+  */releases/latest)
+    if [ "$effective" = true ]; then printf '%s' "\${CURL_LANDING:-https://github.com/pulkitxm/warden/releases/tag/v9.9.9}"; fi
+    exit 0 ;;
+  */releases/download/*/sha256sums.txt) cp "$CURL_SUMS" "$output" ;;
   */releases/download/*/shim.sh) cp "$CURL_SOURCE/scripts/shim.sh" "$output" ;;
   */releases/download/*/install.sh) cp "$CURL_SOURCE/install.sh" "$output" ;;
+  */releases/download/*.tar.gz) cp "$CURL_TARBALL" "$output" ;;
   *raw.githubusercontent.com*) printf 'installer fetched executable content from a mutable ref\n' >&2; exit 77 ;;
   *) exit 22 ;;
 esac
-if [ "$effective" = true ]; then printf 'https://github.com/pulkitxm/warden/releases/download/v9.9.9/warden-linux-x64.tar.gz'; fi
+if [ "$effective" = true ]; then printf 'https://release-assets.githubusercontent.com/opaque/1297656958'; fi
 `;
   executable(join(stubs, "curl"), curl);
   return { root, home, temp, stubs, tools };
@@ -491,6 +494,20 @@ test("no writable on-PATH candidate still prints the activation instruction", ()
     expect(output(result)).toContain("NOT active in this shell yet");
     expect(output(result)).toContain("exec");
   }));
+
+test("a latest URL that does not land on a tag page refuses to guess one", () => {
+  for (const landing of [
+    "https://release-assets.githubusercontent.com/opaque/1297656958",
+    "https://github.com/pulkitxm/warden/releases",
+  ]) {
+    inSandbox(["npm"], (sandbox) => {
+      checksumPath(sandbox, "sha256sum");
+      const result = run(sandbox, [], { local: false, env: { CURL_LANDING: landing } });
+      expect(result.exitCode).not.toBe(0);
+      expect(output(result)).toContain("could not resolve a release tag");
+    });
+  }
+});
 
 test("download install verifies with sha256sum and extracts all binaries", () =>
   inSandbox(["npm"], (sandbox) => {

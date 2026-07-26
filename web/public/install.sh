@@ -163,15 +163,16 @@ if [ -n "$source_dir" ]; then
   version=local
 else
   asset=warden-$os-$arch.tar.gz
-  latest=https://github.com/$repo/releases/latest/download/$asset
-  effective=$(curl -fL "$latest" -o "$tmp/$asset" -w '%{url_effective}')
-  tag=${effective#*releases/download/}
-  tag=${tag%%/*}
+  landing=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")
+  tag=${landing##*/tag/}
+  case $tag in
+    "" | *[!A-Za-z0-9._-]*)
+      printf 'warden installer: could not resolve a release tag to install from\n' >&2
+      exit 1
+      ;;
+  esac
   version=${tag#v}
-  [ -n "$tag" ] || {
-    printf 'warden installer: could not resolve a release tag to install from\n' >&2
-    exit 1
-  }
+  curl -fsSL "https://github.com/$repo/releases/download/$tag/$asset" -o "$tmp/$asset"
   curl -fsSL "https://github.com/$repo/releases/download/$tag/sha256sums.txt" -o "$tmp/sha256sums.txt"
   verify_checksum "$asset"
   printf '  sha256 verified\n'
