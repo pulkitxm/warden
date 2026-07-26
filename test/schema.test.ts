@@ -1,11 +1,17 @@
 import { expect, test } from "bun:test";
+import pkg from "../package.json" with { type: "json" };
 import {
+  ANALYZER_VERSION,
   CATEGORIES,
   exitCodeFor,
   SCHEMA_VERSION,
   VERDICT_JSON_SCHEMA,
   type Verdict,
 } from "../src/schema.ts";
+
+test("package.json version matches the version the binary reports", () => {
+  expect(pkg.version).toBe(ANALYZER_VERSION);
+});
 
 test("Verdict type keys match JSON Schema required keys", () => {
   const sample: Verdict = {
