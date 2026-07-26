@@ -18,10 +18,8 @@ export function absolute(path: string): string {
 
 export const nav = [
   { href: "/docs", label: "Docs" },
-  { href: "/docs/transactions", label: "Transactions" },
   { href: "/docs/cli", label: "CLI" },
   { href: "/docs/agents", label: "Agents" },
-  { href: "/docs/limitations", label: "Limitations" },
   { href: "/docs/install", label: "Install" },
 ] as const;
 
