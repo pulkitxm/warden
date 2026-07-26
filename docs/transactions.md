@@ -17,12 +17,12 @@ Every plan also records the `request` it was built from: the manager, the operat
 
 ## Two resolvers
 
-Step 2 has two implementations, and the plan says which one produced it in its `resolver` field.
+Step 2 has two implementations, and the plan says which one produced it in its `resolver` field. They differ in who picks the versions, not in what gets reported about them.
 
-- `resolver: "manager"`. Warden copies the manifest, lockfile, and registry config into a temporary directory and asks the project's own package manager to resolve there with no scripts and no downloads: `npm install --package-lock-only`, `pnpm --lockfile-only`, `yarn install --mode=update-lockfile`. This is the most faithful answer to "what would this manager actually select", and it is used whenever the manager is on PATH and can do it.
-- `resolver: "metadata"`. Warden walks the registry metadata itself, one version per package name. This is the fallback, and it is what `bun`, `yarn add`, and the interception shim always use.
+- `resolver: "manager"`. Warden copies the manifest, lockfile, and registry config into a temporary directory and asks the project's own package manager to resolve there with no scripts and no downloads: `npm install --package-lock-only`, `pnpm --lockfile-only`, `yarn install --mode=update-lockfile`. The manager's own solver picks the versions, so the answer is the one that manager would actually install, peer resolution and all. Used whenever the manager is on PATH and can do it.
+- `resolver: "metadata"`. Warden walks the registry metadata itself, breadth-first, taking one version per package name. This is the fallback, and it is what `bun`, `yarn add`, and the interception shim use.
 
-The two carry different detail. A manager-resolved graph gives versions, integrity, and tarball URLs, but no lifecycle-hook or platform information, so its execution surface reads as zero. The metadata walk is what reports install scripts, platform-specific artifacts, and deprecations. Read the `resolver` field before reading the execution surface.
+Either way, every changed package is then described from its registry manifest, so install scripts, deprecations, and platform constraints are reported the same on both paths. What a manager-resolved graph does not carry is the dependency structure: `requiredBy` is empty and every node sits at depth 1, because a lockfile records what was selected rather than who asked for it.
 
 ```bash
 warden plan -- npm install @fastify/jwt

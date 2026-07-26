@@ -721,9 +721,9 @@ Next action
 
 ## Two resolvers
 
-The plan records which resolver produced its graph. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`yarn install --mode=update-lockfile\`. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name, which is the fallback and what \`bun\`, \`yarn add\`, and the interception shim always use.
+The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name, which is the fallback and what \`bun\`, \`yarn add\`, and the interception shim use.
 
-A manager-resolved graph carries versions, integrity, and tarball URLs but no lifecycle-hook or platform detail, so its execution surface reads as zero, as in the plan above. The metadata walk is what reports new install scripts and platform-specific artifacts:
+Either way, every changed package is described from its registry manifest, so install scripts, deprecations, and platform constraints read the same on both paths. The graph above has no install script in it. This one does:
 
 \`\`\`text
 Warden plan: npm install esbuild
@@ -1045,7 +1045,7 @@ Warden works best when you do not have to remember it. The installer places smal
 
 1. Classifies the command against a published grammar. Anything outside it passes straight through, untouched.
 2. Blocks sources with no registry provenance: git, url, and local paths.
-3. Builds the full transaction plan for an install, always through the metadata resolver, so it always sees the install scripts and platform artifacts the change brings in.
+3. Builds the full transaction plan for an install, resolving from registry metadata rather than asking the package manager it is standing in front of.
 4. Delegates to the real package manager with lifecycle scripts suppressed by that manager's own mechanism.
 
 ## An install is gated on the whole graph
@@ -1495,7 +1495,9 @@ Warden's transaction path has four stages that run in order: a resolver produces
 
 \`buildPlan\` calls \`deps.resolveWithManager\` first. \`resolveWithManager\` in \`src/graph/manager-resolve.ts\` copies \`package.json\`, every lockfile it recognises, \`.npmrc\`, \`.yarnrc.yml\`, and \`pnpm-workspace.yaml\` into a temporary directory and runs \`lockfileOnlyCommand\` there: \`npm install [specs] --package-lock-only --ignore-scripts --no-audit --no-fund\`, \`pnpm add|install --lockfile-only --ignore-scripts\`, or \`yarn install --mode=update-lockfile\`. It returns null for \`bun\`, for \`yarn\` with any spec, when the manager is not on \`PATH\`, when no \`package.json\` could be copied, when the command exits non-zero, or when the resulting lockfile parses to nothing. The plan records \`resolver: "manager"\` when it succeeded and \`resolver: "metadata"\` when it fell back.
 
-The manager path reads its result back through \`readInstalledGraph\`, which takes hooks from \`node_modules/<name>/package.json\`. The temporary directory has no \`node_modules\`, so every manager-resolved node carries \`hooks: []\`, \`depth: 1\`, no \`requiredBy\`, \`deprecated: false\`, and \`platformSpecific: false\`. A manager-resolved plan therefore always reports an empty execution surface, no platform artifacts, no deprecations, and no conflicts. Only the metadata walk below produces those fields, which is why the interception shim, which never calls \`resolveWithManager\`, is the path that catches a new install script.
+The manager path reads its result back through \`readInstalledGraph\`, which knows versions, integrity, and resolved URLs but takes hooks from \`node_modules/<name>/package.json\`, and the temporary directory has no \`node_modules\`. So \`buildPlan\` then calls \`describeFromRegistry\`, which fetches the packument for every node whose version differs from what is installed and overwrites \`hooks\` from \`hooksOf(version.scripts)\`, \`deprecated\`, and \`platformSpecific\` from \`os\` and \`cpu\`. Both resolvers therefore report the same execution surface. A packument that cannot be fetched leaves the lockfile's view of that node in place rather than failing the plan.
+
+What the manager path still does not carry is the dependency structure. Every manager-resolved node sits at \`depth: 1\` with an empty \`requiredBy\`, and \`conflicts\` is always empty, because a lockfile records the versions that were selected rather than which dependents asked for them.
 
 ## Walking the registry
 

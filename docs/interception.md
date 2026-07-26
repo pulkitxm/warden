@@ -125,7 +125,7 @@ $ warden log --tail 2
 
 Vetting only the package names typed on the command line is what let a malicious transitive dependency through. An intercepted install is now gated on the whole prospective graph.
 
-For any command the grammar classifies as `install`, `frozen-install`, or `global-install`, the shim calls the hidden `warden shim-transaction` verb. That builds the same kind of plan `warden plan` builds: it resolves the complete prospective graph from registry metadata, diffs it against the lockfile, and vets every added or changed package. The shim always uses the metadata resolver, so it always sees the install scripts and platform artifacts the change would bring in. It does not write the plan to disk.
+For any command the grammar classifies as `install`, `frozen-install`, or `global-install`, the shim calls the hidden `warden shim-transaction` verb. That builds the same kind of plan `warden plan` builds: it resolves the complete prospective graph, diffs it against the lockfile, and vets every added or changed package. The shim resolves from registry metadata rather than asking the package manager, since it is already standing in front of that manager. It does not write the plan to disk.
 
 ```
 $ npm install esbuild
