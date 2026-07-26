@@ -237,7 +237,7 @@ test("warden ci annotates an added import the manifest never declared", async ()
   ).toBe(20);
   const annotations = state.out.join("");
   expect(annotations).toContain("intent: undeclared_import axios");
-  expect(annotations).toContain("Fix: add \"axios\" to package.json");
+  expect(annotations).toContain('Fix: add "axios" to package.json');
 });
 
 test("warden ci keeps the guard verdict when it outranks intent", async () => {

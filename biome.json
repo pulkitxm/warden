@@ -15,7 +15,8 @@
       "!web/.next",
       "!web/next-env.d.ts",
       "!web/src/lib/commands.json",
-      "!web/src/lib/benchmark.json"
+      "!web/src/lib/benchmark.json",
+      "!web/src/lib/intent-corpus.json"
     ]
   },
   "formatter": {

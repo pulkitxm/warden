@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { type CorpusCase, CORPUS_CASES } from "../../src/intent/corpus/cases.ts";
+import { CORPUS_CASES, type CorpusCase } from "../../src/intent/corpus/cases.ts";
 import { renderCorpus } from "../../src/intent/corpus/report.ts";
 import {
   CORPUS_ROOT,
@@ -154,19 +154,27 @@ test("a pipeline that throws is recorded as an error verdict rather than crashin
 
 test("a mismatch on any axis marks the case incorrect", async () => {
   const wrongVerdict = await runCorpusCase(
-    caseWith({ expected: { verdict: "block", claims: ["delivered"], scopeCreep: false, hallucinations: 0 } }),
+    caseWith({
+      expected: { verdict: "block", claims: ["delivered"], scopeCreep: false, hallucinations: 0 },
+    }),
   );
   expect(wrongVerdict.correct).toBe(false);
   const wrongClaims = await runCorpusCase(
-    caseWith({ expected: { verdict: "allow", claims: ["dropped"], scopeCreep: false, hallucinations: 0 } }),
+    caseWith({
+      expected: { verdict: "allow", claims: ["dropped"], scopeCreep: false, hallucinations: 0 },
+    }),
   );
   expect(wrongClaims.correct).toBe(false);
   const wrongCreep = await runCorpusCase(
-    caseWith({ expected: { verdict: "allow", claims: ["delivered"], scopeCreep: true, hallucinations: 0 } }),
+    caseWith({
+      expected: { verdict: "allow", claims: ["delivered"], scopeCreep: true, hallucinations: 0 },
+    }),
   );
   expect(wrongCreep.correct).toBe(false);
   const wrongHallucinations = await runCorpusCase(
-    caseWith({ expected: { verdict: "allow", claims: ["delivered"], scopeCreep: false, hallucinations: 1 } }),
+    caseWith({
+      expected: { verdict: "allow", claims: ["delivered"], scopeCreep: false, hallucinations: 1 },
+    }),
   );
   expect(wrongHallucinations.correct).toBe(false);
 });
@@ -183,7 +191,12 @@ test("an explicit llm overrides the replay, which is how the live drift check ru
     match: (_claims, hunks) =>
       Promise.resolve({
         proposals: [
-          { claimId: "c1", hunkIds: hunks.map((hunk) => hunk.id), status: "delivered", origin: "llm" },
+          {
+            claimId: "c1",
+            hunkIds: hunks.map((hunk) => hunk.id),
+            status: "delivered",
+            origin: "llm",
+          },
         ],
         failed: false,
       }),

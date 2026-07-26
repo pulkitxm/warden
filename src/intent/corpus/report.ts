@@ -18,7 +18,9 @@ export function renderCorpus(report: CorpusReport): string {
     } cases match the expected verdict and per-claim outcomes`,
   );
   const budget = `budget ${percent(report.falsePositives.budget)}`;
-  const verdict = report.falsePositives.withinBudget ? dim(`within ${budget}`) : c("31", `over ${budget}`);
+  const verdict = report.falsePositives.withinBudget
+    ? dim(`within ${budget}`)
+    : c("31", `over ${budget}`);
   lines.push(
     `  ${bold("false positives")} ${percent(report.falsePositives.rate)}  ${
       report.falsePositives.count

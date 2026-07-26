@@ -95,13 +95,16 @@ export function unifiedDiff(change: FileChange): string {
       `rename to ${change.path}`,
     ].join("\n");
   }
-  const beforeLines = change.before === undefined ? [] : change.before.replace(/\n$/, "").split("\n");
+  const beforeLines =
+    change.before === undefined ? [] : change.before.replace(/\n$/, "").split("\n");
   const afterLines = change.after === undefined ? [] : change.after.replace(/\n$/, "").split("\n");
   const meta: string[] = [head];
   if (change.before === undefined) meta.push("new file mode 100644");
   else if (change.after === undefined) meta.push("deleted file mode 100644");
   else meta.push("index 1111111..2222222 100644");
-  meta.push(change.before === undefined ? "--- /dev/null" : `--- a/${change.renamedFrom ?? change.path}`);
+  meta.push(
+    change.before === undefined ? "--- /dev/null" : `--- a/${change.renamedFrom ?? change.path}`,
+  );
   meta.push(change.after === undefined ? "+++ /dev/null" : `+++ b/${change.path}`);
   const ops = diffOps(beforeLines, afterLines);
   const hunks = changeGroups(ops).map((group) => hunkText(ops, group));

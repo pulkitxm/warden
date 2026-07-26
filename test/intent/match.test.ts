@@ -281,7 +281,9 @@ test("a preservation claim is dropped only when what it names is deleted and doe
     }),
   );
   expect(violated.claims[0]).toMatchObject({ verdict: "dropped", origin: "preservation" });
-  expect(violated.claims[0]!.evidence[0]!.detail).toContain("does not appear in retry.ts afterwards");
+  expect(violated.claims[0]!.evidence[0]!.detail).toContain(
+    "does not appear in retry.ts afterwards",
+  );
   expect(violated.verdict).toBe("block");
 });
 

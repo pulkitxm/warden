@@ -62,7 +62,9 @@ test("only imports on added lines are collected, once each", () => {
 });
 
 test("a line importing twice reports both specifiers", () => {
-  const found = collectAddedImports(scanned('export { a } from "alpha"; export { b } from "beta";'));
+  const found = collectAddedImports(
+    scanned('export { a } from "alpha"; export { b } from "beta";'),
+  );
   expect(found.map((entry) => entry.spec)).toEqual(["alpha", "beta"]);
 });
 

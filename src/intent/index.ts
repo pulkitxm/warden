@@ -18,15 +18,10 @@ import {
   scanHallucinations,
 } from "./pipeline.ts";
 import { renderIntentReport } from "./report.ts";
-import type {
-  ClassifiedHunk,
-  HallucinationFinding,
-  IntentLedger,
-  PackageExists,
-} from "./types.ts";
+import type { ClassifiedHunk, HallucinationFinding, IntentLedger, PackageExists } from "./types.ts";
 
-export { liveIntentLlm, runIntentPipeline } from "./pipeline.ts";
 export type { IntentRun } from "./pipeline.ts";
+export { liveIntentLlm, runIntentPipeline } from "./pipeline.ts";
 
 export interface IntentFlags {
   verb: string;

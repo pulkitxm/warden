@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { gitResult } from "../shared/git.ts";
-import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
 import { type DependencyScan, scanDependencies } from "./deps.ts";
+import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
 import { extractClaims } from "./extract.ts";
 import { intentLlmStats } from "./llm.ts";
 import { decide, keywordPass, llmPass } from "./match.ts";

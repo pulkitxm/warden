@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { changeGroups, corpusDiffText, diffOps, unifiedDiff } from "../../src/intent/corpus/diff.ts";
+import {
+  changeGroups,
+  corpusDiffText,
+  diffOps,
+  unifiedDiff,
+} from "../../src/intent/corpus/diff.ts";
 import { addedLineSets, parseUnifiedDiff } from "../../src/intent/diff.ts";
 
 test("an unchanged pair produces only context ops", () => {
@@ -63,7 +68,12 @@ test("a deleted file is emitted in the form the parser recognises as deleted", (
 });
 
 test("a pure rename is emitted without hunks and records where it came from", () => {
-  const text = unifiedDiff({ path: "src/http.js", before: "const a = 1;\n", after: "const a = 1;\n", renamedFrom: "http.js" });
+  const text = unifiedDiff({
+    path: "src/http.js",
+    before: "const a = 1;\n",
+    after: "const a = 1;\n",
+    renamedFrom: "http.js",
+  });
   expect(text).toContain("rename from http.js");
   expect(text).toContain("rename to src/http.js");
   expect(text).not.toContain("@@");
@@ -83,7 +93,11 @@ test("a rename that also edits content still emits hunks against the old path", 
 
 test("the synthesized added lines survive a round trip through the real parser", () => {
   const text = corpusDiffText([
-    { path: "one.js", before: "const a = 1;\nconst b = 2;\n", after: "const a = 1;\nconst b = 3;\n" },
+    {
+      path: "one.js",
+      before: "const a = 1;\nconst b = 2;\n",
+      after: "const a = 1;\nconst b = 3;\n",
+    },
     { path: "two.js", after: "const c = 4;\n" },
   ]);
   const added = addedLineSets(parseUnifiedDiff(text));

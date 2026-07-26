@@ -834,7 +834,8 @@ export const CORPUS_CASES: CorpusCase[] = [
     changes: [
       {
         path: "batch.js",
-        after: 'import { chunk } from "lodash";\n\nexport function batches(items) {\n  return chunk(items, 10);\n}\n',
+        after:
+          'import { chunk } from "lodash";\n\nexport function batches(items) {\n  return chunk(items, 10);\n}\n',
       },
     ],
     manifest: { name: "probe", dependencies: {} },
@@ -864,7 +865,8 @@ export const CORPUS_CASES: CorpusCase[] = [
     changes: [
       {
         path: "migrate.js",
-        after: 'import codeshift from "react-codeshift";\n\nexport function migrate(files) {\n  return codeshift.run(files);\n}\n',
+        after:
+          'import codeshift from "react-codeshift";\n\nexport function migrate(files) {\n  return codeshift.run(files);\n}\n',
       },
     ],
     manifest: { name: "probe", dependencies: {} },
@@ -893,7 +895,8 @@ export const CORPUS_CASES: CorpusCase[] = [
     changes: [
       {
         path: "upload.js",
-        after: 'import retry from "fetch-retry-helper-pro";\n\nexport function upload(url) {\n  return retry(url, 3);\n}\n',
+        after:
+          'import retry from "fetch-retry-helper-pro";\n\nexport function upload(url) {\n  return retry(url, 3);\n}\n',
       },
     ],
     manifest: { name: "probe", dependencies: {} },
@@ -923,7 +926,8 @@ export const CORPUS_CASES: CorpusCase[] = [
     changes: [
       {
         path: "health.js",
-        after: 'import axios from "axios";\n\nexport function health(base) {\n  return axios.get(base + "/health");\n}\n',
+        after:
+          'import axios from "axios";\n\nexport function health(base) {\n  return axios.get(base + "/health");\n}\n',
       },
     ],
     manifest: { name: "probe", dependencies: { axios: "^1.18.1" } },

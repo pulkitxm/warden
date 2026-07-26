@@ -2,8 +2,8 @@ import { type Evidence, exitCodeFor, type VerdictLevel } from "../schema.ts";
 import { completeJson } from "./llm.ts";
 import type {
   ClaimRow,
-  ClaimsStatus,
   ClaimStatus,
+  ClaimsStatus,
   ClassifiedHunk,
   DependencyFinding,
   HallucinationFinding,
@@ -99,9 +99,7 @@ function claimTokensOf(claim: IntentClaim): Set<string> {
 }
 
 function keywordSetsOf(claim: IntentClaim): string[][] {
-  return claim.keywords
-    .map((keyword) => tokenize(keyword))
-    .filter((tokens) => tokens.length > 0);
+  return claim.keywords.map((keyword) => tokenize(keyword)).filter((tokens) => tokens.length > 0);
 }
 
 export function symbolNamedByClaim(
@@ -125,9 +123,7 @@ function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean 
   if (!hunk.changedSymbols.length || hunk.category === "formatting_only") return false;
   const claimTokens = claimTokensOf(claim);
   const keywordSets = keywordSetsOf(claim);
-  return hunk.changedSymbols.some((symbol) =>
-    symbolNamedByClaim(symbol, claimTokens, keywordSets),
-  );
+  return hunk.changedSymbols.some((symbol) => symbolNamedByClaim(symbol, claimTokens, keywordSets));
 }
 
 function preservationDeletions(
@@ -143,8 +139,7 @@ function preservationDeletions(
     const present = afterTokens(hunk.file);
     const gone = keywordSets.find(
       (tokens) =>
-        tokens.every((token) => removed.has(token)) &&
-        !tokens.every((token) => present.has(token)),
+        tokens.every((token) => removed.has(token)) && !tokens.every((token) => present.has(token)),
     );
     if (gone) out.push({ hunk, keyword: gone.join(" ") });
   }

@@ -240,11 +240,7 @@ export async function runCorpus(
       }
     }
     tally(creepCounts, result.expectedScopeCreep, result.actualScopeCreep);
-    tally(
-      hallucinationCounts,
-      result.expectedHallucinations > 0,
-      result.actualHallucinations > 0,
-    );
+    tally(hallucinationCounts, result.expectedHallucinations > 0, result.actualHallucinations > 0);
     const rules = new Set([...result.expectedDependencyRules, ...result.actualDependencyRules]);
     for (const rule of rules) {
       tally(
