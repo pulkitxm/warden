@@ -40,6 +40,7 @@ exit 0
 `;
   const wardenStub = `#!/bin/sh
 if [ "$1" = "shim-transaction" ]; then
+  [ -n "$WARDEN_TRANSACTION_NOISE" ] && printf '%s\\n' "$WARDEN_TRANSACTION_NOISE" >&2
   if [ -n "$WARDEN_TRANSACTION" ]; then
     printf '%s
 ' "$WARDEN_TRANSACTION"
@@ -446,6 +447,15 @@ test("an install is gated on the whole prospective graph, not only the typed pac
     expect(err).toContain("blocked on the whole prospective graph");
     expect(err).toContain("byte-utils@2.0.0");
     expect(log(sandbox.managerLog)).toBe("");
+  }));
+
+test("the graph gate does not swallow what warden reports while it runs", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "left-pad"], {
+      WARDEN_TRANSACTION_NOISE: "resolving the prospective dependency graph",
+    });
+    expect(result.exitCode).toBe(0);
+    expect(text(result.stderr)).toContain("resolving the prospective dependency graph");
   }));
 
 test("a blocked graph names the plan command that shows the full picture", () =>
