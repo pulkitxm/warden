@@ -21,7 +21,15 @@ function verdict(spec: string, level: VerdictLevel, summary = "clean"): Verdict 
 }
 
 interface Fixture {
-  packages: Record<string, { deps?: Record<string, string>; hooks?: string[] }>;
+  packages: Record<
+    string,
+    {
+      deps?: Record<string, string>;
+      hooks?: string[];
+      deprecated?: boolean;
+      os?: string[];
+    }
+  >;
   verdicts?: Record<string, VerdictLevel>;
   failing?: string[];
 }
@@ -43,6 +51,8 @@ function makeDeps(fixture: Fixture, overrides: Partial<PlanDeps> = {}) {
           ...(meta.hooks
             ? { scripts: Object.fromEntries(meta.hooks.map((hook) => [hook, "node x.js"])) }
             : {}),
+          ...(meta.deprecated ? { deprecated: "no longer maintained" } : {}),
+          ...(meta.os ? { os: meta.os } : {}),
           dist: { tarball: `https://reg.test/${name}.tgz`, integrity: `sha512-${name}` },
         },
       },
@@ -363,4 +373,109 @@ test("a manager that cannot resolve the graph falls back to registry metadata", 
   const plan = await buildPlan(input(), deps);
   expect(plan.resolver).toBe("metadata");
   expect(plan.decision).toBe("allow");
+});
+
+test("a manager-resolved graph still shows the install scripts it is about to run", async () => {
+  const { deps } = makeDeps(
+    { packages: { "app@1.0.0": {}, "builder@2.0.0": { hooks: ["postinstall"] } } },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([
+          ["app", { version: "1.0.0" }],
+          ["builder", { version: "2.0.0" }],
+        ]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.resolver).toBe("manager");
+  expect(plan.delta.newScriptSurface.map((change) => `${change.name}@${change.version}`)).toEqual([
+    "builder@2.0.0",
+  ]);
+  expect(plan.decision).toBe("needs_approval");
+  expect(plan.next_actions[0]).toContain("approve-script builder@2.0.0 --hook postinstall");
+});
+
+test("a manager-resolved graph reports deprecation and platform artifacts too", async () => {
+  const { deps } = makeDeps(
+    {
+      packages: {
+        "app@1.0.0": {},
+        "old@1.0.0": { deprecated: true },
+        "native@1.0.0": { os: ["darwin"] },
+      },
+    },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([
+          ["app", { version: "1.0.0" }],
+          ["old", { version: "1.0.0" }],
+          ["native", { version: "1.0.0" }],
+        ]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.delta.deprecatedIntroduced.map((change) => change.name)).toEqual(["old"]);
+  expect(plan.delta.platformArtifacts.map((change) => change.name)).toEqual(["native"]);
+});
+
+test("packages already installed at the same version are not re-read from the registry", async () => {
+  const asked: string[] = [];
+  const { deps } = makeDeps(
+    { packages: { "app@1.0.0": {}, "kept@1.0.0": {} } },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([
+          ["app", { version: "1.0.0" }],
+          ["kept", { version: "1.0.0" }],
+        ]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const spy: PlanDeps = {
+    ...deps,
+    packument: (name: string) => {
+      asked.push(name);
+      return deps.packument(name);
+    },
+  };
+  await buildPlan(
+    input({ installed: { nodes: new Map([["kept", { version: "1.0.0" }]]), source: "x" } }),
+    spy,
+  );
+  expect(asked).toEqual(["app"]);
+});
+
+test("a registry that cannot describe a manager-resolved package does not sink the plan", async () => {
+  const { deps } = makeDeps(
+    { packages: { "app@1.0.0": {} }, failing: [] },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([["app", { version: "1.0.0" }]]),
+        lockfile: "package-lock.json",
+      }),
+      packument: () => Promise.reject(new Error("registry unreachable")),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.resolver).toBe("manager");
+  expect(plan.decision).toBe("allow");
+});
+
+test("a manager-resolved package missing from the registry keeps what the lockfile said", async () => {
+  const { deps } = makeDeps(
+    { packages: { "app@1.0.0": {} } },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([["app", { version: "9.9.9", hooks: ["postinstall"] }]]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.delta.newScriptSurface.map((change) => change.name)).toEqual(["app"]);
 });

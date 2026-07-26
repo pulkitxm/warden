@@ -5,7 +5,13 @@ import type { InstalledNode } from "./delta.ts";
 import { digestGraph, type GraphChange, type GraphDelta, graphDelta } from "./delta.ts";
 import { type InstalledGraph, installedIdentities } from "./installed.ts";
 import type { TransactionRequest } from "./request.ts";
-import type { GraphResolution, RootRequirement, resolveGraph } from "./resolve.ts";
+import {
+  type GraphNode,
+  type GraphResolution,
+  hooksOf,
+  type RootRequirement,
+  type resolveGraph,
+} from "./resolve.ts";
 
 export type PlanDecision = "allow" | "warn" | "needs_approval" | "block";
 
@@ -181,6 +187,38 @@ function nextActions(delta: GraphDelta, plan: { decision: PlanDecision; id: stri
   return [`warden apply ${plan.id}`];
 }
 
+async function describeFromRegistry(
+  nodes: GraphNode[],
+  installed: Map<string, InstalledNode>,
+  deps: PlanDeps,
+): Promise<void> {
+  const pending = nodes.filter((node) => installed.get(node.name)?.version !== node.version);
+  if (!pending.length) return;
+  progressStep(`reading the manifests of ${pending.length} changed packages`);
+  const lanes = Math.max(1, deps.concurrency ?? DEFAULT_CONCURRENCY);
+  let next = 0;
+
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const node = pending[next++];
+      if (!node) return;
+      let meta: Awaited<ReturnType<PlanDeps["packument"]>> = null;
+      try {
+        meta = await deps.packument(node.name);
+      } catch {
+        continue;
+      }
+      const version = meta?.versions?.[node.version];
+      if (!version) continue;
+      node.hooks = hooksOf(version.scripts);
+      node.deprecated = Boolean(version.deprecated);
+      node.platformSpecific = Boolean(version.os?.length || version.cpu?.length);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(lanes, pending.length) }, worker));
+}
+
 export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<TransactionPlan> {
   const faithful = deps.resolveWithManager?.() ?? null;
   const requirements = [...input.existing, ...input.direct];
@@ -213,6 +251,8 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
       ...(deps.maxNodes === undefined ? {} : { maxNodes: deps.maxNodes }),
     });
   }
+
+  if (faithful) await describeFromRegistry(resolution.nodes, input.installed.nodes, deps);
 
   const directNames = new Set(input.direct.map((entry) => entry.name));
   for (const node of resolution.nodes) if (directNames.has(node.name)) node.depth = 0;
