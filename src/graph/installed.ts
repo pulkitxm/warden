@@ -25,6 +25,20 @@ export interface InstalledGraph {
   source: string;
 }
 
+export function installedIdentities(graph: InstalledGraph): Array<{
+  name: string;
+  version: string;
+  integrity?: string;
+  resolved?: string;
+}> {
+  return [...graph.nodes.entries()].map(([name, node]) => ({
+    name,
+    version: node.version,
+    ...(node.integrity ? { integrity: node.integrity } : {}),
+    ...(node.resolved ? { resolved: node.resolved } : {}),
+  }));
+}
+
 function hooksFromManifest(fs: InstalledFs, root: string, name: string): string[] | undefined {
   const manifest = join(root, "node_modules", ...name.split("/"), "package.json");
   if (!fs.exists(manifest)) return undefined;
@@ -52,7 +66,12 @@ export function readInstalledGraph(fs: InstalledFs, root: string): InstalledGrap
     for (const entry of entries) {
       if (!entry.name || !entry.version || nodes.has(entry.name)) continue;
       const hooks = hooksFromManifest(fs, root, entry.name);
-      nodes.set(entry.name, { version: entry.version, ...(hooks ? { hooks } : {}) });
+      nodes.set(entry.name, {
+        version: entry.version,
+        ...(hooks ? { hooks } : {}),
+        ...(entry.integrity ? { integrity: entry.integrity } : {}),
+        ...(entry.resolved ? { resolved: entry.resolved } : {}),
+      });
     }
     if (nodes.size) return { nodes, source: parser.file };
   }

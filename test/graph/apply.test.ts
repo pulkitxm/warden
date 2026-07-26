@@ -54,6 +54,7 @@ function plan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     unresolved: [],
     conflicts: [],
     truncated: false,
+    resolver: "metadata",
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],
@@ -318,6 +319,7 @@ test("a script approval does not license incomplete analysis", async () => {
   const receipt = await applyTransaction(
     plan({
       truncated: true,
+      resolver: "metadata",
       delta: { ...plan().delta, scriptSurface: [change()], newScriptSurface: [change()] },
     }),
     deps,
@@ -339,4 +341,103 @@ test("bun installs with scripts suppressed like npm and pnpm", async () => {
   const { deps, commands } = makeDeps();
   await applyTransaction(plan({ manager: "bun" }), deps);
   expect(commands[0]).toEqual(["bun", "add", "esbuild@0.25.8", "--ignore-scripts"]);
+});
+
+test("a plan made against a different project state is refused as stale", async () => {
+  const { deps, commands } = makeDeps({ currentGraphDigest: () => "sha256:moved-on" });
+  const receipt = await applyTransaction(plan(), deps);
+  expect(receipt.result).toBe("refused");
+  expect(receipt.reason).toContain("changed since this plan was made");
+  expect(commands).toEqual([]);
+});
+
+test("a stale plan can be forced, but only by its own flag", async () => {
+  const { deps } = makeDeps({ currentGraphDigest: () => "sha256:after" });
+  const receipt = await applyTransaction(plan(), deps, {
+    verify: false,
+    allowStalePlan: true,
+  });
+  expect(receipt.result).toBe("applied");
+});
+
+test("an install that produces a graph the plan never reviewed is rolled back", async () => {
+  let calls = 0;
+  const { deps, files } = makeDeps({
+    currentGraphDigest: () => (calls++ === 0 ? "sha256:before" : "sha256:something-else"),
+  });
+  const before = files["/repo/package.json"];
+  const receipt = await applyTransaction(plan(), deps, { verify: false });
+  expect(receipt.result).toBe("rolled_back");
+  expect(receipt.reason).toContain("but the plan reviewed");
+  expect(receipt.observed_graph).toBe("sha256:something-else");
+  expect(files["/repo/package.json"]).toBe(before as string);
+});
+
+test("the lockfile is restored on failure, not only the manifest", async () => {
+  const { deps, files } = makeDeps({ exec: () => ({ code: 1 }) });
+  files["/repo/package-lock.json"] = '{"lockfileVersion":3}';
+  const snapshotLock = files["/repo/package-lock.json"];
+  const receipt = await applyTransaction(plan(), deps, { verify: false });
+  expect(receipt.result).toBe("rolled_back");
+  expect(files["/repo/package-lock.json"]).toBe(snapshotLock as string);
+});
+
+test("the user's own command is replayed rather than a rebuilt install", async () => {
+  const { deps, commands } = makeDeps();
+  await applyTransaction(
+    plan({
+      request: {
+        schema_version: 1,
+        manager: "npm",
+        operation: "add",
+        argv: ["install", "zod", "--save-dev"],
+        cwd: "/repo",
+        specs: ["zod"],
+        dependencyClass: "dev",
+      },
+    }),
+    deps,
+    { verify: false },
+  );
+  expect(commands[0]).toEqual(["npm", "install", "zod", "--save-dev", "--ignore-scripts"]);
+});
+
+test("the receipt commits to the request that produced it", async () => {
+  const { deps } = makeDeps();
+  const receipt = await applyTransaction(
+    plan({
+      request: {
+        schema_version: 1,
+        manager: "npm",
+        operation: "add",
+        argv: ["install", "zod"],
+        cwd: "/repo",
+        specs: ["zod"],
+      },
+    }),
+    deps,
+    { verify: false },
+  );
+  expect(receipt.request_digest).toStartWith("sha256:");
+});
+
+test("a lockfile that cannot be read is simply not snapshotted", async () => {
+  const { deps, files } = makeDeps();
+  files["/repo/package-lock.json"] = "unreadable";
+  const original = deps.readFile;
+  deps.readFile = (path) => {
+    if (path.endsWith("package-lock.json")) throw new Error("EACCES");
+    return original(path);
+  };
+  const receipt = await applyTransaction(plan(), deps, { verify: false });
+  expect(receipt.result).toBe("applied");
+});
+
+test("a restore that cannot write reports the failure rather than crashing", async () => {
+  const { deps } = makeDeps({ exec: () => ({ code: 1 }) });
+  deps.writeFile = () => {
+    throw new Error("read-only filesystem");
+  };
+  const receipt = await applyTransaction(plan(), deps, { verify: false });
+  expect(receipt.result).toBe("rolled_back");
 });

@@ -29,6 +29,8 @@ export interface GraphDelta {
 export interface InstalledNode {
   version: string;
   hooks?: string[];
+  integrity?: string;
+  resolved?: string;
 }
 
 function toChange(node: GraphNode, before: InstalledNode | undefined): GraphChange {
@@ -87,9 +89,20 @@ export function graphDelta(
   };
 }
 
-export function digestGraph(entries: Array<{ name: string; version: string }>): string {
+export interface GraphIdentity {
+  name: string;
+  version: string;
+  integrity?: string;
+  resolved?: string;
+  tarball?: string;
+}
+
+export function digestGraph(entries: GraphIdentity[]): string {
   const canonical = [...entries]
-    .map((entry) => `${entry.name}@${entry.version}`)
+    .map((entry) => {
+      const source = entry.resolved ?? entry.tarball ?? "";
+      return `${entry.name}@${entry.version}|${entry.integrity ?? ""}|${source}`;
+    })
     .sort()
     .join("\n");
   return `sha256:${createHash("sha256").update(canonical).digest("hex")}`;

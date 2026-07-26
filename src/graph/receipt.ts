@@ -19,6 +19,8 @@ export interface TransactionReceipt {
   manager: { name: string; version?: string };
   graph_before: string;
   graph_after: string;
+  observed_graph?: string;
+  request_digest?: string;
   policy_digest: string;
   artifacts: PlanArtifact[];
   approvals: ScriptApproval[];
@@ -33,7 +35,24 @@ export function policyDigest(plan: TransactionPlan): string {
   const canonical = JSON.stringify({
     manager: plan.manager,
     direct: plan.direct,
+    request: plan.request
+      ? {
+          operation: plan.request.operation,
+          argv: plan.request.argv,
+          workspace: plan.request.workspace ?? null,
+          dependencyClass: plan.request.dependencyClass ?? "prod",
+        }
+      : null,
+    graph_before: plan.graph_before,
     graph_after: plan.graph_after,
+    coverage: plan.coverage,
+    truncated: plan.truncated,
+    artifacts: plan.artifacts.map((artifact) => ({
+      package: artifact.package,
+      version: artifact.version,
+      integrity: artifact.integrity ?? null,
+      verdict: artifact.verdict,
+    })),
     decision: plan.decision,
   });
   return `sha256:${createHash("sha256").update(canonical).digest("hex")}`;

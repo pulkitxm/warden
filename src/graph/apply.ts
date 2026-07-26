@@ -11,15 +11,17 @@ import {
   transactionId,
   type VerificationSteps,
 } from "./receipt.ts";
+import { replayCommand, requestDigest } from "./request.ts";
 
 export interface ApplyDeps {
-  exec: (cmd: string[], cwd: string) => { code: number };
+  exec: (cmd: string[], cwd: string, env?: Record<string, string>) => { code: number };
   readFile: (path: string) => string;
   writeFile: (path: string, data: string) => unknown;
   exists: (path: string) => boolean;
   scriptBody: (change: GraphChange, hook: string) => Promise<string>;
   approvals: ScriptApproval[];
   analyzerVersion: string;
+  currentGraphDigest?: (root: string) => string;
   managerVersion?: string;
 }
 
@@ -27,6 +29,7 @@ export interface ApplyOptions {
   verify?: boolean;
   allowUnapproved?: boolean;
   allowIncompleteAnalysis?: boolean;
+  allowStalePlan?: boolean;
 }
 
 const VERIFY_STEPS: Array<keyof Omit<VerificationSteps, "install">> = [
@@ -43,6 +46,52 @@ function projectScripts(deps: ApplyDeps, root: string): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+const SNAPSHOT_FILES = [
+  "package.json",
+  "package-lock.json",
+  "npm-shrinkwrap.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
+];
+
+type Snapshot = { root: string; files: Array<{ path: string; content: string | null }> };
+
+function snapshotProject(root: string, deps: ApplyDeps): Snapshot {
+  return {
+    root,
+    files: SNAPSHOT_FILES.map((name) => {
+      const path = join(root, name);
+      let content: string | null = null;
+      if (deps.exists(path)) {
+        try {
+          content = deps.readFile(path);
+        } catch {
+          content = null;
+        }
+      }
+      return { path, content };
+    }),
+  };
+}
+
+function restoreProject(snapshot: Snapshot, deps: ApplyDeps): void {
+  for (const file of snapshot.files) {
+    if (file.content === null) continue;
+    try {
+      deps.writeFile(file.path, file.content);
+    } catch {}
+  }
+}
+
+function checkPreconditions(plan: TransactionPlan, deps: ApplyDeps): string | null {
+  if (!deps.currentGraphDigest) return null;
+  const current = deps.currentGraphDigest(plan.root);
+  if (current === plan.graph_before) return null;
+  return `the project changed since this plan was made: the graph is now ${current}, the plan was made against ${plan.graph_before}`;
 }
 
 async function pendingApprovals(
@@ -98,6 +147,7 @@ function receipt(
     reason?: string;
     approvals: ScriptApproval[];
     verification: VerificationSteps;
+    observedGraph?: string;
   },
 ): TransactionReceipt {
   return {
@@ -111,6 +161,8 @@ function receipt(
     },
     graph_before: plan.graph_before,
     graph_after: plan.graph_after,
+    ...(parts.observedGraph ? { observed_graph: parts.observedGraph } : {}),
+    ...(plan.request ? { request_digest: requestDigest(plan.request) } : {}),
     policy_digest: policyDigest(plan),
     artifacts: plan.artifacts,
     approvals: parts.approvals,
@@ -160,11 +212,19 @@ export async function applyTransaction(
     );
   }
 
-  const manifestPath = join(plan.root, "package.json");
-  const original = deps.exists(manifestPath) ? deps.readFile(manifestPath) : null;
+  const preconditions = checkPreconditions(plan, deps);
+  if (preconditions && !options.allowStalePlan) return refuse(plan, preconditions, approved, deps);
 
-  const packages = plan.direct.map((entry) => `${entry.name}@${entry.range}`);
-  const command = installCommand(plan.manager as PackageManager, packages, true);
+  const snapshot = snapshotProject(plan.root, deps);
+
+  const replay = plan.request ? replayCommand(plan.request) : null;
+  const command =
+    replay?.argv ??
+    installCommand(
+      plan.manager as PackageManager,
+      plan.direct.map((entry) => `${entry.name}@${entry.range}`),
+      true,
+    );
   const verification: VerificationSteps = {
     install: "skipped",
     test: "skipped",
@@ -173,10 +233,10 @@ export async function applyTransaction(
   };
 
   progressStep(`installing with ${plan.manager}, lifecycle scripts suppressed`);
-  const install = deps.exec(command, plan.root);
+  const install = deps.exec(command, plan.root, replay?.env);
   verification.install = install.code === 0 ? "pass" : "fail";
   if (install.code !== 0) {
-    if (original !== null) deps.writeFile(manifestPath, original);
+    restoreProject(snapshot, deps);
     return receipt(plan, deps, {
       result: "rolled_back",
       reason: "the install failed with scripts suppressed",
@@ -193,7 +253,7 @@ export async function applyTransaction(
       const result = deps.exec([plan.manager, "run", step], plan.root);
       verification[step] = result.code === 0 ? "pass" : "fail";
       if (result.code !== 0) {
-        if (original !== null) deps.writeFile(manifestPath, original);
+        restoreProject(snapshot, deps);
         return receipt(plan, deps, {
           result: "rolled_back",
           reason: `project verification failed at ${step}`,
@@ -204,5 +264,22 @@ export async function applyTransaction(
     }
   }
 
-  return receipt(plan, deps, { result: "applied", approvals: approved, verification });
+  const observed = deps.currentGraphDigest?.(plan.root);
+  if (observed && observed !== plan.graph_after) {
+    restoreProject(snapshot, deps);
+    return receipt(plan, deps, {
+      result: "rolled_back",
+      reason: `the installed graph is ${observed} but the plan reviewed ${plan.graph_after}; re-plan and review the difference`,
+      approvals: approved,
+      verification,
+      ...(observed ? { observedGraph: observed } : {}),
+    });
+  }
+
+  return receipt(plan, deps, {
+    result: "applied",
+    approvals: approved,
+    verification,
+    ...(observed ? { observedGraph: observed } : {}),
+  });
 }

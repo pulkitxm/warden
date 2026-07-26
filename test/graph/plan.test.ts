@@ -308,3 +308,59 @@ test("a conflicting range is surfaced on the plan rather than resolved silently"
   );
   expect(plan.conflicts).toHaveLength(1);
 });
+
+test("when the manager itself resolves the graph, its answer is what gets vetted", async () => {
+  const { deps, checked } = makeDeps(
+    { packages: { "app@1.0.0": { deps: { mid: "1.0.0" } }, "mid@1.0.0": {} } },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([
+          [
+            "app",
+            {
+              version: "2.0.0",
+              integrity: "sha512-app",
+              resolved: "https://reg.test/app-2.0.0.tgz",
+              hooks: ["postinstall"],
+            },
+          ],
+          ["pinned", { version: "9.9.9", integrity: "sha512-pinned" }],
+        ]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.resolver).toBe("manager");
+  expect(checked.sort()).toEqual(["app@2.0.0", "pinned@9.9.9"]);
+  expect(plan.decision).toBe("needs_approval");
+  expect(plan.reasons.join(" ")).toContain("app@2.0.0 has a postinstall script");
+  expect(plan.unresolved).toEqual([]);
+  expect(plan.truncated).toBe(false);
+});
+
+test("a manager resolution that names a direct package marks it as direct, not transitive", async () => {
+  const { deps } = makeDeps(
+    { packages: { "app@1.0.0": {} } },
+    {
+      resolveWithManager: () => ({
+        nodes: new Map([
+          ["app", { version: "1.0.0" }],
+          ["dep", { version: "1.0.0" }],
+        ]),
+        lockfile: "package-lock.json",
+      }),
+    },
+  );
+  const plan = await buildPlan(input(), deps);
+  expect(plan.delta.added.filter((entry) => entry.direct).map((entry) => entry.name)).toEqual([
+    "app",
+  ]);
+});
+
+test("a manager that cannot resolve the graph falls back to registry metadata", async () => {
+  const { deps } = makeDeps({ packages: { "app@1.0.0": {} } }, { resolveWithManager: () => null });
+  const plan = await buildPlan(input(), deps);
+  expect(plan.resolver).toBe("metadata");
+  expect(plan.decision).toBe("allow");
+});

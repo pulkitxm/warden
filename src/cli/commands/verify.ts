@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { digestGraph } from "../../graph/delta.ts";
-import { readInstalledGraph } from "../../graph/installed.ts";
+import { installedIdentities, readInstalledGraph } from "../../graph/installed.ts";
 import type { TransactionPlan } from "../../graph/plan.ts";
 import type { TransactionReceipt } from "../../graph/receipt.ts";
 import { policyDigest } from "../../graph/receipt.ts";
@@ -38,9 +38,7 @@ export function readReceipt(
 export function verifyReceipt(receipt: TransactionReceipt, deps: WardenDeps): VerifyReport {
   const root = deps.cwd();
   const installed = readInstalledGraph({ exists: deps.exists, readFile: deps.readFile }, root);
-  const installedDigest = digestGraph(
-    [...installed.nodes.entries()].map(([name, node]) => ({ name, version: node.version })),
-  );
+  const installedDigest = digestGraph(installedIdentities(installed));
 
   const checks: VerifyReport["checks"] = [];
   checks.push({
