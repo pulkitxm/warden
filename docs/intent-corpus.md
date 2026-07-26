@@ -10,14 +10,18 @@ $ warden intent bench
 
 Warden intent corpus  analyzer 0.1.0
 
-  verdicts        72.2%  13/18 cases match the expected verdict and per-claim outcomes
-  false positives 40.0%  4/10 conforming shapes not allowed  over budget 5.0%
+  verdicts        84.2%  16/19 cases match the expected verdict and per-claim outcomes
+  false positives 20.0%  2/10 conforming shapes not allowed  over budget 5.0%
 
   Per rule
-    claim_matching   precision  28.6%  recall 100.0%  2/2 found, 5 false
+    claim_matching   precision  60.0%  recall 100.0%  3/3 found, 2 false
     scope_creep      precision 100.0%  recall 100.0%  1/1 found, 0 false
     hallucination    precision 100.0%  recall 100.0%  3/3 found, 0 false
 ```
+
+The first run of this corpus, before anything was fixed, measured **verdicts 72.2%, false positives
+40.0%, claim_matching precision 28.6%**. The change between those numbers and the ones above is one
+rule: preservation. See "Where the false positives come from" below.
 
 Run it with `warden intent bench`. It needs no network, no API key, and no provider: every LLM response in the
 corpus is a recorded fixture. `warden intent bench --json` writes the full report, and
@@ -28,7 +32,7 @@ the code.
 ## The false-positive budget
 
 **At most 5%, targeting 2%.** That is a commitment, stated here so it can be held against the measured rate
-directly above it, which is currently **40%**, eight times the budget.
+directly above it, which is currently **20%**, four times the budget.
 
 The number comes from what comparable tools measurably achieve. An independent three-week parallel run of four
 AI reviewers over 146 merged pull requests (May 2026) measured CodeRabbit at 2.3%, Cursor BugBot at 4.8%,
@@ -57,20 +61,39 @@ only from the exit code, so `warden intent bench` fails on a new regression rath
 
 | Rule | Precision | Recall | Reading |
 | --- | --- | --- | --- |
-| `claim_matching` | 28.6% | 100.0% | Finds every dropped requirement, and cries wolf twice as often as it is right. |
+| `claim_matching` | 60.0% | 100.0% | Finds every dropped requirement, and is wrong two times in five when it says one was dropped. |
 | `scope_creep` | 100.0% | 100.0% | Correct on this corpus, on a single positive case. Do not read a rate off one case. |
 | `hallucination` | 100.0% | 100.0% | The only rule currently earning the authority to block. |
 
-Claim matching's 28.6% precision is not a surprise. Automated requirement-to-code trace-link recovery has been
-studied for two decades, and information-retrieval methods on six open-source projects measure 96% recall at
-**33% precision**. Warden's naive keyword-plus-LLM matching landing near the published ceiling for the
-technique is the expected outcome, not a bug that a threshold tweak will fix.
+Claim matching's precision being the weak number is not a surprise. Automated requirement-to-code trace-link
+recovery has been studied for two decades, and information-retrieval methods on six open-source projects
+measure 96% recall at **33% precision**. The first measured figure here, 28.6%, landed almost exactly on that
+published ceiling. It is now 60%, and the remaining errors are no longer in a Warden rule.
 
-**Where the false positives come from.** Four of five failing cases are one rule: a preservation claim is
-resolved by checking that *no hunk touches a symbol whose tokens the claim names*, which is a negative proxy
-with no positive evidence behind it. It fails a diff that renames the function the claim names, a reformat
-whose keywords happen to name the reformatted functions, and an extract-module refactor that was requested in
-so many words. That single rule accounts for 30 of the 40 percentage points.
+**Where the false positives came from, and where they are now.** The first run's four false positives were
+three-quarters one rule: a preservation claim used to be resolved by checking that *no hunk touches a symbol
+whose tokens the claim names*, a negative proxy with no positive evidence behind it. It failed a diff that
+renamed the function the claim named, a reformat whose keywords happened to name the reformatted functions, and
+an extract-module refactor requested in so many words.
+
+That rule now looks for positive evidence instead, and a claim is `dropped` only when what it names is deleted
+and does not appear in the file afterwards:
+
+| Situation | Outcome | Evidence |
+| --- | --- | --- |
+| What the claim names was deleted and is absent afterwards | `dropped` | the hunk that removed it |
+| What it names changed, and only by hunks a matched claim cited | `delivered` | the requested hunk |
+| What it names changed, by a hunk no claim asked for | `partial` | the uncited hunk |
+| What it names is still declared and unchanged | `delivered` | where it still lives |
+| Nothing in the diff names it | `delivered` | stated as exactly that, and nothing more |
+
+A `formatting_only` hunk can never fail a preservation claim, because the classifier proved its added and
+removed lines are identical apart from whitespace.
+
+The two remaining false positives are both the match LLM contradicting a diff a reviewer would pass: it called
+a fully delivered module extraction `partial`, and a delivered simplification `dropped`. Those are not fixable
+by tuning a threshold. They are the case for a deterministic backstop and for abstention, and they are why
+claim matching should not be blocking a pull request at this measured precision.
 
 ## What the corpus does not measure
 

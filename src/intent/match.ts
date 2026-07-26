@@ -90,24 +90,137 @@ function keywordMatches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
   return score >= 3 && symbolHits >= 1 && coverage >= 0.6;
 }
 
-function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
-  if (!hunk.changedSymbols.length) return false;
-  const claimTokens = new Set([
+function claimTokensOf(claim: IntentClaim): Set<string> {
+  return new Set([
     ...tokenize(claim.claim),
     ...claim.keywords.flatMap((keyword) => tokenize(keyword)),
   ]);
-  const keywordTokens = claim.keywords
+}
+
+function keywordSetsOf(claim: IntentClaim): string[][] {
+  return claim.keywords
     .map((keyword) => tokenize(keyword))
     .filter((tokens) => tokens.length > 0);
-  return hunk.changedSymbols.some((symbol) => {
-    const symbolTokens = tokenize(symbol);
-    if (!symbolTokens.length) return false;
-    const named = symbolTokens.every((token) => claimTokens.has(token));
-    const denoted = keywordTokens.some((tokens) =>
-      tokens.every((token) => symbolTokens.includes(token)),
+}
+
+export function symbolNamedByClaim(
+  symbol: string,
+  claimTokens: Set<string>,
+  keywordSets: string[][],
+): boolean {
+  const symbolTokens = tokenize(symbol);
+  if (!symbolTokens.length) return false;
+  const glued = symbolTokens.join("");
+  if (symbolTokens.every((token) => claimTokens.has(token))) return true;
+  if (claimTokens.has(glued)) return true;
+  return keywordSets.some(
+    (tokens) =>
+      tokens.every((token) => symbolTokens.includes(token)) ||
+      (tokens.length === 1 && tokens[0] === glued),
+  );
+}
+
+function preservationTouches(claim: IntentClaim, hunk: ClassifiedHunk): boolean {
+  if (!hunk.changedSymbols.length || hunk.category === "formatting_only") return false;
+  const claimTokens = claimTokensOf(claim);
+  const keywordSets = keywordSetsOf(claim);
+  return hunk.changedSymbols.some((symbol) =>
+    symbolNamedByClaim(symbol, claimTokens, keywordSets),
+  );
+}
+
+function preservationDeletions(
+  claim: IntentClaim,
+  hunks: ClassifiedHunk[],
+  afterTokens: (file: string) => Set<string>,
+): Array<{ hunk: ClassifiedHunk; keyword: string }> {
+  const keywordSets = keywordSetsOf(claim);
+  const out: Array<{ hunk: ClassifiedHunk; keyword: string }> = [];
+  for (const hunk of hunks) {
+    if (hunk.removedExcerpt === "") continue;
+    const removed = new Set(tokenize(hunk.removedExcerpt));
+    const present = afterTokens(hunk.file);
+    const gone = keywordSets.find(
+      (tokens) =>
+        tokens.every((token) => removed.has(token)) &&
+        !tokens.every((token) => present.has(token)),
     );
-    return named || denoted;
-  });
+    if (gone) out.push({ hunk, keyword: gone.join(" ") });
+  }
+  return out;
+}
+
+interface PreservationOutcome {
+  status: ClaimStatus;
+  hunks: ClassifiedHunk[];
+  evidence: Evidence[];
+}
+
+export function resolvePreservation(
+  claim: IntentClaim,
+  hunks: ClassifiedHunk[],
+  cited: Set<string>,
+  afterTokens: (file: string) => Set<string>,
+): PreservationOutcome {
+  const deletions = preservationDeletions(claim, hunks, afterTokens);
+  if (deletions.length) {
+    return {
+      status: "dropped",
+      hunks: deletions.map((entry) => entry.hunk),
+      evidence: deletions.map((entry) => ({
+        file: entry.hunk.file,
+        line: entry.hunk.lineStart,
+        detail: `asked to preserve "${entry.keyword}", but it was deleted here and does not appear in ${entry.hunk.file} afterwards`,
+      })),
+    };
+  }
+  const touching = hunks.filter((hunk) => preservationTouches(claim, hunk));
+  const unrequested = touching.filter((hunk) => !cited.has(hunk.id));
+  if (unrequested.length) {
+    return {
+      status: "partial",
+      hunks: unrequested,
+      evidence: unrequested.map((hunk) => ({
+        file: hunk.file,
+        line: hunk.lineStart,
+        detail: `still present, but ${hunk.summary} changed it and no claim asked for that`,
+      })),
+    };
+  }
+  if (touching.length) {
+    return {
+      status: "delivered",
+      hunks: touching,
+      evidence: touching.map((hunk) => ({
+        file: hunk.file,
+        line: hunk.lineStart,
+        detail: `still present, changed only by ${hunk.summary}, which a matched claim asked for`,
+      })),
+    };
+  }
+  const claimTokens = claimTokensOf(claim);
+  const keywordSets = keywordSetsOf(claim);
+  const standing = hunks.find((hunk) =>
+    hunk.symbols.some((symbol) => symbolNamedByClaim(symbol, claimTokens, keywordSets)),
+  );
+  if (standing) {
+    return {
+      status: "delivered",
+      hunks: [],
+      evidence: [
+        {
+          file: standing.file,
+          line: standing.lineStart,
+          detail: "still declared here and not changed",
+        },
+      ],
+    };
+  }
+  return {
+    status: "delivered",
+    hunks: [],
+    evidence: [{ file: "-", detail: "no change names it" }],
+  };
 }
 
 export function keywordPass(claims: IntentClaim[], hunks: ClassifiedHunk[]): MatchProposal[] {
@@ -224,6 +337,25 @@ export interface DecideInput {
   llmCalls: { extract_calls: number; match_calls: number };
   claimsStatus?: ClaimsStatus;
   notes?: string[];
+  afterFile?: (file: string) => string;
+}
+
+function memoizeAfterTokens(afterFile?: (file: string) => string): (file: string) => Set<string> {
+  const cache = new Map<string, Set<string>>();
+  return (file: string) => {
+    const hit = cache.get(file);
+    if (hit) return hit;
+    let tokens = new Set<string>();
+    if (afterFile) {
+      try {
+        tokens = new Set(tokenize(afterFile(file)));
+      } catch {
+        tokens = new Set<string>();
+      }
+    }
+    cache.set(file, tokens);
+    return tokens;
+  };
 }
 
 function hunkRef(hunk: ClassifiedHunk): string {
@@ -250,40 +382,11 @@ function claimRow(
 
 export function decide(input: DecideInput): IntentReport {
   const hunkById = new Map(input.hunks.map((hunk) => [hunk.id, hunk]));
-  const rows: ClaimRow[] = [];
+  const rowById = new Map<string, ClaimRow>();
   const cited = new Set<string>();
 
   for (const claim of input.claims) {
-    if (claim.kind === "preservation") {
-      const touching = input.hunks.filter((hunk) => preservationTouches(claim, hunk));
-      if (!touching.length) {
-        rows.push(
-          claimRow(
-            claim,
-            "delivered",
-            [],
-            [{ file: "-", detail: "no change touches it" }],
-            "preservation",
-          ),
-        );
-      } else {
-        for (const hunk of touching) cited.add(hunk.id);
-        rows.push(
-          claimRow(
-            claim,
-            "dropped",
-            touching.map(hunkRef),
-            touching.map((hunk) => ({
-              file: hunk.file,
-              line: hunk.lineStart,
-              detail: `asked to preserve, but ${hunk.summary}`,
-            })),
-            "preservation",
-          ),
-        );
-      }
-      continue;
-    }
+    if (claim.kind === "preservation") continue;
     const proposal =
       input.proposals.find(
         (candidate) => candidate.origin === "keyword" && candidate.claimId === claim.id,
@@ -291,13 +394,14 @@ export function decide(input: DecideInput): IntentReport {
       input.proposals.find(
         (candidate) => candidate.origin === "llm" && candidate.claimId === claim.id,
       );
+    const set = (row: ClaimRow) => rowById.set(claim.id, row);
     if (proposal) {
       const validHunks = proposal.hunkIds
         .map((id) => hunkById.get(id))
         .filter((hunk): hunk is ClassifiedHunk => Boolean(hunk));
       for (const hunk of validHunks) cited.add(hunk.id);
       if (proposal.status === "dropped") {
-        rows.push(
+        set(
           claimRow(
             claim,
             "dropped",
@@ -307,7 +411,7 @@ export function decide(input: DecideInput): IntentReport {
           ),
         );
       } else if (!validHunks.length) {
-        rows.push(
+        set(
           claimRow(
             claim,
             "partial",
@@ -317,7 +421,7 @@ export function decide(input: DecideInput): IntentReport {
           ),
         );
       } else {
-        rows.push(
+        set(
           claimRow(
             claim,
             proposal.status,
@@ -332,7 +436,7 @@ export function decide(input: DecideInput): IntentReport {
         );
       }
     } else if (input.llmMatchFailed) {
-      rows.push(
+      set(
         claimRow(
           claim,
           "partial",
@@ -342,11 +446,26 @@ export function decide(input: DecideInput): IntentReport {
         ),
       );
     } else {
-      rows.push(
+      set(
         claimRow(claim, "dropped", [], [{ file: "-", detail: "no matching change found" }], "none"),
       );
     }
   }
+
+  const afterTokens = memoizeAfterTokens(input.afterFile);
+  for (const claim of input.claims) {
+    if (claim.kind !== "preservation") continue;
+    const outcome = resolvePreservation(claim, input.hunks, cited, afterTokens);
+    for (const hunk of outcome.hunks) cited.add(hunk.id);
+    rowById.set(
+      claim.id,
+      claimRow(claim, outcome.status, outcome.hunks.map(hunkRef), outcome.evidence, "preservation"),
+    );
+  }
+
+  const rows: ClaimRow[] = input.claims
+    .map((claim) => rowById.get(claim.id))
+    .filter((row): row is ClaimRow => Boolean(row));
 
   const claimsStatus: ClaimsStatus = input.claimsStatus ?? "verified";
   const notes = [...(input.notes ?? [])];

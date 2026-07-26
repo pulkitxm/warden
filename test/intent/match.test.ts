@@ -8,6 +8,7 @@ import {
   llmPass,
   parseProposals,
   proposalsSchema,
+  symbolNamedByClaim,
   tokenize,
 } from "../../src/intent/match.ts";
 import type {
@@ -54,6 +55,7 @@ function hunk(id: string, over: Partial<ClassifiedHunk> = {}): ClassifiedHunk {
     imports: [],
     addedLines: 10,
     excerpt: "function fetchPage(url) {",
+    removedExcerpt: "",
     ...over,
   };
   return { ...base, changedSymbols: over.changedSymbols ?? base.symbols };
@@ -251,7 +253,7 @@ test("decide degrades unmatched claims to partial when the match llm is down", (
   expect(report.verdict).toBe("warn");
 });
 
-test("decide verifies preservation claims against the diff", () => {
+test("a preservation claim nothing names is delivered, and says that is all it knows", () => {
   const kept = decide(
     decideInput({
       claims: [claim("c1", "keep the retry logic", { kind: "preservation", keywords: ["retry"] })],
@@ -259,24 +261,189 @@ test("decide verifies preservation claims against the diff", () => {
     }),
   );
   expect(kept.claims[0]).toMatchObject({ verdict: "delivered", origin: "preservation" });
-  expect(kept.claims[0]!.evidence[0]!.detail).toBe("no change touches it");
+  expect(kept.claims[0]!.evidence[0]!.detail).toBe("no change names it");
+});
 
+test("a preservation claim is dropped only when what it names is deleted and does not come back", () => {
   const violated = decide(
     decideInput({
       claims: [claim("c1", "keep the retry logic", { kind: "preservation", keywords: ["retry"] })],
       hunks: [
         hunk("h1", {
           file: "retry.ts",
+          symbols: ["listItems"],
+          changedSymbols: ["listItems"],
+          summary: "deletion listItems",
+          removedExcerpt: "export async function retryRequest(url) {",
+        }),
+      ],
+      afterFile: () => "export async function listItems(url) { return fetch(url); }",
+    }),
+  );
+  expect(violated.claims[0]).toMatchObject({ verdict: "dropped", origin: "preservation" });
+  expect(violated.claims[0]!.evidence[0]!.detail).toContain("does not appear in retry.ts afterwards");
+  expect(violated.verdict).toBe("block");
+});
+
+test("a symbol removed from one place but still present afterwards is not a dropped preservation", () => {
+  const moved = decide(
+    decideInput({
+      claims: [claim("c1", "keep the retry logic", { kind: "preservation", keywords: ["retry"] })],
+      hunks: [
+        hunk("h1", {
+          file: "retry.ts",
           symbols: ["retryRequest"],
-          summary: "signature_change retryRequest",
+          changedSymbols: [],
+          summary: "other retryRequest",
+          removedExcerpt: "  return retryRequest(url, 2);",
+        }),
+      ],
+      afterFile: () => "export function retryRequest(url) {}",
+    }),
+  );
+  expect(moved.claims[0]!.verdict).toBe("delivered");
+});
+
+test("a preservation claim changed only by a hunk a matched claim asked for is delivered", () => {
+  const report = decide(
+    decideInput({
+      claims: [
+        claim("c1", "extract validation out of createUser"),
+        claim("c2", "keep creating the user", {
+          kind: "preservation",
+          keywords: ["createuser", "creation"],
+        }),
+      ],
+      hunks: [
+        hunk("h1", {
+          file: "user.ts",
+          symbols: ["createUser"],
+          changedSymbols: ["createUser"],
+          summary: "import_added createUser",
+        }),
+      ],
+      proposals: [{ claimId: "c1", hunkIds: ["h1"], status: "delivered", origin: "llm" }],
+      afterFile: () => "export function createUser(input) { validateInput(input); }",
+    }),
+  );
+  expect(report.claims[1]).toMatchObject({ verdict: "delivered", origin: "preservation" });
+  expect(report.claims[1]!.evidence[0]!.detail).toContain("which a matched claim asked for");
+  expect(report.verdict).toBe("allow");
+});
+
+test("a preservation claim changed by a hunk nobody asked for is partial, not dropped", () => {
+  const report = decide(
+    decideInput({
+      claims: [
+        claim("c1", "keep the retry behaviour", { kind: "preservation", keywords: ["retry"] }),
+      ],
+      hunks: [
+        hunk("h1", {
+          file: "retry.ts",
+          symbols: ["retryRequest"],
+          changedSymbols: ["retryRequest"],
+          summary: "conditional_changed retryRequest",
+        }),
+      ],
+      afterFile: () => "export function retryRequest(url) {}",
+    }),
+  );
+  expect(report.claims[0]).toMatchObject({ verdict: "partial", origin: "preservation" });
+  expect(report.claims[0]!.evidence[0]!.detail).toContain("no claim asked for that");
+  expect(report.verdict).toBe("warn");
+});
+
+test("a formatting-only hunk never fails a preservation claim", () => {
+  const report = decide(
+    decideInput({
+      claims: [
+        claim("c1", "do not change behaviour", {
+          kind: "preservation",
+          keywords: ["total", "average"],
+        }),
+      ],
+      hunks: [
+        hunk("h1", {
+          file: "totals.ts",
+          category: "formatting_only",
+          symbols: ["total", "average"],
+          changedSymbols: ["total", "average"],
+          summary: "formatting_only total, average",
+          removedExcerpt: "export function total(rows){",
+        }),
+      ],
+      afterFile: () => "export function total(rows) {}\nexport function average(rows) {}",
+    }),
+  );
+  expect(report.claims[0]!.verdict).toBe("delivered");
+  expect(report.verdict).toBe("allow");
+});
+
+test("a preservation claim naming a symbol still standing cites where it still lives", () => {
+  const report = decide(
+    decideInput({
+      claims: [
+        claim("c1", "keep paginate working", { kind: "preservation", keywords: ["paginate"] }),
+      ],
+      hunks: [
+        hunk("h1", {
+          file: "pagination.ts",
+          symbols: ["paginate", "encodeCursor"],
+          changedSymbols: ["encodeCursor"],
+          summary: "new_function encodeCursor",
+        }),
+      ],
+      afterFile: () => "export function paginate(items) {}",
+    }),
+  );
+  expect(report.claims[0]!.verdict).toBe("delivered");
+  expect(report.claims[0]!.evidence[0]!.detail).toBe("still declared here and not changed");
+});
+
+test("a claim keyword glued into one lowercase word still matches a camelCase symbol", () => {
+  expect(symbolNamedByClaim("createUser", new Set(["other"]), [["createuser"]])).toBe(true);
+  expect(symbolNamedByClaim("createUser", new Set(["createuser"]), [])).toBe(true);
+  expect(symbolNamedByClaim("createUser", new Set(["delete"]), [["deleteuser"]])).toBe(false);
+  expect(symbolNamedByClaim("", new Set(["x"]), [["x"]])).toBe(false);
+});
+
+test("an unreadable file after the change is treated as naming nothing, not as a deletion", () => {
+  const report = decide(
+    decideInput({
+      claims: [claim("c1", "keep the retry logic", { kind: "preservation", keywords: ["retry"] })],
+      hunks: [
+        hunk("h1", {
+          file: "gone.ts",
+          symbols: [],
+          changedSymbols: [],
+          summary: "deletion gone.ts",
+          removedExcerpt: "export function retryRequest() {}",
+        }),
+      ],
+      afterFile: () => {
+        throw new Error("ENOENT");
+      },
+    }),
+  );
+  expect(report.claims[0]!.verdict).toBe("dropped");
+});
+
+test("with no way to read the file afterwards a preservation claim cannot be proven dropped", () => {
+  const report = decide(
+    decideInput({
+      claims: [claim("c1", "keep the retry logic", { kind: "preservation", keywords: ["retry"] })],
+      hunks: [
+        hunk("h1", {
+          file: "retry.ts",
+          symbols: [],
+          changedSymbols: [],
+          summary: "deletion retry.ts",
+          removedExcerpt: "export function retryRequest() {}",
         }),
       ],
     }),
   );
-  expect(violated.claims[0]).toMatchObject({ verdict: "dropped", origin: "preservation" });
-  expect(violated.claims[0]!.evidence[0]!.detail).toContain("asked to preserve");
-  expect(violated.scope_creep).toEqual([]);
-  expect(violated.verdict).toBe("block");
+  expect(report.claims[0]!.verdict).toBe("dropped");
 });
 
 test("decide preserves symbols merely spanned by a sibling addition", () => {
@@ -298,7 +465,7 @@ test("decide preserves symbols merely spanned by a sibling addition", () => {
     }),
   );
   expect(report.claims[0]).toMatchObject({ verdict: "delivered", origin: "preservation" });
-  expect(report.claims[0]!.evidence[0]!.detail).toBe("no change touches it");
+  expect(report.claims[0]!.evidence[0]!.detail).toBe("still declared here and not changed");
 });
 
 test("decide reports uncited meaningful hunks as scope creep, largest first", () => {

@@ -27,6 +27,7 @@ const HUNK: ClassifiedHunk = {
   imports: [],
   addedLines: 2,
   excerpt: "const alpha = 1;",
+  removedExcerpt: "",
 };
 
 const CLAIM: IntentClaim = {

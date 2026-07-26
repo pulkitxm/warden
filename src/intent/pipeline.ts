@@ -137,6 +137,7 @@ export async function runIntentPipeline(
     notes: matched.failed
       ? [`${leftovers.length} claim(s) could not be matched: the match call failed`]
       : [],
+    afterFile: (file) => deps.readFile(join(root, file)),
   });
   return { ledger, report };
 }

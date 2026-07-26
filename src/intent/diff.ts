@@ -292,6 +292,7 @@ export function classifyHunks(
         imports: importSpecs([...added, ...removed]),
         addedLines: added.length,
         excerpt: capExcerpt(added.join("\n")),
+        removedExcerpt: capExcerpt(removed.join("\n")),
       });
     }
   }

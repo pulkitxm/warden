@@ -60,6 +60,7 @@ export interface ClassifiedHunk {
   imports: string[];
   addedLines: number;
   excerpt: string;
+  removedExcerpt: string;
 }
 
 export interface ApiSurface {

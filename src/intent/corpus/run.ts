@@ -146,16 +146,12 @@ function score(counts: Counts): RuleScore {
 }
 
 export const KNOWN_GAPS: Record<string, string> = {
-  "behaviour-preserving-rename":
-    "preservation is checked negatively, so renaming the function a claim names reads as not preserved",
   "legitimate-wide-refactor":
-    "a preservation claim naming createUser is failed by the very hunk that was asked for",
-  "formatting-sweep":
-    "a preservation claim whose keywords name the reformatted functions is failed by the reformat",
-  "contradictory-prompt":
-    "a preservation claim contradicted by the prompt itself is reported delivered rather than unverifiable",
+    "the match call called a fully delivered extraction partial, and one llm sample has no backstop",
   "inline-simplification":
-    "the match call reported a delivered simplification as dropped, and one llm sample has no backstop",
+    "the match call called a delivered simplification dropped, and one llm sample has no backstop",
+  "contradictory-prompt":
+    "a preservation claim the prompt itself contradicts is reported dropped, where abstaining is the honest answer",
 };
 
 export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise<CaseResult> {

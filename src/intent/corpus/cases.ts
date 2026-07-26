@@ -238,6 +238,31 @@ export async function requestJsonWithRetry(url, attempts) {
 }
 `;
 
+const LIST_BEFORE = `import { request } from "./http.js";
+
+export async function retryRequest(url, attempts) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await request(url);
+    } catch (error) {
+      if (attempt === attempts - 1) throw error;
+    }
+  }
+}
+
+export async function listItems(url) {
+  return retryRequest(url, 3);
+}
+`;
+
+const LIST_AFTER = `import { request } from "./http.js";
+
+export async function listItems(url, cursor) {
+  const query = cursor === undefined ? "" : "?cursor=" + cursor;
+  return request(url + query);
+}
+`;
+
 const VALIDATION_BEFORE = `export function checkForm(form) {
   return { ok: true };
 }
@@ -795,6 +820,34 @@ export const CORPUS_CASES: CorpusCase[] = [
     expected: {
       verdict: "allow",
       claims: ["delivered", "delivered"],
+      scopeCreep: false,
+      hallucinations: 0,
+    },
+  },
+  {
+    id: "preservation-violated",
+    shape: "a diff that delivers the new feature and deletes the behaviour it was told to keep",
+    kind: "violating",
+    prompt: "add cursor pagination to listItems, and keep the retry logic",
+    changes: [{ path: "list.js", before: LIST_BEFORE, after: LIST_AFTER }],
+    extract: [
+      {
+        claim: "Add cursor pagination to listItems",
+        kind: "behavior",
+        keywords: ["cursor", "pagination", "listitems"],
+        sourceText: "add cursor pagination to listItems",
+      },
+      {
+        claim: "Keep the retry logic",
+        kind: "preservation",
+        keywords: ["retry", "retryrequest", "attempts"],
+        sourceText: "keep the retry logic",
+      },
+    ],
+    match: [{ claim_id: "c1", hunk_ids: ["h1"], status: "delivered" }],
+    expected: {
+      verdict: "block",
+      claims: ["delivered", "dropped"],
       scopeCreep: false,
       hallucinations: 0,
     },

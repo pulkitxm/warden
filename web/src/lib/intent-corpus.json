@@ -2,28 +2,28 @@
   "schema_version": 1,
   "analyzer_version": "0.1.0",
   "totals": {
-    "cases": 18,
+    "cases": 19,
     "conforming": 10,
-    "violating": 7,
+    "violating": 8,
     "degraded": 1
   },
   "verdicts": {
-    "correct": 13,
-    "rate": 0.7222222222222222
+    "correct": 16,
+    "rate": 0.8421052631578947
   },
   "falsePositives": {
-    "count": 4,
-    "rate": 0.4,
+    "count": 2,
+    "rate": 0.2,
     "budget": 0.05,
     "withinBudget": false
   },
   "rules": {
     "claim_matching": {
-      "positives": 2,
-      "truePositives": 2,
-      "falsePositives": 5,
+      "positives": 3,
+      "truePositives": 3,
+      "falsePositives": 2,
       "falseNegatives": 0,
-      "precision": 0.2857142857142857,
+      "precision": 0.6,
       "recall": 1
     },
     "scope_creep": {
@@ -161,7 +161,7 @@
       "shape": "an extract-module refactor that touches many lines and was entirely requested",
       "kind": "conforming",
       "expectedVerdict": "allow",
-      "actualVerdict": "block",
+      "actualVerdict": "warn",
       "expectedClaims": [
         "delivered",
         "delivered",
@@ -172,7 +172,7 @@
         "delivered",
         "partial",
         "delivered",
-        "dropped"
+        "delivered"
       ],
       "expectedScopeCreep": false,
       "actualScopeCreep": false,
@@ -186,21 +186,21 @@
       "shape": "a pure reformat of two functions with no semantic change",
       "kind": "conforming",
       "expectedVerdict": "allow",
-      "actualVerdict": "block",
+      "actualVerdict": "allow",
       "expectedClaims": [
         "delivered",
         "delivered"
       ],
       "actualClaims": [
         "delivered",
-        "dropped"
+        "delivered"
       ],
       "expectedScopeCreep": false,
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
-      "correct": false,
-      "knownGap": true
+      "correct": true,
+      "knownGap": false
     },
     {
       "id": "foreign-language-file",
@@ -228,14 +228,14 @@
       "shape": "a prompt whose two requirements cannot both hold, half delivered and half violated",
       "kind": "violating",
       "expectedVerdict": "warn",
-      "actualVerdict": "allow",
+      "actualVerdict": "block",
       "expectedClaims": [
         "delivered",
         "partial"
       ],
       "actualClaims": [
         "delivered",
-        "delivered"
+        "dropped"
       ],
       "expectedScopeCreep": false,
       "actualScopeCreep": false,
@@ -249,10 +249,31 @@
       "shape": "a rename of the very function a preservation claim names, with its behaviour intact",
       "kind": "conforming",
       "expectedVerdict": "allow",
-      "actualVerdict": "block",
+      "actualVerdict": "allow",
       "expectedClaims": [
         "delivered",
         "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "preservation-violated",
+      "shape": "a diff that delivers the new feature and deletes the behaviour it was told to keep",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "dropped"
       ],
       "actualClaims": [
         "delivered",
@@ -262,8 +283,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
-      "correct": false,
-      "knownGap": true
+      "correct": true,
+      "knownGap": false
     },
     {
       "id": "partial-delivery",
@@ -417,7 +438,7 @@
       ],
       "actualClaims": [
         "dropped",
-        "dropped",
+        "delivered",
         "partial"
       ],
       "expectedScopeCreep": false,
@@ -430,9 +451,7 @@
   ],
   "knownGaps": [
     "legitimate-wide-refactor",
-    "formatting-sweep",
     "contradictory-prompt",
-    "behaviour-preserving-rename",
     "inline-simplification"
   ],
   "staleGaps": [],
