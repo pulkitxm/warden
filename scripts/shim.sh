@@ -170,12 +170,22 @@ if [ "$mediate_install" = true ] && [ "$mode" != log ]; then
       printf 'warden:     approve with: warden approve-script %s --hook %s\n' "$name" "${hook%%,*}" >&2
     done
   fi
+
+  if [ "$txn_decision" = "needs_approval" ] && [ "$allow_risky" != true ]; then
+    printf 'warden: this change needs approval before it can be installed\n' >&2
+    printf 'warden: run warden plan -- %s %s, approve what it names, then warden apply\n' "$tool" "$*" >&2
+    printf 'warden: or override with --allow-risky\n' >&2
+    exit "$txn_exit"
+  fi
 fi
 
-suppress=$(json_list "$plan" suppressScripts | tr '\n' ' ')
-if printf '%s' "$plan" | grep -q '"YARN_ENABLE_SCRIPTS"'; then
-  YARN_ENABLE_SCRIPTS=0
-  export YARN_ENABLE_SCRIPTS
+suppress=""
+if [ "$mode" != log ]; then
+  suppress=$(json_list "$plan" suppressScripts | tr '\n' ' ')
+  if printf '%s' "$plan" | grep -q '"YARN_ENABLE_SCRIPTS"'; then
+    YARN_ENABLE_SCRIPTS=0
+    export YARN_ENABLE_SCRIPTS
+  fi
 fi
 
 exec_filtered() {

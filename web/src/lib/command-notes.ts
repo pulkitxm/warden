@@ -115,7 +115,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "A plan is refused when the project's graph has moved since it was made. Re-plan, or pass `--allow-stale-plan` if you know why it moved.",
       "Failure restores `package.json` and every lockfile. It does not restore `node_modules` or anything project verification touched, so this is not a full transaction rollback. Staged application is the fix and is not built yet.",
       "A plan is also refused when the graph was truncated or any changed package went unanalyzed. A script approval does not cover incomplete analysis.",
-      "`--allow-unapproved` proceeds past missing script approvals, but the receipt still records every suppressed script, so the bypass is visible afterwards.",
+      "`--skip-script-approval` proceeds past missing script approvals. It does not run the script: nothing warden applies ever runs a package's install script. The receipt names the exception under `exceptions`, so the bypass is visible afterwards.",
       "The plan must still be on disk. Re-run `warden plan` if `.warden/plans/` was cleaned.",
     ],
   },

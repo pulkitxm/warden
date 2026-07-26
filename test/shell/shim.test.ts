@@ -418,7 +418,7 @@ test("log mode records every verdict and never blocks the manager", () =>
     expect(log(join(sandbox.home, ".warden", "log.jsonl"))).toBe(
       '{"schema_version":"1.0.0","verdict":"block"}\n',
     );
-    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\t--ignore-scripts\n");
+    expect(log(sandbox.managerLog)).toBe("npm\tinstall\tdanger\n");
   }));
 
 const blockedTransaction = JSON.stringify({
@@ -480,15 +480,24 @@ test("a transitive install script is named with the exact approval command", () 
     const result = run(sandbox, "npm", ["install", "@fastify/jwt"], {
       WARDEN_TRANSACTION: approvalTransaction,
     });
-    expect(result.exitCode).toBe(0);
     const err = text(result.stderr);
     expect(err).toContain("install scripts new to this graph are suppressed and will not run");
     expect(err).toContain("warden approve-script fast-jwt@5.0.6 --hook postinstall");
   }));
 
-test("an install whose scripts need approval still installs, with scripts suppressed", () =>
+test("an install that needs approval stops instead of installing unreviewed", () =>
   inSandbox((sandbox) => {
     const result = run(sandbox, "npm", ["install", "@fastify/jwt"], {
+      WARDEN_TRANSACTION: approvalTransaction,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result.stderr)).toContain("needs approval before it can be installed");
+    expect(log(sandbox.managerLog)).toBe("");
+  }));
+
+test("an install that needs approval can still be forced through", () =>
+  inSandbox((sandbox) => {
+    const result = run(sandbox, "npm", ["install", "@fastify/jwt", "--allow-risky"], {
       WARDEN_TRANSACTION: approvalTransaction,
     });
     expect(result.exitCode).toBe(0);

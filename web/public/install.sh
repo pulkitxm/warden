@@ -163,8 +163,15 @@ if [ -n "$source_dir" ]; then
   version=local
 else
   asset=warden-$os-$arch.tar.gz
-  landing=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")
-  tag=${landing##*/tag/}
+  if [ -n "${WARDEN_VERSION:-}" ]; then
+    case $WARDEN_VERSION in
+      v*) tag=$WARDEN_VERSION ;;
+      *) tag=v$WARDEN_VERSION ;;
+    esac
+  else
+    landing=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")
+    tag=${landing##*/tag/}
+  fi
   case $tag in
     "" | *[!A-Za-z0-9._-]*)
       printf 'warden installer: could not resolve a release tag to install from\n' >&2

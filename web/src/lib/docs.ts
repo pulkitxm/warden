@@ -721,7 +721,7 @@ Next action
 
 ## Two resolvers
 
-The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name, which is the fallback and what \`bun\`, \`yarn add\`, and the interception shim use.
+The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`bun install --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name. That is the fallback, used when the manager is not on PATH or cannot do the operation without installing, such as \`yarn add\`, and it is what the interception shim uses because the shim is already standing in front of the manager it would otherwise ask.
 
 Either way, every changed package is described from its registry manifest, so install scripts, deprecations, and platform constraints read the same on both paths. The graph above has no install script in it. This one does:
 
@@ -801,7 +801,17 @@ Warden apply: npm install @fastify/jwt
   receipt written to .warden/receipts/wtxn_acb0875bfa27e1ebfa8caeaf.json
 \`\`\`
 
-Scripts stay suppressed for the entire install, including for approved packages. Approval governs whether the transaction may proceed, not whether Warden hands execution to package code mid-install.
+## What an approval authorizes
+
+Warden implements one model, and it is worth stating plainly, because the word "approve" invites the other reading.
+
+Package install scripts never run. Not before an approval, not after one, not for the package you approved. Every install Warden performs suppresses lifecycle scripts through the manager's own mechanism, and the plan and receipt both record \`script_policy: "suppressed"\` so this is not left to interpretation.
+
+An approval is authority over the transaction, not a handoff of execution to package code. Approving \`esbuild\`'s \`postinstall\` says: I have read that script, I accept this graph, proceed with the install. It does not say: run it.
+
+The consequence is worth knowing before you rely on it. A package whose install step exists to fetch or compile a native binary may not work afterwards. That is what verification is for: your tests, typecheck, and build run against the installed graph, and if the package is unusable without its install step, they are what tells you. If they fail, the manifest and lockfiles are restored.
+
+The alternative model, executing a reviewed script in a constrained phase with restricted environment, network, and filesystem, and recording its outputs and filesystem delta in the receipt, is a stronger product. It is not built, and Warden does not claim it.
 
 ## Verify
 
@@ -917,7 +927,7 @@ The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fa
 
 ## Resolution has limits
 
-- Graph resolution is flat: one version per package name. That matches how a hoisting installer usually lands, but a real installer can nest two versions of the same package where Warden reports a conflict instead.
+- When your package manager can do a lockfile-only resolve, Warden uses its answer, so the graph is the one that manager would install. When it cannot, Warden falls back to walking registry metadata, which is flat: one version per package name. That matches how a hoisting installer usually lands, but a real installer can nest two versions of the same package where the fallback reports a conflict instead. The plan names which resolver produced it.
 - Git, URL, file, link, workspace, and portal ranges are outside registry resolution. They are reported as unresolved rather than trusted.
 - Resolution stops at a node budget and analysis stops at a check budget. Both are reported on the plan, and either one prevents a confident allow.
 - The plan describes what the resolver believes will happen. Your package manager remains the thing that actually installs.
@@ -1545,7 +1555,7 @@ Because the function returns early, a plan that reaches \`needs_approval\` never
 
 \`applyTransaction\` first builds an \`ApprovalRequest\` for every hook in \`newScriptSurface\`, fetching each script body through \`deps.scriptBody\`, and matches it against stored approvals. \`matchesApproval\` requires package, version, integrity, hook, and \`script_hash\` (SHA-256 of the trimmed body, truncated to 32 hex characters) to all be equal, so an approval dies when the version, the tarball integrity, or a single character of the script changes. Note that the integrity used comes from the plan artifact, and \`unchecked\` or \`unanalyzable\` artifacts carry none.
 
-A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--allow-unapproved\` is passed. A \`truncated\` plan, or one carrying any \`unchecked\` artifact, refuses unless \`--allow-incomplete-analysis\` is passed. \`checkPreconditions\` then digests the project's current graph and refuses when it is no longer \`plan.graph_before\`, unless \`--allow-stale-plan\` is passed, so a plan cannot be applied to a project that moved underneath it. Each refusal returns a receipt with result \`refused\` and every verification step \`skipped\`.
+A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--skip-script-approval\` is passed. A \`truncated\` plan, or one carrying any \`unchecked\` artifact, refuses unless \`--allow-incomplete-analysis\` is passed. \`checkPreconditions\` then digests the project's current graph and refuses when it is no longer \`plan.graph_before\`, unless \`--allow-stale-plan\` is passed, so a plan cannot be applied to a project that moved underneath it. Each refusal returns a receipt with result \`refused\` and every verification step \`skipped\`.
 
 Past those gates, \`snapshotProject\` reads \`package.json\` and every lockfile it knows (\`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`bun.lockb\`) and holds their text in memory. The install itself is \`replayCommand(plan.request)\`: the manager plus the exact argv that was planned, with any \`--ignore-scripts\` the user typed filtered out and the manager's own suppression appended, which is \`--ignore-scripts\` for everything except yarn and \`YARN_ENABLE_SCRIPTS=0\` for yarn. A plan with no \`request\`, meaning one written before requests existed, falls back to \`installCommand(manager, packages, true)\`. Suppression is unconditional and applies even when every script is approved, so approval means "we read it", not "we ran it".
 

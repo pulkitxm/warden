@@ -140,6 +140,8 @@ test("a receipt matching the installed graph passes the gate", async () => {
     conflicts: [],
     truncated: false,
     resolver: "metadata",
+    requirements: [],
+    script_policy: "suppressed" as const,
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],
@@ -166,4 +168,122 @@ test("a package.json change alone also demands a receipt", async () => {
   );
   expect(findings(out)[0]?.file).toBe("package.json");
   expect(findings(out)[0]?.verify).toBe("warden verify");
+});
+
+async function verifiedReceipt(over: Partial<TransactionReceipt> = {}) {
+  const { deps: probe } = makeDeps(["package-lock.json"], {
+    [join(ROOT, "package-lock.json")]: LOCK,
+    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(receipt()),
+  });
+  const { verifyReceipt } = await import("../../src/cli/commands/verify.ts");
+  const digest = verifyReceipt(receipt(), probe).installed_digest;
+  const matching = receipt({ graph_after: digest, ...over });
+  const { policyDigest } = await import("../../src/graph/receipt.ts");
+  const plan: TransactionPlan = {
+    schema_version: 1,
+    plan_id: matching.plan_id,
+    command: matching.command,
+    manager: "npm",
+    root: ROOT,
+    direct: [],
+    graph_before: matching.graph_before,
+    graph_after: matching.graph_after,
+    delta: {
+      added: [],
+      changed: [],
+      removed: [],
+      unchanged: 0,
+      scriptSurface: [],
+      newScriptSurface: [],
+      platformArtifacts: [],
+      deprecatedIntroduced: [],
+    },
+    artifacts: matching.artifacts,
+    unresolved: [],
+    conflicts: [],
+    truncated: false,
+    resolver: "metadata",
+    requirements: [],
+    script_policy: "suppressed" as const,
+    coverage: { analyzed: 1, changed: 1, ratio: 1 },
+    decision: "allow",
+    reasons: [],
+    next_actions: [],
+  };
+  matching.policy_digest = policyDigest(plan);
+  return { matching, plan };
+}
+
+const COVERAGE_EXCEPTION = [
+  {
+    kind: "coverage-budget",
+    flag: "--allow-incomplete-analysis",
+    detail: "3 changed packages were not analyzed in this plan",
+  },
+];
+
+test("a receipt issued with a coverage exception fails ci by default", async () => {
+  const { matching, plan } = await verifiedReceipt({ exceptions: COVERAGE_EXCEPTION });
+  const { deps, out } = makeDeps(["package-lock.json"], {
+    [join(ROOT, "package-lock.json")]: LOCK,
+    [join(ROOT, ".warden", "plans", `${matching.plan_id}.json`)]: JSON.stringify(plan),
+    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(matching),
+  });
+  expect(await runWarden(["ci", "--reporter", "json", "--require-transaction-receipt"], deps)).toBe(
+    20,
+  );
+  const finding = findings(out).find((entry) => entry.rule === "transaction-exception");
+  expect(finding?.evidence).toContain("--allow-incomplete-analysis");
+  expect(finding?.fix).toContain("ci.allowExceptions");
+});
+
+test("a repository that allows that exception passes", async () => {
+  const { matching, plan } = await verifiedReceipt({ exceptions: COVERAGE_EXCEPTION });
+  const { deps } = makeDeps(["package-lock.json"], {
+    [join(ROOT, "package-lock.json")]: LOCK,
+    [join(ROOT, "warden.config.json")]: JSON.stringify({
+      ci: { allowExceptions: ["coverage-budget"] },
+    }),
+    [join(ROOT, ".warden", "plans", `${matching.plan_id}.json`)]: JSON.stringify(plan),
+    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(matching),
+  });
+  expect(await runWarden(["ci", "--reporter", "json", "--require-transaction-receipt"], deps)).toBe(
+    0,
+  );
+});
+
+test("allowing one exception does not allow a different one", async () => {
+  const { matching, plan } = await verifiedReceipt({
+    exceptions: [
+      ...COVERAGE_EXCEPTION,
+      { kind: "script", flag: "--skip-script-approval", detail: "1 install script was approved" },
+    ],
+  });
+  const { deps, out } = makeDeps(["package-lock.json"], {
+    [join(ROOT, "package-lock.json")]: LOCK,
+    [join(ROOT, "warden.config.json")]: JSON.stringify({
+      ci: { allowExceptions: ["coverage-budget"] },
+    }),
+    [join(ROOT, ".warden", "plans", `${matching.plan_id}.json`)]: JSON.stringify(plan),
+    [join(ROOT, ".warden", "last-receipt.json")]: JSON.stringify(matching),
+  });
+  expect(await runWarden(["ci", "--reporter", "json", "--require-transaction-receipt"], deps)).toBe(
+    20,
+  );
+  const rules = findings(out).map((entry) => entry.rule);
+  expect(rules).toEqual(["transaction-exception"]);
+  expect(findings(out)[0]?.evidence).toContain("--skip-script-approval");
+});
+
+test("a bun lockfile change is asked for a receipt like any other lockfile", async () => {
+  const { deps, out } = makeDeps(["bun.lock"], {
+    [join(ROOT, "bun.lock")]: JSON.stringify({
+      lockfileVersion: 1,
+      packages: { "left-pad": ["left-pad@1.3.0", "", {}, "sha512-lp"] },
+    }),
+  });
+  expect(await runWarden(["ci", "--reporter", "json", "--require-transaction-receipt"], deps)).toBe(
+    20,
+  );
+  expect(findings(out).map((entry) => entry.rule)).toContain("transaction-receipt");
 });

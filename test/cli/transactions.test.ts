@@ -7,6 +7,7 @@ import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/mai
 import { hashScript } from "../../src/graph/approvals.ts";
 import type { TransactionPlan } from "../../src/graph/plan.ts";
 import type { TransactionReceipt } from "../../src/graph/receipt.ts";
+import { scriptRequirementsFor } from "../../src/graph/requirements.ts";
 import { setColor } from "../../src/shared/ansi.ts";
 import { setVerbosity } from "../../src/shared/output.ts";
 
@@ -98,6 +99,8 @@ function samplePlan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     conflicts: [],
     truncated: false,
     resolver: "metadata",
+    requirements: scriptRequirementsFor(over.delta?.newScriptSurface ?? [], () => "sha512-esbuild"),
+    script_policy: "suppressed" as const,
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],

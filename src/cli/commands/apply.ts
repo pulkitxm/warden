@@ -111,7 +111,8 @@ export async function runWardenApply(argv: string[], deps: WardenDeps): Promise<
       },
       {
         verify: !argv.includes("--no-verify"),
-        allowUnapproved: argv.includes("--allow-unapproved"),
+        skipScriptApproval:
+          argv.includes("--skip-script-approval") || argv.includes("--allow-unapproved"),
         allowIncompleteAnalysis: argv.includes("--allow-incomplete-analysis"),
         allowStalePlan: argv.includes("--allow-stale-plan"),
       },

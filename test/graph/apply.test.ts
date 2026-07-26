@@ -3,6 +3,7 @@ import { type ApplyDeps, applyTransaction } from "../../src/graph/apply.ts";
 import { hashScript, type ScriptApproval } from "../../src/graph/approvals.ts";
 import type { GraphChange } from "../../src/graph/delta.ts";
 import type { TransactionPlan } from "../../src/graph/plan.ts";
+import { analysisRequirementsFor, scriptRequirementsFor } from "../../src/graph/requirements.ts";
 
 const SCRIPT = "node build.js";
 
@@ -55,6 +56,14 @@ function plan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     conflicts: [],
     truncated: false,
     resolver: "metadata",
+    requirements: [
+      ...scriptRequirementsFor(scripted, () => "sha512-esbuild"),
+      ...analysisRequirementsFor(over.artifacts ?? [], over.truncated ?? false, {
+        analyzed: 1,
+        changed: 1,
+      }),
+    ],
+    script_policy: "suppressed" as const,
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],
@@ -159,7 +168,7 @@ test("--allow-unapproved proceeds but the receipt still records the suppression"
   const receipt = await applyTransaction(
     plan({ delta: { ...plan().delta, scriptSurface: [change()], newScriptSurface: [change()] } }),
     deps,
-    { allowUnapproved: true },
+    { skipScriptApproval: true },
   );
   expect(receipt.result).toBe("applied");
   expect(receipt.suppressed_scripts).toEqual([
@@ -310,7 +319,8 @@ test("a plan with unanalyzed packages is refused rather than installed", async (
     deps,
   );
   expect(receipt.result).toBe("refused");
-  expect(receipt.reason).toContain("never analyzed");
+  expect(receipt.reason).toContain("were not analyzed");
+  expect(receipt.reason).toContain("--allow-incomplete-analysis");
   expect(commands).toEqual([]);
 });
 
@@ -319,7 +329,6 @@ test("a script approval does not license incomplete analysis", async () => {
   const receipt = await applyTransaction(
     plan({
       truncated: true,
-      resolver: "metadata",
       delta: { ...plan().delta, scriptSurface: [change()], newScriptSurface: [change()] },
     }),
     deps,

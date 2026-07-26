@@ -409,3 +409,33 @@ test("every code identifier the docs name still exists in the source", async () 
     }
   }
 });
+
+const PLAN_SECTIONS = [
+  "Direct changes",
+  "Graph changes",
+  "Execution surface",
+  "Analysis coverage",
+  "Decision:",
+  "Next action",
+];
+
+test("every published plan sample is a whole plan, not an edited excerpt", () => {
+  const sources = [
+    ["web/src/lib/docs.ts", siteDocs],
+    ["web/src/app/page.tsx", read("../web/src/app/page.tsx")],
+    ["web/src/app/hack/page.tsx", read("../web/src/app/hack/page.tsx")],
+  ] as const;
+  const abridged: string[] = [];
+  for (const [name, text] of sources) {
+    for (const match of text.matchAll(/Warden plan: [^\n\\`]*/g)) {
+      const from = match.index ?? 0;
+      const window = text.slice(from, from + 1600);
+      const end = /written to \.warden\/plans\/\S+/.exec(window);
+      const block = end ? window.slice(0, end.index + end[0].length) : window;
+      const missing = PLAN_SECTIONS.filter((section) => !block.includes(section));
+      if (!end) missing.push("the written-to footer");
+      if (missing.length) abridged.push(`${name}: ${match[0].trim()} omits ${missing.join(", ")}`);
+    }
+  }
+  expect(abridged).toEqual([]);
+});

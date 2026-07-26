@@ -146,6 +146,6 @@ Dependency changes go through Warden, not directly through a package manager.
 - Read the decision and exit code: 0 allow, 10 warn or needs approval, 20 block, 30 error
 - Apply a plan: \`warden apply <plan-id>\`
 - Explain a block: \`warden explain <package>@<version>\`
-- Never pass \`--allow-unapproved\` or approve an install script without asking the human first
+- Never pass \`--skip-script-approval\` or approve an install script without asking the human first
 `;
 }
