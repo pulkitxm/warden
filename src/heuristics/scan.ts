@@ -21,7 +21,17 @@ export interface Finding {
   detail: string;
 }
 
+const PATH_COMMANDS = "MmLlHhVvCcSsQqTtAaZz";
+const PATH_GEOMETRY = new RegExp(
+  `^[\\s\\d.,+-]*[${PATH_COMMANDS}][\\s${PATH_COMMANDS}\\d.,+eE-]*$`,
+);
+
+function isPathGeometry(s: string): boolean {
+  return PATH_GEOMETRY.test(s);
+}
+
 function findPublicIp(s: string): boolean {
+  if (isPathGeometry(s)) return false;
   const re = /\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g;
   for (const m of s.matchAll(re)) {
     const o = [m[1], m[2], m[3], m[4]].map((x) => Number(x));

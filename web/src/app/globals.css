@@ -588,6 +588,13 @@ body {
 .copy-button svg {
   flex: none;
 }
+.copy-button .copy-icon-done,
+.copy-button.is-done .copy-icon-idle {
+  display: none;
+}
+.copy-button.is-done .copy-icon-done {
+  display: block;
+}
 
 @media (hover: none) {
   .copy-button {

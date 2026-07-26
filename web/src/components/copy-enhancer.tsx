@@ -6,16 +6,7 @@ import { useEffect } from "react";
 const COPY_LABEL = "Copy";
 const DONE_LABEL = "Copied";
 
-const CHECK_ICON = '<path d="M20 6 9 17l-5-5"/>';
-const COPY_ICON =
-  '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>';
-
 function setState(button: HTMLButtonElement, done: boolean): void {
-  const svg = button.querySelector("svg");
-  if (svg) {
-    svg.innerHTML = done ? CHECK_ICON : COPY_ICON;
-    svg.setAttribute("stroke-width", done ? "2.4" : "2");
-  }
   const label = done ? DONE_LABEL : COPY_LABEL;
   const span = button.querySelector("span");
   if (span) span.textContent = label;

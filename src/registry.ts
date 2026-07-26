@@ -1,4 +1,5 @@
 import type { Packument as GraphPackument } from "./graph/resolve.ts";
+import { maxSatisfying } from "./semver.ts";
 
 const registryBase = () => process.env.WNPM_REGISTRY ?? "https://registry.npmjs.org";
 const downloadsBase = () =>
@@ -110,6 +111,10 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
   );
   const tags = pack["dist-tags"] ?? {};
   let resolved = tags[version] ?? version;
+  if (!pack.versions[resolved]) {
+    const satisfying = maxSatisfying(Object.keys(pack.versions), version);
+    if (satisfying) resolved = satisfying;
+  }
   const requestedVersionMissing =
     version !== "latest" && !tags[version] && !pack.versions[resolved];
   if (!pack.versions[resolved]) resolved = tags.latest ?? ordered.at(-1) ?? version;
