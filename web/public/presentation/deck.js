@@ -70,9 +70,51 @@ const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", 
 const SPIN_MS = 80;
 
 let playback = 0;
+let counterPlayback = 0;
 const staticExport = window.location.search.includes("static");
 
 if (staticExport) document.documentElement.classList.add("static-export");
+
+const counterLabel = (element, value) => {
+  const formatted =
+    element.dataset.format === "comma" ? new Intl.NumberFormat("en-US").format(value) : `${value}`;
+  return `${formatted}${element.dataset.suffix ?? ""}`;
+};
+
+const renderFinalCounters = (slide = document) => {
+  slide.querySelectorAll("[data-count]").forEach((element) => {
+    element.textContent = counterLabel(element, Number(element.dataset.count));
+  });
+};
+
+const animateCounters = (slide) => {
+  if (!slide) return;
+  const id = ++counterPlayback;
+  const counters = [...slide.querySelectorAll("[data-count]")];
+  if (staticExport || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    renderFinalCounters(slide);
+    return;
+  }
+  counters.forEach((element, index) => {
+    const target = Number(element.dataset.count);
+    element.textContent = counterLabel(element, 0);
+    window.setTimeout(
+      () => {
+        const started = performance.now();
+        const duration = target > 10000 ? 1200 : 850;
+        const update = (now) => {
+          if (id !== counterPlayback) return;
+          const ratio = Math.min(1, (now - started) / duration);
+          const eased = 1 - (1 - ratio) ** 3;
+          element.textContent = counterLabel(element, Math.round(target * eased));
+          if (ratio < 1) window.requestAnimationFrame(update);
+        };
+        window.requestAnimationFrame(update);
+      },
+      520 + index * 160,
+    );
+  });
+};
 
 const wait = (duration, id) =>
   new Promise((resolve) => {
@@ -205,15 +247,26 @@ document.addEventListener("click", (event) => {
 });
 
 Reveal.on("ready", (event) => {
-  if (window.location.search.includes("print-pdf") || staticExport) renderStaticTerminals();
-  else playTerminal(event.currentSlide);
+  if (window.location.search.includes("print-pdf") || staticExport) {
+    renderStaticTerminals();
+    renderFinalCounters();
+  } else {
+    playTerminal(event.currentSlide);
+    animateCounters(event.currentSlide);
+  }
 });
 
 Reveal.on("slidechanged", (event) => {
-  if (staticExport) renderFinalTerminal(event.currentSlide);
-  else playTerminal(event.currentSlide);
+  if (staticExport) {
+    renderFinalTerminal(event.currentSlide);
+    renderFinalCounters(event.currentSlide);
+  } else {
+    playTerminal(event.currentSlide);
+    animateCounters(event.currentSlide);
+  }
 });
 window.addEventListener("beforeprint", renderStaticTerminals);
+window.addEventListener("beforeprint", () => renderFinalCounters());
 
 const initializeDeck = async () => {
   await document.fonts.ready;

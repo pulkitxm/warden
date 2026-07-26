@@ -31,13 +31,25 @@ Installing a package can execute code with the developer's permissions. That cod
 
 The dangerous moment is not when a scanner reports a vulnerability later. It is the instant between requesting a dependency and allowing package code to run.
 
-Three forces increase the risk:
+## The industry blast radius
+
+Open-source compromise combines high release velocity, enormous reach, automated propagation, and trusted access:
+
+- Sonatype identified 454,648 new malicious open-source packages in 2025, more than one every seventy seconds.
+- chalk, debug, and roughly a dozen related packages were collectively downloaded more than two billion times each week before poisoned versions were published in September 2025.
+- Datadog found at least 796 packages and 1,092 package versions carrying the self-propagating Shai-Hulud 2.0 campaign.
+- Third parties were involved in thirty percent of breaches in Verizon's 2025 dataset, double the prior year's share.
+
+These datasets measure different layers and should not be combined into one rate. Together, they establish the pitch premise: short registry exposure can create an industry-scale response because dependency relationships distribute trust automatically.
+
+Four forces increase the risk:
 
 - Popular packages are takeover targets, so a compromised maintainer account can affect a large graph quickly.
 - Malicious releases may remain live for only hours, which is faster than manual review but not faster than an automated pre-execution gate.
 - Automated coding workflows can repeat plausible package names without proving that the package is real or intended.
+- Third-party code executes inside trusted build, developer, and deployment environments.
 
-Sonatype reported 454,648 new malicious open-source packages in 2025. The USENIX Security 2025 package hallucination study produced 205,474 unique package names from model recommendations.
+The USENIX Security 2025 package hallucination study found that 19.7 percent of 2.23 million generated package references did not exist, producing 205,474 unique fake package names.
 
 ## Why one-package checking is insufficient
 
@@ -263,6 +275,9 @@ Stating these limits is part of the security case.
 ## Sources
 
 - [Sonatype software supply-chain report](https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware)
+- [GitHub package compromise reach](https://github.blog/security/supply-chain-security/the-case-for-a-cooldown-why-dependabot-now-waits-before-issuing-version-updates/)
+- [Datadog Shai-Hulud 2.0 analysis](https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/)
+- [Verizon 2025 Data Breach Investigations Report](https://www.verizon.com/about/news/2025-data-breach-investigations-report)
 - [USENIX Security 2025 package hallucination study](https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen)
 - [OSV-Scanner documentation](https://google.github.io/osv-scanner/)
 - [Warden benchmark](https://warden.pulkit.page/benchmark)

@@ -29,6 +29,41 @@
           <aside class="notes">Warden guards the moment between requesting a dependency and letting package code execute. The transaction gives both a decision before installation and evidence after installation.</aside>
         </section>
 
+        <section class="dark impact-slide" data-background-color="#101a38">
+          <p class="eyebrow auto auto-1">The industry blast radius</p>
+          <h2 class="auto auto-1">A package can be poisoned for hours and still reach the internet at ecosystem scale.</h2>
+          <div class="impact-composition">
+            <div class="impact-anchor auto auto-2">
+              <small>NEW MALICIOUS PACKAGES IDENTIFIED IN 2025</small>
+              <strong data-count="454648" data-format="comma">454,648</strong>
+              <span>More than one new malicious package surfaced every 70 seconds.</span>
+            </div>
+            <div class="impact-trace auto auto-3">
+              <div class="impact-event reach">
+                <small>REACH</small>
+                <strong><span data-count="2" data-suffix="B+">2B+</span> downloads each week</strong>
+                <p>chalk, debug, and related packages before the September 2025 compromise</p>
+              </div>
+              <div class="impact-event propagation">
+                <small>PROPAGATION</small>
+                <strong><span data-count="796">796</span> packages, 1,092 versions</strong>
+                <p>carried the self-propagating Shai-Hulud 2.0 campaign</p>
+              </div>
+              <div class="impact-event consequence">
+                <small>CONSEQUENCE</small>
+                <strong><span data-count="30" data-suffix="%">30%</span> of breaches</strong>
+                <p>involved a third party in Verizon's 2025 breach dataset</p>
+              </div>
+            </div>
+          </div>
+          <p class="impact-thesis auto auto-5"><b>Short exposure does not mean small impact.</b><span>Ecosystem reach turns one compromised release into an industry response.</span></p>
+          <aside class="notes">[Sources]
+Sonatype State of the Software Supply Chain 2026: https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware
+GitHub, The case for a cooldown: https://github.blog/security/supply-chain-security/the-case-for-a-cooldown-why-dependabot-now-waits-before-issuing-version-updates/
+Datadog Security Labs, Shai-Hulud 2.0: https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/
+Verizon 2025 Data Breach Investigations Report: https://www.verizon.com/about/news/2025-data-breach-investigations-report</aside>
+        </section>
+
         <section class="paper danger-slide" data-background-color="#f4f7ff">
           <p class="eyebrow ink auto auto-1">The problem</p>
           <h2 class="ink auto auto-1">The dangerous moment happens before a scanner can report it.</h2>
@@ -42,11 +77,10 @@
           </div>
           <div class="risk-callout auto auto-4"><strong>Warden moves the decision here.</strong><span>Before download, unpack, or execution.</span></div>
           <div class="threat-strip auto auto-5">
-            <span><b>454,648</b> malicious packages found in 2025</span>
-            <span><b>205,474</b> unique fake package names generated in the study</span>
+            <span><b>19.7%</b> of 2.23 million generated package references did not exist</span>
+            <span><b>205,474</b> unique fake package names appeared in the study</span>
           </div>
           <aside class="notes">[Sources]
-Sonatype State of the Software Supply Chain 2026: https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware
 USENIX Security 2025 package hallucination study: https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen</aside>
         </section>
 
@@ -359,11 +393,14 @@ Benchmark methodology: /docs/benchmark.md</aside>
           <h2 class="auto auto-1">Sources</h2>
           <div class="source-matrix auto auto-2">
             <a href="https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware" target="_blank" rel="noreferrer"><span>01</span>Sonatype software supply-chain report</a>
-            <a href="https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" target="_blank" rel="noreferrer"><span>02</span>USENIX package hallucination study</a>
-            <a href="https://google.github.io/osv-scanner/" target="_blank" rel="noreferrer"><span>03</span>OSV advisory database</a>
-            <a href="/benchmark" target="_blank" rel="noreferrer"><span>04</span>Warden benchmark corpus and method</a>
-            <a href="/docs/transactions" target="_blank" rel="noreferrer"><span>05</span>Transaction model and limitations</a>
-            <a href="/docs/coverage" target="_blank" rel="noreferrer"><span>06</span>Command interception coverage</a>
+            <a href="https://github.blog/security/supply-chain-security/the-case-for-a-cooldown-why-dependabot-now-waits-before-issuing-version-updates/" target="_blank" rel="noreferrer"><span>02</span>GitHub package compromise reach</a>
+            <a href="https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/" target="_blank" rel="noreferrer"><span>03</span>Datadog Shai-Hulud 2.0 analysis</a>
+            <a href="https://www.verizon.com/about/news/2025-data-breach-investigations-report" target="_blank" rel="noreferrer"><span>04</span>Verizon 2025 breach report</a>
+            <a href="https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen" target="_blank" rel="noreferrer"><span>05</span>USENIX package hallucination study</a>
+            <a href="https://google.github.io/osv-scanner/" target="_blank" rel="noreferrer"><span>06</span>OSV advisory database</a>
+            <a href="/benchmark" target="_blank" rel="noreferrer"><span>07</span>Warden benchmark corpus and method</a>
+            <a href="/docs/transactions" target="_blank" rel="noreferrer"><span>08</span>Transaction model and limitations</a>
+            <a href="/docs/coverage" target="_blank" rel="noreferrer"><span>09</span>Command interception coverage</a>
           </div>
           <p class="source-note auto auto-3">Product claims correspond to the shipped command registry and repository documentation on this revision.</p>
           <aside class="notes">[Sources]

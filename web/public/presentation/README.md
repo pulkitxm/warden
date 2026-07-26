@@ -1,6 +1,6 @@
 # Warden presentation
 
-This is a 16-slide Reveal.js deck with automatic CSS motion, terminal playback, sourced figures, and a verified PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
+This is a 17-slide Reveal.js deck with automatic CSS motion, terminal playback, sourced figures, and a verified PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
 
 ## Present locally
 
