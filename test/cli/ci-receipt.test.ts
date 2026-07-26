@@ -139,6 +139,7 @@ test("a receipt matching the installed graph passes the gate", async () => {
     unresolved: [],
     conflicts: [],
     truncated: false,
+    resolver: "metadata",
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],

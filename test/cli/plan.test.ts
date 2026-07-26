@@ -298,6 +298,7 @@ test("the rendered plan leads with the decision and the next action, not a score
     unresolved: [],
     conflicts: [],
     truncated: false,
+    resolver: "metadata",
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],
@@ -336,6 +337,7 @@ test("a graph transaction with no direct package says so instead of printing an 
     unresolved: [],
     conflicts: [],
     truncated: true,
+    resolver: "metadata",
     coverage: { analyzed: 0, changed: 0, ratio: 1 },
     decision: "needs_approval",
     reasons: Array.from({ length: 12 }, (_, index) => `reason ${index}`),
@@ -344,4 +346,40 @@ test("a graph transaction with no direct package says so instead of printing an 
   expect(text).toContain("graph transaction over the existing manifest");
   expect(text).toContain("and 4 more");
   expect(text).toContain("coverage is incomplete");
+});
+
+test("when npm is installed, the plan is built from npm's own resolution", async () => {
+  const files: Record<string, string> = { [join(CWD, "package.json")]: manifest() };
+  const { deps, written } = makeDeps(files);
+  const commands: string[][] = [];
+  const workspace = "/tmp/resolve";
+  const lockfile = JSON.stringify({
+    packages: {
+      "": { name: "app" },
+      "node_modules/left-pad": {
+        version: "1.3.0",
+        integrity: "sha512-lp",
+        resolved: "https://reg.test/left-pad.tgz",
+      },
+    },
+  });
+  const code = await runWarden(["plan", "--json", "--", "npm", "install", "left-pad"], {
+    ...deps,
+    which: () => "/usr/bin/npm",
+    mkTemp: () => workspace,
+    copyFile: (from, to) => {
+      files[to] = files[from] as string;
+    },
+    rmrf: () => undefined,
+    spawnQuiet: (cmd, cwd) => {
+      commands.push(cmd);
+      files[join(cwd, "package-lock.json")] = lockfile;
+      return 0;
+    },
+  });
+  expect(code).toBe(0);
+  expect(commands[0]).toContain("--package-lock-only");
+  const plan = JSON.parse(Object.values(written)[0] as string) as TransactionPlan;
+  expect(plan.resolver).toBe("manager");
+  expect(plan.artifacts.map((artifact) => artifact.package)).toEqual(["left-pad"]);
 });

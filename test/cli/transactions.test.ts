@@ -13,6 +13,7 @@ import { setVerbosity } from "../../src/shared/output.ts";
 const CWD = "/repo";
 const HOME = "/home/u";
 const SCRIPT = "node build.js";
+const EMPTY_GRAPH = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 const PACKUMENT = {
   name: "esbuild",
@@ -71,8 +72,8 @@ function samplePlan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     manager: "npm",
     root: CWD,
     direct: [{ name: "esbuild", range: "0.25.8" }],
-    graph_before: "sha256:before",
-    graph_after: "sha256:after",
+    graph_before: EMPTY_GRAPH,
+    graph_after: EMPTY_GRAPH,
     delta: {
       added: [],
       changed: [],
@@ -96,6 +97,7 @@ function samplePlan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     unresolved: [],
     conflicts: [],
     truncated: false,
+    resolver: "metadata",
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],

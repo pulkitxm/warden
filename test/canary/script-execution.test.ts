@@ -94,6 +94,7 @@ function plan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     unresolved: [],
     conflicts: [],
     truncated: false,
+    resolver: "metadata",
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "needs_approval",
     reasons: [],

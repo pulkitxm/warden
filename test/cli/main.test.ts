@@ -63,6 +63,10 @@ function makeWardenDeps(over: Partial<WardenDeps> = {}) {
       base.spawns.push(cmd);
       return 0;
     },
+    spawnQuiet: () => 1,
+    mkTemp: () => "/tmp/warden-test",
+    copyFile: () => undefined,
+    rmrf: () => undefined,
     mkdir: () => undefined,
     readFile: (path) => {
       const value = files.get(path);
@@ -225,6 +229,14 @@ test("default warden dependencies cover filesystem, workspace, git, TTY, and pro
   expect(defaultWardenDeps.glob("package.json", nested)).toEqual(["package.json"]);
   expect(defaultWardenDeps.cwd()).toBe(process.cwd());
   expect(defaultWardenDeps.spawnIn(["pwd"], nested)).toBe(0);
+  expect(defaultWardenDeps.spawnQuiet(["pwd"], nested)).toBe(0);
+  expect(defaultWardenDeps.spawnQuiet(["sh", "-c", "exit 3"], nested)).toBe(3);
+  const workspace = defaultWardenDeps.mkTemp();
+  expect(existsSync(workspace)).toBe(true);
+  defaultWardenDeps.copyFile(join(nested, "package.json"), join(workspace, "package.json"));
+  expect(existsSync(join(workspace, "package.json"))).toBe(true);
+  defaultWardenDeps.rmrf(workspace);
+  expect(existsSync(workspace)).toBe(false);
   expect(
     defaultWardenDeps.git(["rev-parse", "--is-inside-work-tree"], process.cwd()).exitCode,
   ).toBe(0);
