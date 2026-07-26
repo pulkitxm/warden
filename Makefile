@@ -1,4 +1,4 @@
-.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format doctor-demo docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format ci-smoke doctor-demo docker-build docker-run docker-install-demo
 
 install:
 	bun install
@@ -29,12 +29,7 @@ ci-comments:
 ci-format:
 	bun run lint
 
-ci:
-	bun install --frozen-lockfile
-	$(MAKE) ci-comments ci-format
-	bun test
-	bun run typecheck
-	bun run build
+ci-smoke: build
 	./dist/warden --help 2>&1 | grep -F 'usage: warden <verb> [flags]' >/dev/null
 	./dist/warden check --help 2>&1 | grep -F 'usage: warden check' >/dev/null
 	./dist/wnpx --schema >/dev/null
@@ -45,6 +40,10 @@ ci:
 	./dist/warden schema intent >/dev/null
 	./dist/warden schema audit >/dev/null
 	./dist/warden check lockfile --dir fixtures/doctor-project --json >/dev/null
+
+ci:
+	bun install --frozen-lockfile
+	$(MAKE) ci-comments ci-format test typecheck ci-smoke
 
 doctor-demo: build
 	bun scripts/doctor-demo.ts
