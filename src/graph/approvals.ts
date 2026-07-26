@@ -57,11 +57,15 @@ export function readApprovals(fs: ApprovalFs, path: string): ScriptApproval[] {
   }
 }
 
-export function collectApprovals(fs: ApprovalFs, root: string, home: string): ScriptApproval[] {
-  return [
-    ...readApprovals(fs, approvalPath("repo", root, home)),
-    ...readApprovals(fs, approvalPath("user", root, home)),
-  ];
+export function collectApprovals(
+  fs: ApprovalFs,
+  root: string,
+  home: string,
+  requireRepoScope = false,
+): ScriptApproval[] {
+  const repo = readApprovals(fs, approvalPath("repo", root, home));
+  if (requireRepoScope) return repo;
+  return [...repo, ...readApprovals(fs, approvalPath("user", root, home))];
 }
 
 export function matchesApproval(approval: ScriptApproval, request: ApprovalRequest): boolean {

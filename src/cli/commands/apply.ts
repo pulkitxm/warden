@@ -62,6 +62,19 @@ export function renderReceipt(receipt: TransactionReceipt): string {
   return lines.join("\n");
 }
 
+export function requiresRepoScopedApprovals(deps: WardenDeps, root: string): boolean {
+  const path = join(root, "warden.config.json");
+  if (!deps.exists(path)) return false;
+  try {
+    const config = JSON.parse(deps.readFile(path)) as {
+      approvals?: { requireRepoScope?: boolean };
+    };
+    return config.approvals?.requireRepoScope === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function runWardenApply(argv: string[], deps: WardenDeps): Promise<number> {
   const wantsJson = argv.includes("--json");
   const root = deps.cwd();
@@ -106,7 +119,7 @@ export async function runWardenApply(argv: string[], deps: WardenDeps): Promise<
         writeFile: deps.writeFile,
         exists: deps.exists,
         scriptBody: scriptBodyFromRegistry,
-        approvals: collectApprovals(deps, root, deps.home),
+        approvals: collectApprovals(deps, root, deps.home, requiresRepoScopedApprovals(deps, root)),
         analyzerVersion: ANALYZER_VERSION,
       },
       {
