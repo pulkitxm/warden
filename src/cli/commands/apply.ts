@@ -6,7 +6,8 @@ import {
   hashScript,
   recordApproval,
 } from "../../graph/approvals.ts";
-import type { GraphChange } from "../../graph/delta.ts";
+import { digestGraph, type GraphChange } from "../../graph/delta.ts";
+import { installedIdentities, readInstalledGraph } from "../../graph/installed.ts";
 import type { TransactionPlan } from "../../graph/plan.ts";
 import type { TransactionReceipt } from "../../graph/receipt.ts";
 import { fetchPackument } from "../../registry.ts";
@@ -94,7 +95,13 @@ export async function runWardenApply(argv: string[], deps: WardenDeps): Promise<
     receipt = await applyTransaction(
       plan,
       {
-        exec: (cmd, cwd) => ({ code: deps.spawnIn(cmd, cwd) }),
+        exec: (cmd, cwd, env) => ({ code: deps.spawnIn(cmd, cwd, env) }),
+        currentGraphDigest: (root) =>
+          digestGraph(
+            installedIdentities(
+              readInstalledGraph({ exists: deps.exists, readFile: deps.readFile }, root),
+            ),
+          ),
         readFile: deps.readFile,
         writeFile: deps.writeFile,
         exists: deps.exists,
@@ -105,6 +112,8 @@ export async function runWardenApply(argv: string[], deps: WardenDeps): Promise<
       {
         verify: !argv.includes("--no-verify"),
         allowUnapproved: argv.includes("--allow-unapproved"),
+        allowIncompleteAnalysis: argv.includes("--allow-incomplete-analysis"),
+        allowStalePlan: argv.includes("--allow-stale-plan"),
       },
     );
   } catch (error) {

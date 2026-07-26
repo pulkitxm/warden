@@ -1,5 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import { runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import type { RunDeps, WardenDeps } from "../shared/deps.ts";
@@ -28,10 +37,26 @@ export const defaultDeps: RunDeps = {
 export const defaultWardenDeps: WardenDeps = {
   ...defaultDeps,
   home: homedir(),
-  spawnIn: (cmd: string[], cwd: string) =>
+  spawnIn: (cmd: string[], cwd: string, env?: Record<string, string>) =>
     withoutProgress(
-      () => Bun.spawnSync(cmd, { cwd, stdout: "inherit", stderr: "inherit" }).exitCode ?? 0,
+      () =>
+        Bun.spawnSync(cmd, {
+          cwd,
+          stdout: "inherit",
+          stderr: "inherit",
+          env: { ...process.env, ...(env ?? {}) },
+        }).exitCode ?? 0,
     ),
+  spawnQuiet: (cmd: string[], cwd: string, env?: Record<string, string>) =>
+    Bun.spawnSync(cmd, {
+      cwd,
+      stdout: "ignore",
+      stderr: "ignore",
+      env: { ...process.env, ...(env ?? {}) },
+    }).exitCode ?? 0,
+  mkTemp: () => mkdtempSync(join(tmpdir(), "warden-resolve-")),
+  copyFile: (from: string, to: string) => copyFileSync(from, to),
+  rmrf: (path: string) => rmSync(path, { recursive: true, force: true }),
   mkdir: (path) => mkdirSync(path, { recursive: true }),
   writeFile: writeFileSync,
   exists: existsSync,

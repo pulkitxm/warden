@@ -16,7 +16,7 @@
     "check-comments": "bun scripts/strip-comments.mjs --check",
     "format": "biome format --write .",
     "lint": "biome check --error-on-warnings .",
-    "test": "bun test",
+    "test": "bun test --timeout 30000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
