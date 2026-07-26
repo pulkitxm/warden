@@ -302,12 +302,32 @@ Every run also writes \`.warden/last-run.json\`, which is what \`warden handoff\
 ## Workflow
 
 \`\`\`yaml
+- uses: actions/checkout@v5
+  with:
+    fetch-depth: 0
 - uses: oven-sh/setup-bun@v2
 - run: curl -fsSL https://warden.pulkit.page/install.sh | sh
 - run: warden ci --reporter github --base origin/\${{ github.base_ref }}
 \`\`\`
 
 \`warden init\` writes a starting workflow for you.
+
+## A worked example
+
+Warden gates its own repository. [\`.github/workflows/warden.yml\`](https://github.com/pulkitxm/warden/blob/main/.github/workflows/warden.yml) is the real file, and it shows two things the snippet above leaves out.
+
+\`warden ci\` is scoped to the diff, so it says nothing about the dependencies you already have. Pair it with a full audit of each project in the repo, and tolerate warnings so only blocks stop the build:
+
+\`\`\`yaml
+- run: |
+    for dir in . web; do
+      for surface in lockfile scripts config; do
+        warden check "$surface" --dir "$dir" || [ $? -le 10 ]
+      done
+    done
+\`\`\`
+
+The scripts surface reads \`node_modules\`, so install each project's dependencies before auditing it or only the root manifest gets scanned.
 `;
 
 const agents = `
@@ -1754,6 +1774,8 @@ warden config                 # inspect current settings
 \`\`\`
 
 \`fetch-depth: 0\` matters, because \`warden ci\` needs the merge base.
+
+Warden runs this on itself. [\`.github/workflows/warden.yml\`](https://github.com/pulkitxm/warden/blob/main/.github/workflows/warden.yml) is the real file, and it adds a full audit of every project in the repo on top of the diff-scoped gate.
 
 ## Uninstall
 

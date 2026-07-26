@@ -45,15 +45,3 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: make ci-smoke
 
-  warden:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: npm ci --prefix web
-      - run: make ci-warden
-        env:
-          WARDEN_BASE: origin/${{ github.base_ref || github.event.repository.default_branch }}

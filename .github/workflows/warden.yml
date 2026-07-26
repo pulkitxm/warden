@@ -1,0 +1,50 @@
+name: Warden
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warden-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  warden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install the dependency graphs to audit
+        run: |
+          bun install --frozen-lockfile
+          npm ci --prefix web
+
+      - name: Install the published warden
+        if: github.event_name == 'push'
+        run: |
+          curl -fsSL https://warden.pulkit.page/install.sh | sh
+          echo "WARDEN=warden" >> "$GITHUB_ENV"
+
+      - name: Build warden from the branch under review
+        if: github.event_name == 'pull_request'
+        run: |
+          bun run build
+          echo "WARDEN=$PWD/dist/warden" >> "$GITHUB_ENV"
+
+      - name: Vet the dependencies this diff changes
+        run: $WARDEN ci --reporter github --base origin/${{ github.base_ref || github.event.repository.default_branch }}
+
+      - name: Audit every project in the repo
+        run: |
+          for dir in . web; do
+            for surface in lockfile scripts config; do
+              "$WARDEN" check "$surface" --dir "$dir" || [ $? -le 10 ]
+            done
+          done

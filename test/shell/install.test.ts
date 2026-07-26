@@ -219,8 +219,7 @@ function run(
     if (value === undefined) env[key] = "";
     else env[key] = value;
   }
-  if (options.piped)
-    return Bun.spawnSync(["sh"], { env, stdin: Bun.file(installScript) });
+  if (options.piped) return Bun.spawnSync(["sh"], { env, stdin: Bun.file(installScript) });
   const input = join(sandbox.root, "stdin");
   writeFileSync(input, options.answer ?? "");
   return Bun.spawnSync(["sh", installScript, ...args], {
