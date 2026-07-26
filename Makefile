@@ -47,6 +47,8 @@ ci-smoke: build
 	./dist/warden schema intent >/dev/null
 	./dist/warden schema audit >/dev/null
 	./dist/warden check lockfile --dir fixtures/doctor-project --json >/dev/null
+	./dist/warden intent bench >/dev/null
+	./dist/warden intent --help 2>&1 | grep -F 'usage: warden intent' >/dev/null
 
 ci-web:
 	cd web && bun install --frozen-lockfile
