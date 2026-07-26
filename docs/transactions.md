@@ -106,6 +106,27 @@ warden approve-script esbuild@0.25.8 --hook postinstall --note "reviewed in PR 4
 
 Repo approvals live in `.warden/approvals.json` and are meant to be committed, so the whole team inherits a reviewed decision rather than each developer waving the same script through. User approvals live under the home directory.
 
+After approving the example above with the note, `.warden/approvals.json` looks like this:
+
+```json
+{
+  "schema_version": 1,
+  "approvals": [
+    {
+      "schema_version": 1,
+      "package": "esbuild",
+      "version": "0.25.8",
+      "integrity": "sha512-vVC0USHGtMi8+R4Kz8rt6JhEWLxsv9Rnu/lGYbPR8u47B+DCBksq9JarW0zOO7bs37hyOK1l2/oqtbciutL5+Q==",
+      "hook": "postinstall",
+      "script_hash": "sha256:912d4d8f507b7b392ae422a459f98da9",
+      "scope": "repo",
+      "approved_at": "2026-07-26T09:30:00.000Z",
+      "note": "reviewed in PR 412"
+    }
+  ]
+}
+```
+
 This replaces the pattern of a single broad override. A bypass that is scoped to exactly what was reviewed can be audited later; one that means "allow risk" cannot.
 
 ## Receipts
