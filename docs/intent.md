@@ -50,9 +50,11 @@ warden intent [check|extract|diff|symbols|bench|schema] [--prompt <text>] [--bas
 | error | `30` | The run could not read the diff: not a git repo, or the base ref does not exist | fix the invocation | fix the invocation |
 
 A missing or failing LLM is **not** an error. The run publishes the deterministic report with
-`claims_status: "unverifiable"`, exits `20` if a deterministic rule found something and `10` otherwise, and
-records why in `notes`. Scope creep is not assessed in that state, because it needs a claim set, and the
-report says so rather than reporting zero.
+`claims_status: "unverifiable"` and records why in `notes`. It exits `20` only if a deterministic rule
+*blocked* — a hallucinated API call, or an import whose name is on the slopsquat list or was never published
+— and `10` otherwise, which includes the case where the only finding is a warn-level `undeclared_import`.
+Scope creep is not assessed in that state, because it needs a claim set, and the report says so rather than
+reporting zero.
 
 There is currently **no waiver mechanism**. A verdict you disagree with can only be dropped by removing the
 prompt, which disables the whole check. This is a real gap and it is listed as one.
