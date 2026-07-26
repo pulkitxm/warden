@@ -349,10 +349,11 @@ make ci              # the full suite`}
           is no service that has to be up for your install to work.
         </p>
         <p className="mt-3 text-[14px] text-fog">
-          1,418 tests, coverage enforced at 100 percent on every commit. Treat it as a technical
-          alpha: graph resolution is flat, failure restores the manifest rather than the whole
-          transaction, and receipts are reproducible evidence rather than signed attestations. Those
-          limits are written down on the{" "}
+          1,513 tests, coverage enforced at 100 percent on every commit. Treat it as a technical
+          alpha: an approval authorizes the transaction rather than the code, so install scripts
+          never run and a package that needs one may not work until you notice; failure restores the
+          manifest and every lockfile but not node_modules; and receipts are reproducible evidence
+          rather than signed attestations. Those limits are written down on the{" "}
           <Link href="/docs/limitations" className="text-mint hover:text-white">
             limitations page
           </Link>{" "}

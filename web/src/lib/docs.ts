@@ -721,7 +721,7 @@ Next action
 
 ## Two resolvers
 
-The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name, which is the fallback and what \`bun\`, \`yarn add\`, and the interception shim use.
+The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`bun install --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name. That is the fallback, used when the manager is not on PATH or cannot do the operation without installing, such as \`yarn add\`, and it is what the interception shim uses because the shim is already standing in front of the manager it would otherwise ask.
 
 Either way, every changed package is described from its registry manifest, so install scripts, deprecations, and platform constraints read the same on both paths. The graph above has no install script in it. This one does:
 
@@ -927,7 +927,7 @@ The backstop for all of it is CI: \`warden ci --require-transaction-receipt\` fa
 
 ## Resolution has limits
 
-- Graph resolution is flat: one version per package name. That matches how a hoisting installer usually lands, but a real installer can nest two versions of the same package where Warden reports a conflict instead.
+- When your package manager can do a lockfile-only resolve, Warden uses its answer, so the graph is the one that manager would install. When it cannot, Warden falls back to walking registry metadata, which is flat: one version per package name. That matches how a hoisting installer usually lands, but a real installer can nest two versions of the same package where the fallback reports a conflict instead. The plan names which resolver produced it.
 - Git, URL, file, link, workspace, and portal ranges are outside registry resolution. They are reported as unresolved rather than trusted.
 - Resolution stops at a node budget and analysis stops at a check budget. Both are reported on the plan, and either one prevents a confident allow.
 - The plan describes what the resolver believes will happen. Your package manager remains the thing that actually installs.
