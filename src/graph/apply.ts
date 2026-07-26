@@ -12,6 +12,13 @@ import {
   type VerificationSteps,
 } from "./receipt.ts";
 import { replayCommand, requestDigest } from "./request.ts";
+import {
+  type ApprovalRequirement,
+  analysisRequirements,
+  describeRequirement,
+  EXCEPTION_FLAG,
+  scriptRequirements,
+} from "./requirements.ts";
 
 export interface ApplyDeps {
   exec: (cmd: string[], cwd: string, env?: Record<string, string>) => { code: number };
@@ -27,9 +34,15 @@ export interface ApplyDeps {
 
 export interface ApplyOptions {
   verify?: boolean;
-  allowUnapproved?: boolean;
+  skipScriptApproval?: boolean;
   allowIncompleteAnalysis?: boolean;
   allowStalePlan?: boolean;
+}
+
+export interface ReceiptException {
+  kind: ApprovalRequirement["kind"];
+  flag: string;
+  detail: string;
 }
 
 const VERIFY_STEPS: Array<keyof Omit<VerificationSteps, "install">> = [
@@ -100,22 +113,22 @@ async function pendingApprovals(
 ): Promise<{ approved: ScriptApproval[]; missing: ApprovalRequest[] }> {
   const approved: ScriptApproval[] = [];
   const missing: ApprovalRequest[] = [];
-  for (const change of plan.delta.newScriptSurface) {
-    const artifact = plan.artifacts.find(
-      (entry) => entry.package === change.name && entry.version === change.version,
+  for (const requirement of scriptRequirements(plan.requirements)) {
+    const change = plan.delta.newScriptSurface.find(
+      (entry) =>
+        entry.name === requirement.artifact.name && entry.version === requirement.artifact.version,
     );
-    for (const hook of change.newHooks) {
-      const request: ApprovalRequest = {
-        package: change.name,
-        version: change.version,
-        integrity: artifact?.integrity ?? "",
-        hook,
-        script: await deps.scriptBody(change, hook),
-      };
-      const approval = findApproval(deps.approvals, request);
-      if (approval) approved.push(approval);
-      else missing.push(request);
-    }
+    if (!change) continue;
+    const request: ApprovalRequest = {
+      package: requirement.artifact.name,
+      version: requirement.artifact.version,
+      integrity: requirement.artifact.integrity ?? "",
+      hook: requirement.hook,
+      script: await deps.scriptBody(change, requirement.hook),
+    };
+    const approval = findApproval(deps.approvals, request);
+    if (approval) approved.push(approval);
+    else missing.push(request);
   }
   return { approved, missing };
 }
@@ -148,6 +161,7 @@ function receipt(
     approvals: ScriptApproval[];
     verification: VerificationSteps;
     observedGraph?: string;
+    exceptions?: ReceiptException[];
   },
 ): TransactionReceipt {
   return {
@@ -172,6 +186,8 @@ function receipt(
       hooks: change.hooks,
     })),
     verification: parts.verification,
+    script_policy: plan.script_policy,
+    ...(parts.exceptions?.length ? { exceptions: parts.exceptions } : {}),
     result: parts.result,
     ...(parts.reason ? { reason: parts.reason } : {}),
     analyzer_version: deps.analyzerVersion,
@@ -189,27 +205,31 @@ export async function applyTransaction(
   if (plan.decision === "block")
     return refuse(plan, "the plan was blocked, so there is nothing safe to apply", approved, deps);
 
-  if (missing.length && !options.allowUnapproved) {
+  const exceptions: ReceiptException[] = [];
+
+  if (missing.length && !options.skipScriptApproval) {
     const names = missing.map((entry) => `${entry.package}@${entry.version} (${entry.hook})`);
     return refuse(plan, `unapproved install scripts: ${names.join(", ")}`, approved, deps);
   }
-
-  const unchecked = plan.artifacts.filter((artifact) => artifact.verdict === "unchecked");
-  if (plan.truncated && !options.allowIncompleteAnalysis) {
-    return refuse(
-      plan,
-      "the graph was truncated before it was fully resolved, so this plan cannot be applied as reviewed",
-      approved,
-      deps,
-    );
+  if (missing.length) {
+    exceptions.push({
+      kind: "script",
+      flag: EXCEPTION_FLAG.script,
+      detail: `${missing.length} install scripts were never approved`,
+    });
   }
-  if (unchecked.length && !options.allowIncompleteAnalysis) {
-    return refuse(
-      plan,
-      `${unchecked.length} changed packages were never analyzed; a script approval does not cover incomplete analysis`,
-      approved,
-      deps,
-    );
+
+  for (const requirement of analysisRequirements(plan.requirements)) {
+    const flag = EXCEPTION_FLAG[requirement.kind];
+    if (!options.allowIncompleteAnalysis) {
+      return refuse(
+        plan,
+        `${describeRequirement(requirement)}; a script approval does not cover this, pass ${flag} to accept it`,
+        approved,
+        deps,
+      );
+    }
+    exceptions.push({ kind: requirement.kind, flag, detail: describeRequirement(requirement) });
   }
 
   const preconditions = checkPreconditions(plan, deps);
@@ -242,6 +262,7 @@ export async function applyTransaction(
       reason: "the install failed with scripts suppressed",
       approvals: approved,
       verification,
+      exceptions,
     });
   }
 
@@ -259,6 +280,7 @@ export async function applyTransaction(
           reason: `project verification failed at ${step}`,
           approvals: approved,
           verification,
+          exceptions,
         });
       }
     }
@@ -272,6 +294,7 @@ export async function applyTransaction(
       reason: `the installed graph is ${observed} but the plan reviewed ${plan.graph_after}; re-plan and review the difference`,
       approvals: approved,
       verification,
+      exceptions,
       ...(observed ? { observedGraph: observed } : {}),
     });
   }
@@ -280,6 +303,7 @@ export async function applyTransaction(
     result: "applied",
     approvals: approved,
     verification,
+    exceptions,
     ...(observed ? { observedGraph: observed } : {}),
   });
 }

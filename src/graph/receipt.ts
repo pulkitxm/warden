@@ -26,6 +26,8 @@ export interface TransactionReceipt {
   approvals: ScriptApproval[];
   suppressed_scripts: Array<{ package: string; version: string; hooks: string[] }>;
   verification: VerificationSteps;
+  script_policy?: "suppressed";
+  exceptions?: Array<{ kind: string; flag: string; detail: string }>;
   result: ReceiptResult;
   reason?: string;
   analyzer_version: string;

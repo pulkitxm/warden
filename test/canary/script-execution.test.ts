@@ -6,6 +6,7 @@ import { applyTransaction } from "../../src/graph/apply.ts";
 import { hashScript } from "../../src/graph/approvals.ts";
 import type { GraphChange } from "../../src/graph/delta.ts";
 import type { TransactionPlan } from "../../src/graph/plan.ts";
+import { scriptRequirementsFor } from "../../src/graph/requirements.ts";
 import { installCommand } from "../../src/shared/manager.ts";
 
 const npm = Bun.which("npm");
@@ -95,6 +96,8 @@ function plan(over: Partial<TransactionPlan> = {}): TransactionPlan {
     conflicts: [],
     truncated: false,
     resolver: "metadata",
+    requirements: scriptRequirementsFor([change], () => "sha512-canary"),
+    script_policy: "suppressed" as const,
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "needs_approval",
     reasons: [],
@@ -139,7 +142,7 @@ test.skipIf(!npm)(
 
     const receipt = await applyTransaction(plan(), realDeps(), {
       verify: false,
-      allowUnapproved: true,
+      skipScriptApproval: true,
     });
 
     expect(receipt.result).toBe("applied");

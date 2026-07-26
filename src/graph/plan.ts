@@ -6,6 +6,13 @@ import { digestGraph, type GraphChange, type GraphDelta, graphDelta } from "./de
 import { type InstalledGraph, installedIdentities } from "./installed.ts";
 import type { TransactionRequest } from "./request.ts";
 import {
+  type ApprovalRequirement,
+  analysisRequirementsFor,
+  describeRequirement,
+  satisfyingAction,
+  scriptRequirementsFor,
+} from "./requirements.ts";
+import {
   type GraphNode,
   type GraphResolution,
   hooksOf,
@@ -40,6 +47,8 @@ export interface TransactionPlan {
   conflicts: GraphResolution["conflicts"];
   truncated: boolean;
   resolver: "manager" | "metadata";
+  requirements: ApprovalRequirement[];
+  script_policy: "suppressed";
   coverage: { analyzed: number; changed: number; ratio: number };
   decision: PlanDecision;
   reasons: string[];
@@ -135,10 +144,28 @@ async function vet(
   return { artifacts, analyzed };
 }
 
+function requirementsOf(
+  delta: GraphDelta,
+  artifacts: PlanArtifact[],
+  resolution: GraphResolution,
+  analyzed: number,
+): ApprovalRequirement[] {
+  const integrityOf = (name: string, version: string) =>
+    artifacts.find((entry) => entry.package === name && entry.version === version)?.integrity;
+  return [
+    ...scriptRequirementsFor(delta.newScriptSurface, integrityOf),
+    ...analysisRequirementsFor(artifacts, resolution.truncated, {
+      analyzed,
+      changed: delta.added.length + delta.changed.length,
+    }),
+  ];
+}
+
 function decide(
   delta: GraphDelta,
   artifacts: PlanArtifact[],
   resolution: GraphResolution,
+  requirements: ApprovalRequirement[],
 ): { decision: PlanDecision; reasons: string[] } {
   const reasons: string[] = [];
   const blocked = artifacts.filter((artifact) => artifact.verdict === "block");
@@ -155,16 +182,10 @@ function decide(
   if (blocked.length || failed.length || blockingUnresolved.length)
     return { decision: "block", reasons };
 
-  for (const change of delta.newScriptSurface)
-    reasons.push(
-      `${change.name}@${change.version} ${change.from ? "adds" : "has"} a ${change.newHooks.join(", ")} script`,
-    );
-  const unchecked = artifacts.filter((artifact) => artifact.verdict === "unchecked");
-  if (unchecked.length)
-    reasons.push(`${unchecked.length} changed packages were not analyzed in this plan`);
-  if (resolution.truncated) reasons.push("the graph was truncated before it was fully resolved");
-  if (delta.newScriptSurface.length || unchecked.length || resolution.truncated)
+  if (requirements.length) {
+    for (const requirement of requirements) reasons.push(describeRequirement(requirement));
     return { decision: "needs_approval", reasons };
+  }
 
   const warned = artifacts.filter((artifact) => artifact.verdict === "warn");
   for (const artifact of warned) reasons.push(`${artifact.package}: ${artifact.summary}`);
@@ -175,13 +196,15 @@ function decide(
   return { decision: "allow", reasons };
 }
 
-function nextActions(delta: GraphDelta, plan: { decision: PlanDecision; id: string }): string[] {
+function nextActions(
+  requirements: ApprovalRequirement[],
+  plan: { decision: PlanDecision; id: string },
+): string[] {
   if (plan.decision === "block") return ["warden explain <package>@<version>"];
   if (plan.decision === "needs_approval") {
-    const actions = delta.newScriptSurface.map(
-      (change) =>
-        `warden approve-script ${change.name}@${change.version} --hook ${change.newHooks[0]} --plan ${plan.id}`,
-    );
+    const actions = [
+      ...new Set(requirements.map((requirement) => satisfyingAction(requirement, plan.id))),
+    ];
     return actions.length ? actions : [`warden apply ${plan.id}`];
   }
   return [`warden apply ${plan.id}`];
@@ -221,7 +244,7 @@ async function describeFromRegistry(
 
 export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<TransactionPlan> {
   const faithful = deps.resolveWithManager?.() ?? null;
-  const requirements = [...input.existing, ...input.direct];
+  const rootRequirements = [...input.existing, ...input.direct];
   let resolution: GraphResolution;
   if (faithful) {
     resolution = {
@@ -246,7 +269,7 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
     };
   } else {
     progressStep("resolving the prospective dependency graph");
-    resolution = await deps.resolve(requirements, {
+    resolution = await deps.resolve(rootRequirements, {
       packument: deps.packument,
       ...(deps.maxNodes === undefined ? {} : { maxNodes: deps.maxNodes }),
     });
@@ -264,7 +287,8 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
   const graphBefore = digestGraph(installedIdentities(input.installed));
   const graphAfter = digestGraph(resolution.nodes);
   const id = planId(input.command, graphAfter);
-  const { decision, reasons } = decide(delta, artifacts, resolution);
+  const requirements = requirementsOf(delta, artifacts, resolution, analyzed);
+  const { decision, reasons } = decide(delta, artifacts, resolution, requirements);
 
   return {
     schema_version: 1,
@@ -282,6 +306,8 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
     conflicts: resolution.conflicts,
     truncated: resolution.truncated,
     resolver: faithful ? "manager" : "metadata",
+    requirements,
+    script_policy: "suppressed",
     coverage: {
       analyzed,
       changed: changes.length,
@@ -289,6 +315,6 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
     },
     decision,
     reasons,
-    next_actions: nextActions(delta, { decision, id }),
+    next_actions: nextActions(requirements, { decision, id }),
   };
 }

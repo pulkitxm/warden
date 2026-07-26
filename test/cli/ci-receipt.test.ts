@@ -140,6 +140,8 @@ test("a receipt matching the installed graph passes the gate", async () => {
     conflicts: [],
     truncated: false,
     resolver: "metadata",
+    requirements: [],
+    script_policy: "suppressed" as const,
     coverage: { analyzed: 1, changed: 1, ratio: 1 },
     decision: "allow",
     reasons: [],
