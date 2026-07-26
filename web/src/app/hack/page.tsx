@@ -45,6 +45,30 @@ const numbers = [
 const beats = [
   {
     step: "01",
+    title: "One name, twenty-seven packages",
+    body: "You type one package. Twenty-six more arrive with it, and exactly one wants to execute code at install time. Checking the name you typed leaves the rest unexamined, which is where a compromised release hides.",
+    command: "warden plan -- npm install esbuild",
+    output: `Warden plan: npm install esbuild
+
+Graph changes
+  + 26 transitive packages
+  = 0 unchanged
+
+Execution surface
+  1 changed packages carry an install script
+  26 platform-specific artifacts will be added
+
+Analysis coverage
+  27 of 27 changed packages analyzed (100%)
+
+Decision: NEEDS_APPROVAL
+  esbuild@0.28.1 has a postinstall script
+
+Next action
+  warden approve-script esbuild@0.28.1 --hook postinstall`,
+  },
+  {
+    step: "02",
     title: "A name that never existed",
     body: "An agent suggests react-codeshift. It sounds right; it conflates two real tools. npm's typosquat protection cannot help, because there is no collision to detect. Warden knows the name.",
     command: "wnpx react-codeshift",
@@ -54,7 +78,7 @@ const beats = [
   blocked before any script ran, override with --allow-risky`,
   },
   {
-    step: "02",
+    step: "03",
     title: "A package you already trust",
     body: "chalk is on two billion weekly downloads. In September 2025 its maintainer was phished through npmjs.help and a malicious version was live for about two hours.",
     command: "wnpm install chalk@5.6.1",
@@ -63,7 +87,7 @@ const beats = [
   known malware: this exact version appears on the compromised-release blocklist`,
   },
   {
-    step: "03",
+    step: "04",
     title: "When the fix is the attack",
     body: "This is the one nothing else covers. The advisory says upgrade. Warden checks the version the advisory recommends, finds a new postinstall hook reaching for child_process and a raw IP, and refuses.",
     command: "warden doctor",
@@ -80,7 +104,7 @@ plan minimal: smallest safe upgrade  recommended
   verification: install ok 163ms - test ok 205ms (passed)`,
   },
   {
-    step: "04",
+    step: "05",
     title: "The lockfile nobody reads",
     body: "A pull request that bumps no version at all, only a resolved URL for a transitive dependency. Composition analysis sees no version change and passes it.",
     command: "warden check lockfile",
@@ -209,9 +233,9 @@ export default function HackPage() {
       </section>
 
       <section className="mt-14">
-        <h2 className="text-xl font-bold text-white sm:text-2xl">Four beats</h2>
+        <h2 className="text-xl font-bold text-white sm:text-2xl">Five beats</h2>
         <p className="mt-2 text-[14px] text-fog">
-          Every output below is reproducible offline against the in-repo fixture registry.
+          The first beat is a real install against the public registry. The other four are reproducible offline against the in-repo fixture registry.
         </p>
         <div className="mt-6 space-y-8">
           {beats.map((beat) => (
@@ -252,12 +276,18 @@ make ci              # the full suite`}
         <h2 className="text-xl font-bold text-white sm:text-2xl">What is actually built</h2>
         <div className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
           {[
+            ["Dependency transactions", "plan the whole prospective graph, approve, apply, verify, receipt"],
+            ["Narrow approvals", "one script, bound to its version, tarball digest, hook, and script body"],
+            ["Receipt-gated CI", "warden ci --require-transaction-receipt, the control a bypassed shim cannot skip"],
             ["Deterministic engine", "AST capability scan, typosquat distance, curated intel, version diff"],
-            ["Three binaries", "warden, wnpm, wnpx, plus shims for npm, pnpm, yarn, bun, npx, bunx"],
-            ["Repair loop", "OSV audit, supply-chain gate on the fix, isolated verify, apply with rollback"],
+            ["Manager-neutral policy", "one policy compiled into npm, pnpm, Yarn, and Bun's own settings"],
+            ["Whole-graph interception", "shims for npm, pnpm, yarn, bun, npx, bunx, gated on the full graph"],
+            ["Repair loop", "OSV audit, supply-chain gate on the fix, isolated verify, apply"],
             ["Surface audits", "lockfile, install scripts, and .npmrc, across npm, pnpm, and yarn"],
-            ["Agent contracts", "JSON on stdout, published schemas, stable exit codes, untrusted quarantine"],
+            ["Agent contracts", "capability-based adapters, a read-only MCP manifest, published schemas"],
             ["Intent", "prompt-as-spec verification and hallucinated-API detection"],
+            ["Published benchmark", "12 of 12 attack shapes stopped, 0 of 9 benign, reproducible with one command"],
+            ["Stated limits", "a Limitations page, a coverage matrix, and analysis coverage on every verdict"],
           ].map(([title, body]) => (
             <div key={title} className="flex gap-2.5">
               <span className="mt-2 block h-1 w-1 shrink-0 rounded-full bg-mint" />
@@ -270,6 +300,16 @@ make ci              # the full suite`}
         <p className="mt-5 text-[14px] text-fog">
           Local-first and deterministic. Warden never executes package code to analyse it, and there
           is no service that has to be up for your install to work.
+        </p>
+        <p className="mt-3 text-[14px] text-fog">
+          1,418 tests, coverage enforced at 100 percent on every commit. Treat it as a technical
+          alpha: graph resolution is flat, failure restores the manifest rather than the whole
+          transaction, and receipts are reproducible evidence rather than signed attestations. Those
+          limits are written down on the{" "}
+          <Link href="/docs/limitations" className="text-mint hover:text-white">
+            limitations page
+          </Link>{" "}
+          rather than left for you to discover.
         </p>
       </section>
 

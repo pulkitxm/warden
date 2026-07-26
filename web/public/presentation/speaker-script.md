@@ -4,7 +4,7 @@ One block per slide, in order. Read it straight through, pause where the termina
 
 ## 1. Cover
 
-Nothing runs without a verdict. That's Warden in one line: a trust layer that checks a package before it's allowed to install or execute, whether that request comes from a developer, a package manager, a CI job, or a coding agent.
+Every dependency change becomes a verified transaction. That's Warden in one line. Not a scanner that reports on a package after the fact, but a layer that plans the whole change, makes you approve only the part that executes, and can prove in CI that the change went through the reviewed path. It works the same whether a developer or a coding agent made the request.
 
 ## 2. The attack surface
 
@@ -14,9 +14,13 @@ The package is the payload. In 2025 alone, Sonatype found four hundred fifty fou
 
 Here's the loop: resolve, verify, diff, scan, score, before anything runs. Watch this. We run `warden check` against a typosquatted package. It verifies integrity, checks the release diff, checks provenance, scans the code, and blocks it at a risk score of one hundred, before the install even starts.
 
-## 4. Nothing is silent
+## 4. The core loop: plan and approve
 
-Resolving a real graph is minutes of registry work, and a security tool that goes quiet for minutes is a security tool people turn off. So Warden narrates it. On a terminal that's one line, rewritten in place: the phase it is in, how far through it is, the package it is on, and the clock. When the output is a pipe, a log, or a coding agent, there is no spinner: a phase that is still running after two seconds announces itself, repeats every fifteen, and prints its duration when it finishes. Anything faster than a second stays silent.
+This is the slide that matters. You type `npm install esbuild`. That is one name, but twenty-seven packages arrive with it. Checking the name you typed leaves the other twenty-six unexamined, and a transitive addition is exactly where a compromised release hides.
+
+So Warden resolves the complete prospective graph from registry metadata, without running a line of package code, and analyzes all twenty-seven. Watch the counters: that is real work, and Warden narrates it rather than going quiet, because a tool that goes silent for half a minute is a tool people turn off.
+
+Then the decision. Exactly one package in this change wants to execute code at install time: esbuild's own postinstall. So the answer is not "allow" and not "block", it is "approve this one script". And that approval is bound to the version, the tarball digest, the hook, and the script body. Change any of them and it is void. Everything else installs with scripts suppressed.
 
 ## 5. Live product: doctor
 
