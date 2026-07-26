@@ -128,33 +128,6 @@ export function auditNpmrcEntry(entry: NpmrcEntry, file: string): AuditFinding[]
   return out;
 }
 
-export function auditNpmrcFile(entries: NpmrcEntry[], file: string): AuditFinding[] {
-  const alwaysAuth = entries.find(
-    (entry) => entry.key.toLowerCase() === "always-auth" && /^true$/i.test(entry.value),
-  );
-  if (!alwaysAuth) return [];
-
-  const offRegistry = entries.find((entry) => {
-    const key = entry.key.toLowerCase();
-    if (key !== "registry" && !key.endsWith(":registry")) return false;
-    const host = hostOf(entry.value);
-    return Boolean(host) && !KNOWN_HOSTS.includes(host as string);
-  });
-  if (!offRegistry) return [];
-
-  return [
-    {
-      rule: "config_always_auth_third_party",
-      level: "block",
-      target: alwaysAuth.key,
-      file,
-      line: alwaysAuth.line,
-      evidence: `always-auth sends your npm credential to ${hostOf(offRegistry.value)}, configured on line ${offRegistry.line}`,
-      fix: "set always-auth=false, or scope the credential to the specific registry host instead",
-    },
-  ];
-}
-
 export function auditConfig(root: string, home: string, fs: AuditFs): AuditReport {
   const notes: string[] = [];
   const findings: AuditFinding[] = [];
@@ -177,7 +150,6 @@ export function auditConfig(root: string, home: string, fs: AuditFs): AuditRepor
     const entries = parseNpmrc(text);
     scanned += entries.length;
     for (const entry of entries) findings.push(...auditNpmrcEntry(entry, label));
-    findings.push(...auditNpmrcFile(entries, label));
   }
 
   if (!scanned && !notes.length) notes.push("no .npmrc found in the project or home directory");
