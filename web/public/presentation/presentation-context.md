@@ -1,30 +1,56 @@
 # Warden presentation context
 
-This document is the narrative behind the presentation. Use it as speaker notes, a source for future slides, or a briefing document for anyone presenting Warden.
+Speaker notes for the deck. Read the four numbered sections before presenting; the rest is reference.
 
-## The one-sentence story
+## 1. The one-sentence story
 
-Warden is a free, open-source trust layer that checks a package before a developer, package manager, CI job, or coding agent is allowed to install or execute it.
+Warden turns every dependency change, whether a human or a coding agent makes it, into a planned, policy-checked, narrowly approved, verified transaction.
 
-## The problem in plain language
+## 2. The problem in one minute
 
-Modern software development treats package installation as a routine operation, but an install can execute code with the developer's permissions. That code may have access to environment variables, source code, cloud credentials, SSH keys, package registry tokens, and the network.
+Installing a package executes code with your permissions, and that code can reach your environment variables, source, cloud credentials, SSH keys, and registry tokens. The dangerous moment is not when a scanner reports a vulnerability later. It is the instant between requesting a package and letting it run.
 
-The dangerous moment is not after a vulnerability scanner reports a problem. It is the instant between requesting a package and allowing that package to run.
+Three things made that moment worse. Popular packages are takeover targets, so one phished maintainer reaches millions of machines. Malicious releases live for hours, which is faster than human review but not faster than an automated pipeline. And coding agents now install packages autonomously, repeating names from instructions and prior output without ever proving the package is real.
 
-Three changes have made that moment much riskier:
+The scale is already large. Sonatype counted 454,648 new malicious open-source packages in 2025. A USENIX Security 2025 study found 19.7 percent of 576,000 model package recommendations were hallucinated, producing 205,474 unique names, and 43 percent of those names recurred across runs, which makes them predictable enough to register in advance.
 
-1. Popular packages are attractive takeover targets. An attacker who compromises one maintainer account can reach millions of systems through a trusted name.
-2. Malicious releases move faster than manual review. Some recent attacks were available for only a few hours, but package managers and automated pipelines could install them immediately.
-3. Coding agents install and execute packages autonomously. They can repeat commands from repository instructions, generated skill files, documentation, and previous outputs without independently proving that a package is real or safe.
+## 3. Why a package check is not enough
 
-The scale is already large. Sonatype reported 454,648 new malicious open-source packages in 2025. A USENIX Security 2025 study tested 576,000 package recommendations across 16 language models and found that 19.7 percent were hallucinated, producing 205,474 unique package names. Forty-three percent of the hallucinated names appeared in every repeated run, making those names predictable enough for attackers to register in advance.
+This is the part worth landing, because it is what separates Warden from a scanner.
 
-The core question is simple:
+Checking the package name you typed misses the change you actually made. `npm install @fastify/jwt` adds one name to a manifest and twenty-three packages to `node_modules`. Vetting the one name leaves the other twenty-two unexamined, and a transitive addition is exactly where a compromised release hides.
 
-> Why can an untrusted package execute before it receives a security verdict?
+So Warden treats the change as a transaction:
 
-Warden changes the default sequence from `request, download, execute, investigate` to `request, inspect, decide, execute only if allowed`.
+1. **Plan.** Resolve the complete prospective graph from registry metadata, without running a line of package code. Diff it against the lockfile. Vet every added or changed package.
+2. **Approve.** If the change introduces an install script, approve that one script, bound to its exact version, tarball digest, hook, and script body. Change any of those and the approval is void.
+3. **Apply.** Install through the project's own package manager with lifecycle scripts suppressed by that manager's native setting. Run the project's tests.
+4. **Verify.** Emit a receipt. In CI, `warden ci --require-transaction-receipt` fails a pull request whose graph changed without one.
+
+That last step is the honest part of the pitch. PATH shims are convenience, not a sandbox, and an absolute path or a container bypasses them. The CI receipt gate is the control that does not depend on anything having worked on the developer's machine.
+
+## 4. The live demo, with real numbers
+
+`warden plan -- npm install esbuild` on a cold cache:
+
+- 27 packages resolved and 27 analyzed, complete coverage, in about 26 seconds
+- one package, `esbuild` itself, carries a `postinstall`
+- decision `NEEDS_APPROVAL`, with the exact approval command printed
+- scripts stay suppressed until the approval exists
+
+Contrast with what a scanner would say: "esbuild is fine." Warden's answer is "esbuild is fine, and here is the one piece of code in this change that wants to execute."
+
+Measured detection, reproducible with `warden benchmark`: 12 of 12 curated attack shapes stopped, 0 of 9 benign shapes stopped. Those are curated regression shapes, not field accuracy, and the deck should say so.
+
+## What to say about maturity
+
+Say it is a technical alpha with a working core, not a production security boundary. Specifically:
+
+- Graph resolution is flat, one version per package name, so duplicate versions and peer variants are not yet modelled the way a real manager resolves them.
+- Failure restores the root manifest, not the lockfile or `node_modules`. That is a manifest rollback, not a transaction rollback.
+- Receipts are unsigned local JSON. They are reproducible evidence, not yet an independent attestation.
+
+Saying this out loud is a strength in a security pitch. The website has a Limitations page for the same reason.
 
 ## Recent attacks and what they teach us
 
@@ -89,178 +115,6 @@ Why this matters:
 - A short release cooldown helps, but it does not explain or evaluate what changed.
 
 The Warden response is release comparison. It verifies tarball integrity, detects maintainer and publisher changes, flags provenance downgrades, examines new dependencies and capabilities, and combines those signals into a deterministic verdict.
-
-## The common pattern
-
-The attacks differ, but the security gap is consistent:
-
-| Incident | Trust signal that failed | What had to be checked |
-|---|---|---|
-| chalk and debug | Trusted maintainer and popular package | Exact version and changed behavior |
-| Shai-Hulud 2.0 | Normal dependency installation | Lifecycle scripts and credential access before execution |
-| react-codeshift | Plausible command in repository instructions | Whether the package name was real and trustworthy |
-| axios | Trusted project name and established history | Provenance, publisher identity, release diff, and new dependency |
-
-The ecosystem usually evaluates these signals in separate places and at different times. Warden evaluates them at the point where a decision is still useful: before execution.
-
-## What current products solve, and what remains unsolved
-
-The presentation should not claim that no free or open-source security tools exist. Several strong tools solve important parts of the problem:
-
-| Existing approach | What it does well | Remaining gap |
-|---|---|---|
-| Native package-manager controls | Disable or approve scripts, enforce minimum release age, and harden lockfile behavior | Controls differ by manager and version, and they do not provide one behavioral verdict across every workflow |
-| Vulnerability scanners such as OSV-Scanner | Find dependencies with known published vulnerabilities across many lockfile formats | Primarily answer whether a known vulnerability affects an existing dependency, not whether a newly published package is malicious before first execution |
-| Open-source malicious-package scanners such as GuardDog | Analyze package source and metadata with malicious-code heuristics | Require an explicit scan and are not a transparent package-manager checkpoint or an agent feedback loop |
-| Commercial supply-chain platforms | Provide broad intelligence, dashboards, repository integrations, and organization policy | Core protection often depends on a hosted account, commercial plan, or vendor service, and the workflow is not always local or portable |
-| Registry and ecosystem blocklists | Quickly stop already identified malicious packages | React after discovery and cannot cover an unseen malicious release or a newly registered slopsquat on their own |
-
-The defensible market gap is narrower and stronger:
-
-> No existing free, open-source tool combines transparent pre-execution interception across npm, pnpm, Yarn, Bun, `npx`, and `bunx` with release diffing, behavioral package analysis, deterministic verdicts, CI enforcement, and a first-class coding-agent contract.
-
-This is the problem Warden is designed to solve. It is not another dashboard and it is not a replacement package manager. It is a portable checkpoint that works with the tools a developer already uses.
-
-## Why open source and free matter
-
-A package trust boundary should not depend on whether an individual developer, student, maintainer, or small team can afford a security subscription.
-
-Open source provides four practical benefits:
-
-1. Anyone can inspect the rules that decide whether a package is allowed or blocked.
-2. Researchers can add detections for new campaigns without waiting for a private vendor roadmap.
-3. Teams can run the decision locally and keep source, package metadata, and policy inside their environment.
-4. Every coding agent can consume the same stable verdict without requiring a separate paid seat or hosted integration.
-
-Warden uses deterministic rules for the security decision. An optional generated explanation may rewrite the human summary, but it cannot change the allow, warn, or block verdict. This keeps the trust boundary reviewable, testable, and reproducible.
-
-## What Warden does today
-
-Warden already provides the core end-to-end path shown in the deck:
-
-- `warden check` resolves a package, verifies tarball integrity, compares releases, scans JavaScript capabilities, checks names and curated intelligence, and returns allow, warn, or block.
-- Transparent shims intercept install and execute commands from npm, pnpm, Yarn, Bun, `npx`, and `bunx` while passing unrelated commands through unchanged.
-- Protect mode blocks risky execution. Observe mode records verdicts without blocking.
-- `warden ci` evaluates changed dependencies against the merge base and emits human, JSON, workflow, or agent-oriented output.
-- `warden detect` maps the workspace and its package manager, framework, role, and tooling with evidence.
-- `warden init` writes repository configuration, CI wiring, hooks, and agent context.
-- `warden fix` writes a structured handoff for the configured coding agent.
-- `warden plan` decides a whole prospective graph before anything installs, `warden apply` installs it with scripts suppressed and leaves a receipt, and `warden install` is the short vetted install for when you only want the gate.
-- Every long command reports its phase, its progress through that phase, and the package it is on: a single rewritten line on a terminal, and announce-then-heartbeat lines with durations when the output is a pipe, a CI log, or a coding agent. Nothing waits in silence, and a phase shorter than a second stays quiet.
-- `--npm`, `--pnpm`, `--yarn`, and `--bun` choose the package manager explicitly on `warden install`, `warden plan`, `wnpm`, and `wnpx`; without them Warden reports which manager it detected and from which signal.
-- Stable exit codes provide an unambiguous contract: `0` allow, `10` warn, `20` block, and `30` analysis error.
-
-The current engine detects:
-
-- known malicious package versions
-- typosquats, homoglyphs, scoped impersonation, and known hallucinated names
-- new or changed lifecycle scripts
-- provenance, maintainer, and publisher changes
-- environment and sensitive-file access
-- cloud metadata access
-- network, DNS, and raw-IP egress
-- shell execution and reverse-shell behavior
-- destructive filesystem operations
-- obfuscation combined with execution or network capability
-
-## First-class support for coding agents
-
-Agent support is not a label placed on human-readable terminal output. It changes the product contract.
-
-### 1. Agents receive structured decisions
-
-Every verdict has a versioned schema, stable fields, and stable exit codes. Agents branch on `verdict` and `error.kind` instead of scraping prose.
-
-### 2. Agents receive evidence and an action
-
-The agent reporter includes the rule, package, file, line, evidence, concrete fix, verification command, and whether the finding has appeared before. The agent does not need to repeat the security investigation before making a safe change.
-
-### 3. Untrusted package text is treated as data
-
-Package descriptions, script bodies, and other registry-controlled strings can contain hostile instructions. Agent-facing output keeps untrusted content separate and sanitized so the security tool does not become a prompt-injection path.
-
-### 4. The handoff closes the loop
-
-`warden fix` writes `.warden/handoff.json` with the finding, repository context, constraints, recheck commands, and a final verification command. The selected agent fixes the dependency and runs `warden ci --reporter agent`. The task is complete only when Warden returns a clean verdict.
-
-### 5. Agents are protected at the command boundary
-
-The same shims that protect a person also protect an autonomous process. If an agent attempts `npm install`, `npx`, `bunx`, or an equivalent command, the request crosses Warden before the package manager can execute the package.
-
-### 6. The interface is portable
-
-Warden includes adapters for seven major coding-agent CLIs and can print a generic handoff for any other agent. The security decision remains independent of the agent vendor.
-
-The resulting loop is:
-
-`agent requests package` -> `Warden inspects` -> `deterministic verdict` -> `agent fixes or proceeds` -> `Warden verifies`
-
-## How to explain the deck slide by slide
-
-### Slide 1: Nothing runs without a verdict
-
-Open with the outcome, not the implementation. Package installation has become code execution, so Warden introduces a checkpoint before trust is granted.
-
-### Slide 2: The package is the payload
-
-Use the figures to establish scale. The key transition is from known vulnerabilities to malicious packages and predictable hallucinated package names.
-
-### Slide 3: One command enters, evidence decides what leaves
-
-Explain that no single weak signal blocks a package. Warden resolves identity, verifies integrity, compares releases, scans capabilities, combines threat intelligence with deterministic rules, and then returns a verdict.
-
-### Slide 4: Live package check
-
-Emphasize that the package is blocked before its lifecycle script runs. Exit code 20 makes the same decision enforceable by a terminal, shell script, CI job, or coding agent.
-
-### Slide 4b: Nothing is silent
-
-Planning a real graph is minutes of registry work. The slide shows what that wait looks like: the phase, the count, the package being read or vetted, and a clock that keeps moving. Make the point that this is not decoration. A tool that goes quiet for two minutes gets killed and disabled, and an agent that sees no output assumes a hang. The same information reaches a log without a spinner, as announce-then-heartbeat lines. Press SKIP in the terminal title bar if the room is short on time.
-
-### Slide 5: No habit change
-
-The developer keeps using the original package manager. Warden is a transparent trust layer, not a migration to another ecosystem.
-
-### Slide 6: One-time setup
-
-Installation produces local binaries and shims. Checksums protect the installation path, while local configuration lets the user choose protect or observe behavior.
-
-### Slide 7: One trust layer, every workflow
-
-Connect the verbs to a lifecycle: check a package, inspect a repository, initialize policy, enforce changes in CI, hand a finding to an agent, and review recorded decisions.
-
-### Slide 8: Pull request gate
-
-Show how the same local verdict becomes a merge decision. Warden evaluates only changed dependencies and reports the exact package, file, line, evidence, and fix.
-
-### Slide 9: Agent-first guardrail
-
-This is the product distinction. The agent gets structured evidence, a safe action, and a verification command. It does not receive an ambiguous log and permission to guess.
-
-### Slide 10: Recent incidents
-
-Present the attacks as a progression:
-
-1. chalk and debug show that trusted accounts can be hijacked.
-2. Shai-Hulud shows that install scripts can turn the ecosystem into a worm network.
-3. axios shows that provenance and dependency changes matter even when the package name remains trusted.
-4. Add `react-codeshift` verbally as the bridge to the agent threat: a nonexistent package command propagated through repository instructions.
-
-### Slide 11: From package gate to repository shield
-
-Be explicit that the package gate, shims, CI dependency checks, and agent handoff exist today. Broader lockfile, registry configuration, repository policy, secret, license, and MCP coverage are expansion areas.
-
-### Slide 12: Keep the workflow, add the checkpoint
-
-Close on adoption. Developers retain their package managers and agents. Warden adds one consistent decision boundary across local work and CI.
-
-## Suggested two-minute problem narrative
-
-"A package install is not just a download. It can execute code with access to a developer's environment, credentials, repository, and network. Recent attacks exploited four different assumptions. The chalk and debug compromise used trusted package names and a trusted maintainer account. Shai-Hulud used lifecycle scripts to steal credentials and replicate across packages. The axios compromise hid behind a legitimate project while its publishing provenance and dependency graph changed. At the same time, `react-codeshift` showed a new failure mode: coding agents repeatedly attempted to execute a package name invented in generated repository instructions.
-
-Existing tools cover parts of this. Package managers can disable scripts or delay new releases. Vulnerability scanners find known CVEs. Malicious-package scanners analyze code. Commercial platforms add intelligence and dashboards. What is missing is one free, open-source checkpoint that works before execution across package managers, CI, and coding agents.
-
-Warden sits at that boundary. It verifies the tarball, compares the release with its predecessor, scans behavior, checks threat intelligence and naming risk, and produces a deterministic allow, warn, or block verdict. Humans see the reason. CI receives a stable exit code. Coding agents receive structured evidence, a fix, and a command that proves the repository is clean. The workflow stays the same. The unsafe default changes."
 
 ## Claims to avoid
 
