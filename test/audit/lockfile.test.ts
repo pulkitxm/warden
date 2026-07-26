@@ -2,11 +2,13 @@ import { expect, test } from "bun:test";
 import {
   auditLockEntry,
   auditLockfile,
+  entriesFromBunLock,
   entriesFromNpmLock,
   entriesFromPnpmLock,
   entriesFromYarnLock,
   hostOf,
   type LockEntry,
+  parseJsonc,
 } from "../../src/audit/lockfile.ts";
 import type { AuditFs } from "../../src/audit/types.ts";
 
@@ -124,9 +126,77 @@ test("a project with no lockfile reports a note rather than a finding", () => {
   expect(report.notes).toEqual(["no lockfile found"]);
 });
 
-test("a bun lockfile is reported as unsupported, not silently clean", () => {
-  expect(auditLockfile("/proj", fsWith({ "bun.lock": "" })).notes[0]).toContain("not parsed yet");
+test("a binary bun lockfile is reported as unsupported, not silently clean", () => {
   expect(auditLockfile("/proj", fsWith({ "bun.lockb": "" })).notes[0]).toContain("binary lockfile");
+});
+
+const BUN_LOCK = `{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": { "name": "root" },
+  },
+  "packages": {
+    "left-pad": ["left-pad@1.3.0", "", {}, "sha512-aaa"],
+    "is-number": ["is-number@github:jonschlinkert/is-number#98e8ff1", {}, "tag", "sha512-bbb"],
+    "local-dep": ["local-dep@file:pkgs/local-dep", {}],
+    "web": ["web@workspace:web"],
+    "mirrored": ["mirrored@2.0.0", "https://evil.example.com/mirrored.tgz", {}, "sha512-ccc"],
+    "bare": ["bare@3.0.0", "", {}],
+    "malformed": "not-a-tuple",
+    "nameless": ["@scope/pkg@1.0.0", "", {}, "sha512-ddd"],
+    "unversioned": ["oops", "", {}],
+  }
+}`;
+
+test("bun lockfile entries carry version, registry, and integrity", () => {
+  const entries = entriesFromBunLock(BUN_LOCK);
+  const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+  expect(byName["left-pad"]).toEqual({
+    name: "left-pad",
+    version: "1.3.0",
+    resolved: "https://registry.npmjs.org/",
+    integrity: "sha512-aaa",
+  });
+  expect(byName["@scope/pkg"]?.version).toBe("1.0.0");
+  expect(byName.mirrored?.resolved).toBe("https://evil.example.com/mirrored.tgz");
+  expect(byName.bare?.integrity).toBeUndefined();
+});
+
+test("bun protocol specs become the resolution and local links are skipped", () => {
+  const entries = entriesFromBunLock(BUN_LOCK);
+  const byName = Object.fromEntries(entries.map((entry) => [entry.name, entry]));
+
+  expect(byName["is-number"]?.resolved).toBe("github:jonschlinkert/is-number#98e8ff1");
+  expect(byName["is-number"]?.version).toBeUndefined();
+  expect(byName["local-dep"]?.resolved).toBe("file:pkgs/local-dep");
+  expect(byName.web).toBeUndefined();
+  expect(byName.malformed).toBeUndefined();
+  expect(byName.unversioned).toBeUndefined();
+});
+
+test("a bun lockfile is audited like any other lockfile", () => {
+  const report = auditLockfile("/proj", fsWith({ "bun.lock": BUN_LOCK }));
+  const rules = report.findings.map((finding) => finding.rule);
+
+  expect(report.scanned).toBe(6);
+  expect(rules).toContain("lockfile_git_dependency");
+  expect(rules).toContain("lockfile_file_dependency");
+  expect(rules).toContain("lockfile_off_registry_host");
+  expect(rules).toContain("lockfile_missing_integrity");
+  expect(report.notes).toEqual([]);
+});
+
+test("parseJsonc drops trailing commas without touching string contents", () => {
+  expect(parseJsonc('{ "a": [1, 2,], }')).toEqual({ a: [1, 2] });
+  expect(parseJsonc('{ "a": "x,}", "b": "esc\\"aped,]" }')).toEqual({ a: "x,}", b: 'esc"aped,]' });
+  expect(() => parseJsonc("{not json")).toThrow();
+});
+
+test("a bun lockfile with no packages section reports a note", () => {
+  const report = auditLockfile("/proj", fsWith({ "bun.lock": "{}" }));
+  expect(report.findings).toEqual([]);
+  expect(report.notes[0]).toContain("no dependency entries found");
 });
 
 test("an unparseable lockfile becomes a note instead of a crash", () => {

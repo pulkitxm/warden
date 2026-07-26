@@ -283,7 +283,7 @@ make ci              # the full suite`}
             ["Manager-neutral policy", "one policy compiled into npm, pnpm, Yarn, and Bun's own settings"],
             ["Whole-graph interception", "shims for npm, pnpm, yarn, bun, npx, bunx, gated on the full graph"],
             ["Repair loop", "OSV audit, supply-chain gate on the fix, isolated verify, apply"],
-            ["Surface audits", "lockfile, install scripts, and .npmrc, across npm, pnpm, and yarn"],
+            ["Surface audits", "lockfile, install scripts, and .npmrc, across npm, pnpm, yarn, and bun"],
             ["Agent contracts", "capability-based adapters, a read-only MCP manifest, published schemas"],
             ["Intent", "prompt-as-spec verification and hallucinated-API detection"],
             ["Published benchmark", "12 of 12 attack shapes stopped, 0 of 9 benign, reproducible with one command"],

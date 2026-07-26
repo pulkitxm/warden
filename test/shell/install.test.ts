@@ -198,6 +198,7 @@ function run(
     env?: Record<string, string | undefined>;
     local?: boolean;
     path?: string;
+    piped?: boolean;
   } = {},
 ) {
   const env: Record<string, string | undefined> = Object.fromEntries(
@@ -218,6 +219,7 @@ function run(
     if (value === undefined) env[key] = "";
     else env[key] = value;
   }
+  if (options.piped) return Bun.spawnSync(["sh"], { env, stdin: Bun.file(installScript) });
   const input = join(sandbox.root, "stdin");
   writeFileSync(input, options.answer ?? "");
   return Bun.spawnSync(["sh", installScript, ...args], {
@@ -294,6 +296,16 @@ test("prompt maps empty and garbage to brief, 2 to log, and EOF to brief", () =>
       expect(config(sandbox)).toContain(`"mode": "${mode}"`);
     });
   }
+});
+
+test("piping the script into sh skips the prompt instead of reading its own body", () => {
+  inSandbox([], (sandbox) => {
+    const result = run(sandbox, [], { piped: true });
+    expect(result.exitCode).toBe(0);
+    expect(output(result)).not.toContain("syntax error");
+    expect(output(result)).not.toContain("choice [1]:");
+    expect(config(sandbox)).toContain('"mode": "brief"');
+  });
 });
 
 test("shell selection writes PATH and matching completion lines", () => {

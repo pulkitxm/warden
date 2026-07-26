@@ -237,11 +237,14 @@ for manager in $selected; do
   esac
 done
 
-printf 'When warden finds a risky package:\n'
-printf '  1) protect  stop the install and show why  (recommended)\n'
-printf '  2) observe  never stop anything, just keep a record\n'
-printf 'choice [1]: '
-read -r choice || choice=1
+choice=1
+if [ -t 0 ] || [ -f "$0" ]; then
+  printf 'When warden finds a risky package:\n'
+  printf '  1) protect  stop the install and show why  (recommended)\n'
+  printf '  2) observe  never stop anything, just keep a record\n'
+  printf 'choice [1]: '
+  read -r choice || choice=1
+fi
 case "$choice" in
   2)
     mode=log
