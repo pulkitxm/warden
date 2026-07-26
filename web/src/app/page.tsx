@@ -75,29 +75,38 @@ const facts = [
   { value: ">99%", label: "of open-source malware is on npm", source: "Sonatype, 2026" },
 ];
 
-const planSample = `Warden plan: npm install @fastify/jwt
+const planSample = `Warden plan: npm install esbuild
 
 Direct changes
-  + @fastify/jwt 10.2.0
+  + esbuild 0.28.1
 
 Graph changes
-  + 20 transitive packages
+  + 26 transitive packages
   ~ 0 existing packages resolved to a different version
-  = 65 unchanged
+  - 0 packages no longer required
+  = 0 unchanged
+
+Execution surface
+  1 changed packages carry an install script
+  1 of those are new relative to the current graph
+  26 platform-specific artifacts will be added
+  0 requirements did not resolve from the registry
 
 Analysis coverage
-  21 of 21 changed packages analyzed (100%)
+  27 of 27 changed packages analyzed (100%)
 
-Decision: WARN
-  @fastify/error: @fastify/error@4.2.0 warrants review: code requires child_process; code recursively deletes files; publisher email changed from the previous version.
+Decision: NEEDS_APPROVAL
+  esbuild@0.28.1 has a postinstall script
 
 Next action
-  warden apply wtxn_8f2eb19ab77eb529`;
+  warden approve-script esbuild@0.28.1 --hook postinstall --plan wtxn_d0d5d95c8db60694
+
+  plan wtxn_d0d5d95c8db60694 written to .warden/plans/wtxn_d0d5d95c8db60694.json`;
 
 const transactionSteps = [
   {
     step: "01",
-    command: "warden plan -- npm install @fastify/jwt",
+    command: "warden plan -- npm install esbuild",
     body: "Resolve the complete prospective graph, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. Every added or changed package is vetted, transitive ones included.",
   },
   {

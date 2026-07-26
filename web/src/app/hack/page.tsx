@@ -54,13 +54,20 @@ const beats = [
     command: "warden plan -- npm install esbuild",
     output: `Warden plan: npm install esbuild
 
+Direct changes
+  + esbuild 0.28.1
+
 Graph changes
   + 26 transitive packages
+  ~ 0 existing packages resolved to a different version
+  - 0 packages no longer required
   = 0 unchanged
 
 Execution surface
   1 changed packages carry an install script
+  1 of those are new relative to the current graph
   26 platform-specific artifacts will be added
+  0 requirements did not resolve from the registry
 
 Analysis coverage
   27 of 27 changed packages analyzed (100%)
@@ -69,7 +76,9 @@ Decision: NEEDS_APPROVAL
   esbuild@0.28.1 has a postinstall script
 
 Next action
-  warden approve-script esbuild@0.28.1 --hook postinstall --plan wtxn_d0d5d95c8db60694`,
+  warden approve-script esbuild@0.28.1 --hook postinstall --plan wtxn_d0d5d95c8db60694
+
+  plan wtxn_d0d5d95c8db60694 written to .warden/plans/wtxn_d0d5d95c8db60694.json`,
   },
   {
     step: "02",
