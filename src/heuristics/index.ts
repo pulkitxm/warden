@@ -28,7 +28,7 @@ export interface AnalysisInput {
   scanFiles: ScanFile[];
 }
 
-const LIFECYCLE = new Set(["preinstall", "install", "postinstall", "prepare"]);
+const LIFECYCLE = new Set(["preinstall", "install", "postinstall"]);
 
 function sig(
   id: string,
@@ -73,6 +73,7 @@ export function ruleInstallScripts(input: AnalysisInput): Signal[] {
 export function ruleScriptContent(input: AnalysisInput): Signal[] {
   const out: Signal[] = [];
   for (const [name, body] of Object.entries({ ...input.addedScripts, ...input.changedScripts })) {
+    if (!LIFECYCLE.has(name)) continue;
     for (const f of scanShell(body)) {
       const cat: Category =
         f.kind === "network" || f.kind === "raw_ip" ? "exfiltration" : "install_script";
@@ -307,7 +308,6 @@ export function ruleMetadata(input: AnalysisInput): Signal[] {
         20,
         "medium",
         "publisher email changed from the previous version",
-        { action: true },
       ),
     );
   }
