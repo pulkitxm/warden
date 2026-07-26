@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { SiGithub } from "react-icons/si";
 import { Logo } from "@/components/logo";
 import { footerLinks, nav, site } from "@/lib/site";
@@ -111,12 +112,6 @@ export function Breadcrumbs({ trail }: { trail: Array<{ name: string; path: stri
   );
 }
 
-export function Prose({ html }: { html: string }) {
-  return (
-    <div
-      className="prose-warden max-w-none"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: markdown authored in this repo
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
-  );
+export function Prose({ children }: { children: ReactNode }) {
+  return <div className="prose-warden max-w-none">{children}</div>;
 }
