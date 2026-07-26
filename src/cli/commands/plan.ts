@@ -1,7 +1,9 @@
 import { join } from "node:path";
 import { parseSpec } from "../../engine.ts";
 import { manifestRequirements, readInstalledGraph } from "../../graph/installed.ts";
+import { resolveWithManager } from "../../graph/manager-resolve.ts";
 import { buildPlan, type TransactionPlan } from "../../graph/plan.ts";
+import { buildRequest, type TransactionOperation } from "../../graph/request.ts";
 import { resolveGraph } from "../../graph/resolve.ts";
 import { fetchPackument } from "../../registry.ts";
 import { EXIT } from "../../schema.ts";
@@ -124,10 +126,38 @@ export async function runWardenPlan(argv: string[], deps: WardenDeps): Promise<n
       );
     }
     const manager = detectManager(fs, root, managerFromArgv(argv)).manager;
-    const command = specs.length ? `${manager} install ${specs.join(" ")}` : `${manager} install`;
+    const separator = argv.indexOf("--");
+    const passthrough = separator === -1 ? [] : argv.slice(separator + 1);
+    const managerArgv =
+      passthrough[0] === manager || RUNNERS.includes(passthrough[0] ?? "")
+        ? passthrough.slice(1)
+        : passthrough;
+    const operation: TransactionOperation = specs.length ? "add" : "install";
+    const request = buildRequest({
+      manager,
+      operation,
+      argv: managerArgv.length ? managerArgv : ["install", ...specs],
+      cwd: root,
+      specs,
+    });
+    const command = `${manager} ${request.argv.join(" ")}`.trim();
     plan = await buildPlan(
-      { command, manager, root, direct, existing, installed },
-      { resolve: resolveGraph, packument: fetchPackument, check: deps.check },
+      { command, manager, request, root, direct, existing, installed },
+      {
+        resolve: resolveGraph,
+        packument: fetchPackument,
+        check: deps.check,
+        resolveWithManager: () =>
+          resolveWithManager(manager, request, root, {
+            exists: deps.exists,
+            readFile: deps.readFile,
+            exec: (cmd, cwd, env) => ({ code: deps.spawnQuiet(cmd, cwd, env) }),
+            mkTemp: deps.mkTemp,
+            copyFile: deps.copyFile,
+            rm: deps.rmrf,
+            which: deps.which,
+          }),
+      },
     );
   } catch (error) {
     return wardenFailure(

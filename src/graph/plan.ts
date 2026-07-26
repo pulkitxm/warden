@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import type { Verdict, VerdictLevel } from "../schema.ts";
 import { progressCount, progressDetail, progressStep } from "../shared/progress.ts";
+import type { InstalledNode } from "./delta.ts";
 import { digestGraph, type GraphChange, type GraphDelta, graphDelta } from "./delta.ts";
-import type { InstalledGraph } from "./installed.ts";
+import { type InstalledGraph, installedIdentities } from "./installed.ts";
+import type { TransactionRequest } from "./request.ts";
 import type { GraphResolution, RootRequirement, resolveGraph } from "./resolve.ts";
 
 export type PlanDecision = "allow" | "warn" | "needs_approval" | "block";
@@ -23,6 +25,7 @@ export interface TransactionPlan {
   manager: string;
   root: string;
   direct: Array<{ name: string; range: string }>;
+  request?: TransactionRequest;
   graph_before: string;
   graph_after: string;
   delta: GraphDelta;
@@ -30,6 +33,7 @@ export interface TransactionPlan {
   unresolved: GraphResolution["unresolved"];
   conflicts: GraphResolution["conflicts"];
   truncated: boolean;
+  resolver: "manager" | "metadata";
   coverage: { analyzed: number; changed: number; ratio: number };
   decision: PlanDecision;
   reasons: string[];
@@ -38,6 +42,7 @@ export interface TransactionPlan {
 
 export interface PlanDeps {
   resolve: typeof resolveGraph;
+  resolveWithManager?: () => { nodes: Map<string, InstalledNode>; lockfile: string } | null;
   packument: Parameters<typeof resolveGraph>[1]["packument"];
   check: (spec: string) => Promise<Verdict>;
   maxNodes?: number;
@@ -48,6 +53,7 @@ export interface PlanDeps {
 export interface PlanInput {
   command: string;
   manager: string;
+  request?: TransactionRequest;
   root: string;
   direct: RootRequirement[];
   existing: RootRequirement[];
@@ -176,12 +182,37 @@ function nextActions(delta: GraphDelta, plan: { decision: PlanDecision; id: stri
 }
 
 export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<TransactionPlan> {
+  const faithful = deps.resolveWithManager?.() ?? null;
   const requirements = [...input.existing, ...input.direct];
-  progressStep("resolving the prospective dependency graph");
-  const resolution = await deps.resolve(requirements, {
-    packument: deps.packument,
-    ...(deps.maxNodes === undefined ? {} : { maxNodes: deps.maxNodes }),
-  });
+  let resolution: GraphResolution;
+  if (faithful) {
+    resolution = {
+      nodes: [...faithful.nodes.entries()]
+        .map(([name, node]) => ({
+          name,
+          version: node.version,
+          ...(node.integrity ? { integrity: node.integrity } : {}),
+          ...(node.resolved ? { tarball: node.resolved } : {}),
+          hooks: node.hooks ?? [],
+          depth: 1,
+          requiredBy: [],
+          optional: false,
+          deprecated: false,
+          platformSpecific: false,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      unresolved: [],
+      conflicts: [],
+      truncated: false,
+      complete: true,
+    };
+  } else {
+    progressStep("resolving the prospective dependency graph");
+    resolution = await deps.resolve(requirements, {
+      packument: deps.packument,
+      ...(deps.maxNodes === undefined ? {} : { maxNodes: deps.maxNodes }),
+    });
+  }
 
   const directNames = new Set(input.direct.map((entry) => entry.name));
   for (const node of resolution.nodes) if (directNames.has(node.name)) node.depth = 0;
@@ -190,9 +221,7 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
   const changes = [...delta.added, ...delta.changed];
   const { artifacts, analyzed } = await vet(changes, deps);
 
-  const graphBefore = digestGraph(
-    [...input.installed.nodes.entries()].map(([name, node]) => ({ name, version: node.version })),
-  );
+  const graphBefore = digestGraph(installedIdentities(input.installed));
   const graphAfter = digestGraph(resolution.nodes);
   const id = planId(input.command, graphAfter);
   const { decision, reasons } = decide(delta, artifacts, resolution);
@@ -204,6 +233,7 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
     manager: input.manager,
     root: input.root,
     direct: input.direct.map((entry) => ({ name: entry.name, range: entry.range })),
+    ...(input.request ? { request: input.request } : {}),
     graph_before: graphBefore,
     graph_after: graphAfter,
     delta,
@@ -211,6 +241,7 @@ export async function buildPlan(input: PlanInput, deps: PlanDeps): Promise<Trans
     unresolved: resolution.unresolved,
     conflicts: resolution.conflicts,
     truncated: resolution.truncated,
+    resolver: faithful ? "manager" : "metadata",
     coverage: {
       analyzed,
       changed: changes.length,
