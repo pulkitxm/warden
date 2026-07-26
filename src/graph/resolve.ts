@@ -82,7 +82,7 @@ function selectVersion(pack: Packument, range: string): string | null {
   return maxSatisfying(versions, range) ?? null;
 }
 
-function hooksOf(
+export function hooksOf(
   scripts: Record<string, string> | undefined,
   source: "registry" | "source" = "registry",
 ): string[] {

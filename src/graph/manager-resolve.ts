@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { LOCK_FORMATS, UNREADABLE_LOCKFILES } from "../lockfile.ts";
 import type { PackageManager } from "../shared/manager.ts";
 import { progressStep } from "../shared/progress.ts";
 import type { InstalledNode } from "./delta.ts";
@@ -20,15 +21,12 @@ export interface ManagerResolution {
 
 const SEED_FILES = [
   "package.json",
-  "package-lock.json",
-  "npm-shrinkwrap.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb",
+  ...LOCK_FORMATS.map((format) => format.file),
+  ...UNREADABLE_LOCKFILES.map((entry) => entry.file),
   ".npmrc",
   ".yarnrc.yml",
   "pnpm-workspace.yaml",
+  "bunfig.toml",
 ];
 
 export function lockfileOnlyCommand(
@@ -48,7 +46,8 @@ export function lockfileOnlyCommand(
     if (specs.length) return null;
     return ["yarn", "install", "--mode=update-lockfile"];
   }
-  return null;
+  const verb = specs.length ? ["add", ...specs] : ["install"];
+  return ["bun", ...verb, "--lockfile-only", "--ignore-scripts"];
 }
 
 export function resolveWithManager(
