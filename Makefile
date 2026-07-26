@@ -53,9 +53,9 @@ docker-build:
 	@sh scripts/docker-build.sh warden:dev
 
 docker-run: docker-build
-	$(if $(ARGS),,@printf 'warden preinstalled: shims intercept npm/bun/npx, completions active   repo read-only at /work, try installs in /play\n')
+	$(if $(ARGS),,@printf 'warden preinstalled: shims intercept npm/bun/npx, completions active   repo writable at /work, scratch space in /play\n')
 	@printf '%s\n' '────────────────────────────────────────'
-	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash -e SHELL=/bin/bash) -v "$$PWD:/work:ro" warden:dev $(if $(ARGS),$(ARGS),-c 'printf "warden: setting up shims and completions... "; WARDEN_INSTALL_SOURCE=/app sh /app/web/public/install.sh </dev/null >/tmp/warden-install.log 2>&1 && echo "done" || { echo "failed"; tail -n 20 /tmp/warden-install.log; echo "rerun: sh /app/web/public/install.sh"; }; exec bash')
+	@docker run --rm $(if $(ARGS),,-it --entrypoint /bin/bash -e SHELL=/bin/bash) -v "$$PWD:/work" warden:dev $(if $(ARGS),$(ARGS),-c 'printf "warden: setting up shims and completions... "; WARDEN_INSTALL_SOURCE=/app sh /app/web/public/install.sh </dev/null >/tmp/warden-install.log 2>&1 && echo "done" || { echo "failed"; tail -n 20 /tmp/warden-install.log; echo "rerun: sh /app/web/public/install.sh"; }; exec bash')
 
 docker-install-demo: docker-build
 	@printf 'fresh container; run: sh /app/web/public/install.sh, then: source ~/.bashrc   try installs in /play\n'
