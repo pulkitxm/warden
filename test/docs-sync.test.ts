@@ -178,6 +178,15 @@ test("the intent corpus numbers stated in the docs are the generated ones", asyn
   }
 });
 
+test("the corpus population the docs describe is the population that ran", async () => {
+  const published = await import("../web/src/lib/intent-corpus.json");
+  const { cases, conforming } = published.default.totals;
+  const corpusDoc = read("../docs/intent-corpus.md");
+  expect(corpusDoc).toContain(`${cases} curated shapes`);
+  expect(corpusDoc).toContain(`zero claims across all ${cases} cases`);
+  expect(corpusDoc).toContain(`${conforming}-case conforming population`);
+});
+
 test("every doc page belongs to a declared section", async () => {
   const { DOC_PAGES, DOC_SECTIONS } = await import("../web/src/lib/docs.ts");
   for (const page of DOC_PAGES) {

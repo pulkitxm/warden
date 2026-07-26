@@ -22,7 +22,7 @@ The middle of the deck follows this progression:
 4. Package reputation does not prove release safety. `warden check` examines the artifact, release delta, lockfile, scripts, and registry configuration.
 5. Native safety settings diverge across managers. `warden policy` compiles one intent into the strongest available npm, pnpm, Yarn, and Bun controls.
 6. An advisory fix can introduce a new supply-chain risk. `warden doctor` gates and verifies repair candidates before applying one.
-7. Compiling code can still violate the request. `warden intent check` compares the prompt with the diff and verifies added API calls.
+7. Compiling code can still violate the request. `warden intent check` compares the prompt with the diff and verifies added API calls and added imports.
 8. Automation cannot depend on prose output. JSON schemas, typed errors, stable exit codes, handoff bundles, and CI reporters provide a machine contract.
 
 ## The problem
@@ -190,9 +190,11 @@ An advisory's official fix can be marked unfixable when the candidate release fa
 
 `warden intent check` decomposes a prompt into atomic claims and compares them with the merge-base diff.
 
-It reports delivered requirements, preserved requirements, dropped requirements, scope creep, and calls to package members that the static export surface proves do not exist.
+It reports delivered requirements, preserved requirements, dropped requirements, scope creep, calls to package members that the static export surface proves do not exist, and added imports of packages that no dependency group declares or that the registry says were never published.
 
-Claim extraction and unmatched semantic comparison use the configured provider. The hallucinated-API check is deterministic static analysis and never executes project code.
+Claim extraction and unmatched semantic comparison use the configured provider. The hallucinated-API check and the added-import check are deterministic and never execute project code. When no provider is available the deterministic findings are still published, with `claims_status: "unverifiable"` and the reason in `notes`, rather than the run erroring out.
+
+Accuracy is published rather than asserted. `warden intent bench` replays a 23-case corpus offline and reports precision and recall per rule: the hallucinated-API and added-import rules measure 100% precision, claim matching measures 60% against a stated 5% false-positive budget, and the corpus-wide false-positive rate is 18.2%. The deterministic rules are what block; claim matching is advisory until it is inside budget.
 
 `warden ci` runs intent verification automatically when `.warden/prompt.txt` exists and JavaScript or TypeScript changed.
 
@@ -253,8 +255,9 @@ The problem is that a version fixing a CVE can still be an unsafe release. The r
 - logging requirement dropped
 - unrelated pagination file changed
 - added call references an export that does not exist
+- added import names a package the registry has never had
 
-The problem is that compilation success does not prove instruction fidelity. The response is prompt-to-diff comparison plus deterministic API validation. The proof separates delivered requirements from dropped work, scope creep, and impossible calls.
+The problem is that compilation success does not prove instruction fidelity. The response is prompt-to-diff comparison plus two deterministic validations, of added API calls and of added imports. The proof separates delivered requirements from dropped work, scope creep, impossible calls, and impossible packages.
 
 ## Benchmark
 
@@ -277,6 +280,7 @@ Describe Warden as a technical alpha with a working transaction core.
 - Receipts are unsigned local JSON, so they are evidence rather than independent attestation.
 - Registry-metadata fallback resolution uses one version per package name and is not identical to every manager's solver.
 - Intent verification only reports hallucinated members when the export surface can be proven closed and the call appears on an added line.
+- Intent's claim matching measures 60% precision against a stated 5% false-positive budget, so it is advisory. Only the deterministic rules carry blocking authority, and the measured figures are published in `docs/intent-corpus.md` rather than summarized here.
 
 Stating these limits is part of the security case.
 

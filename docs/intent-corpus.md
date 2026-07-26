@@ -99,9 +99,9 @@ claim matching should not be blocking a pull request at this measured precision.
 
 ## What the corpus does not measure
 
-- **It is 18 curated shapes, not a sample of real pull requests.** Read the rates as regression signals, the
+- **It is 23 curated shapes, not a sample of real pull requests.** Read the rates as regression signals, the
   same caveat `docs/benchmark.md` carries.
-- **A 10-case conforming population cannot resolve a 5% budget.** The measurement floor is one case, 10
+- **An 11-case conforming population cannot resolve a 5% budget.** The measurement floor is one case, 9.1
   percentage points. The corpus can tell you 40% is far outside budget; it cannot tell you 4% from 6%. Growing
   the conforming population is the honest way to fix that and it has not been done.
 - **Claim statuses are not pinned on every case.** Where a diff attempts a requirement through an API that
@@ -135,7 +135,7 @@ hallucination scan is stubbed.
 
 ## A finding the corpus produced immediately
 
-The deterministic keyword pass matched **zero claims across all 18 cases**. "Deterministic first, LLM second"
+The deterministic keyword pass matched **zero claims across all 23 cases**. "Deterministic first, LLM second"
 is the architecture, but in practice every claim reaches the LLM. Two causes, both measured rather than
 guessed: real extracted claims are long sentences, so the `coverage >= 0.6` requirement is almost unreachable;
 and claim keywords are lowercased on the way in, which destroys the camelCase boundary the tokenizer splits

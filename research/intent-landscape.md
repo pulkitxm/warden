@@ -128,11 +128,45 @@ Three conclusions follow, and two of them are unflattering.
    six-entry database is not competing with a type checker; it is losing to one.
 2. **The undeclared-import class is already covered by three separate tools**, so Warden adding it is not a
    novel capability. What none of them do is scope the finding to the diff or gate on it with a verdict.
-3. **Exactly one cell is uncovered by everything tested:** a package name that has *never been published*.
-   `tsc`, eslint, knip, and depcheck all collapse "you forgot to install it", "it has no types", and "this
-   name does not exist and never has" into one unresolvable-module message. Distinguishing the third requires
-   a registry lookup and hallucinated-name intel, both of which Warden already owns
+3. **Exactly one cell is uncovered by the developer tooling tested:** a package name that has *never been
+   published*. `tsc`, eslint, knip, and depcheck all collapse "you forgot to install it", "it has no types",
+   and "this name does not exist and never has" into one unresolvable-module message. Distinguishing the
+   third requires a registry lookup and hallucinated-name intel, both of which Warden already owns
    (`resolvePackage().existsOnRegistry`, `src/intel/data/hallucinated.json`).
+
+### The dedicated slopsquat scanners, which the table above does not cover
+
+The row above is scoped to *developer tooling a repo already runs*. A second category exists and has to be
+named, because "no tool distinguishes a never-published name" is false once you leave that scope. Checked
+2026-07-26.
+
+| Tool | What it reads | When it runs | How it decides |
+| --- | --- | --- | --- |
+| `mattschaller/slopcheck` | `.md`, `.mdc`, `.yml`, `.json`, `.cursorrules` — install commands in prose and config | CI, whole files | live npm registry: nonexistent, unpublished, or security-held (HTTP 451) |
+| `0xToxSec/slopcheck` | dependency manifests: `package.json`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `pom.xml`, `composer.json` | pre-install, pre-commit, CI on PRs touching those files | registry existence, plus age, download-count, name-pattern and Levenshtein heuristics |
+| Aikido SafeChain, Snyk | manifests and install-time resolution | install / scan | registry existence plus recency and reputation signals |
+
+Both `slopcheck` tools resolve the never-published case correctly and are npm-registry-backed, so the
+"nobody does this" framing is wrong. What is still true, and is the narrower claim this note now makes:
+
+- **Neither reads source-code import statements.** One parses install commands out of markdown and config,
+  the other parses dependency manifests. An `import x from "fetch-retry-helper-pro"` written into a `.ts`
+  file and never added to `package.json` is invisible to both — which is precisely the shape an agent
+  produces, because the agent writes the import and forgets the manifest.
+- **Neither is diff-scoped.** Warden judges only specifiers on lines the diff *added*, so a pre-existing
+  import does not re-flag on every pull request.
+- **Existence is the whole rule here, deliberately.** `0xToxSec/slopcheck` also flags packages under seven
+  days old, under 100 downloads, or matching `-helper` / `-gpt` / `-ai` / `-utils`. Those are useful
+  heuristics and they carry a false-positive rate; Warden's `unpublished_package` rule fires only on "the
+  registry says this name does not exist", which is why it can sit at `block` while claim matching cannot.
+
+**Warden coverage:** the same registry answer, applied to added import lines in source, folded into one
+verdict with the conformance rules rather than reported as a separate scan.
+
+**Remaining gap:** these tools cover ecosystems Warden does not (PyPI, crates.io, Go, RubyGems, Maven,
+Packagist) and catch the manifest-side case Warden's rule ignores by construction. On a repo that runs one of
+them against `package.json`, Warden's contribution is the source-import and diff-scoping half, not the
+registry lookup itself.
 
 ### Measured here: how much untyped surface is actually left
 
@@ -269,8 +303,11 @@ than a retreat.
 
 **Warden owns, uniquely and deterministically:**
 
-- A diff-scoped answer to "is this added import a package that does not exist". No tool tested distinguishes
-  a never-published name from an uninstalled one, and Warden already has the resolver and the intel.
+- A diff-scoped answer to "is this added *import* a package that does not exist". No developer tool a repo
+  already runs distinguishes a never-published name from an uninstalled one, and the dedicated scanners that
+  do (both `slopcheck` tools, Aikido, Snyk) read manifests, prose, and config rather than source imports. The
+  import-line-and-diff scoping is the part Warden owns; the registry lookup is not novel and section 2 says
+  so.
 - Member-level hallucination detection on surfaces a type checker cannot see, which means untyped packages and
   repos with no type check, reported only when the export surface is provably closed.
 - A machine-readable per-requirement ledger with stable exit codes, for a repo that has a prompt and no spec.

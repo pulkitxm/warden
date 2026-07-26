@@ -22,9 +22,12 @@ function label(row: ClaimRow): string {
 export function intentSummaryLine(report: IntentReport): string {
   const delivered = report.claims.filter((row) => row.verdict === "delivered").length;
   const dropped = report.claims.filter((row) => row.verdict === "dropped").length;
+  const blockingDeps = report.dependencies.filter((finding) => finding.level === "block").length;
   const partial =
-    report.claims.filter((row) => row.verdict === "partial").length + report.scope_creep.length;
-  const flagged = report.hallucinations.length + report.dependencies.length;
+    report.claims.filter((row) => row.verdict === "partial").length +
+    report.scope_creep.length +
+    (report.dependencies.length - blockingDeps);
+  const flagged = report.hallucinations.length + blockingDeps;
   return `${delivered} ✅ · ${dropped} ❌ · ${partial} ⚠️ · ${flagged} 🚨`;
 }
 
@@ -46,7 +49,7 @@ export function renderIntentReport(report: IntentReport): string {
   }
   for (const finding of report.dependencies) {
     lines.push(
-      `  🚨 ${DEPENDENCY_LABELS[finding.rule]}: ${finding.package}  ${dim(`[${finding.file}:${finding.line}]`)}`,
+      `  ${finding.level === "block" ? "🚨" : "⚠️"} ${DEPENDENCY_LABELS[finding.rule]}: ${finding.package}  ${dim(`[${finding.file}:${finding.line}]`)}`,
     );
     lines.push(`     ${finding.proof}`);
     lines.push(`     fix: ${finding.fix}`);

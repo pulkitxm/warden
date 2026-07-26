@@ -126,6 +126,25 @@ plan minimal: smallest safe upgrade  recommended
     fix: repoint this entry and rotate any token that touched that host
 exit 20`,
   },
+  {
+    step: "06",
+    title: "An import of a package that has never existed",
+    body: "The agent wrote the import and never touched package.json, so nothing that reads a manifest sees it. tsc, eslint, knip, and depcheck all report the same unresolvable-module message they would give a package you simply forgot to install. Warden asks the registry, and this one was never published. No model is configured in this run at all: the deterministic rules still ran, and they still blocked.",
+    command: 'warden intent check --prompt "add retries to the upload call"',
+    output: `VERDICT: 0 ✅ · 0 ❌ · 0 ⚠️ · 1 🚨
+
+  ⚠️ CLAIMS NOT VERIFIED: the prompt could not be decomposed
+  🚨 NOT ON THE REGISTRY: fetch-retry-helper-pro  [upload.js:2]
+     "fetch-retry-helper-pro" does not exist on the registry, so this import can never resolve
+     fix: remove the import; a name that has never been published is the slopsquat shape
+
+  note: claims not verifiable: no llm api key configured
+  note: deterministic checks still ran: 1 hunk(s) classified, 0 hallucinated api(s) found, 1 dependency finding(s)
+  note: scope creep not assessed: it needs a claim set, and 1 hunk(s) were classified without one
+
+  prompt-as-spec · merge-base 9be9da949c38 · llm calls: 0
+exit 20`,
+  },
 ];
 
 export default function HackPage() {
@@ -246,7 +265,7 @@ export default function HackPage() {
       </section>
 
       <section className="mt-14">
-        <h2 className="text-xl font-bold text-white sm:text-2xl">Five beats</h2>
+        <h2 className="text-xl font-bold text-white sm:text-2xl">Six beats</h2>
         <p className="mt-2 text-[14px] text-fog">
           The first beat is a real install against the public registry. The other four are
           reproducible offline against the in-repo fixture registry.

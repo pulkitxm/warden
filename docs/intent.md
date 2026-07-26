@@ -62,7 +62,7 @@ prompt, which disables the whole check. This is a real gap and it is listed as o
 1. **Diff**: `git diff <mergeBase>`, plus untracked files synthesized as a diff, parsed into hunks.
 2. **Classify**: each hunk is parsed with an AST walk (acorn) and bucketed into a category: new function, signature change, import added/removed, conditional changed, assignment changed, formatting only, deletion, test or doc, other. Deterministic, no LLM.
 3. **Scan hallucinations**: see below. Deterministic, no LLM.
-4. **Extract claims**: one LLM call decomposes the prompt into atomic claims (behavior, preservation, constraint, structural). This step has no non-LLM fallback: if it fails, the whole check errors out with exit `30`.
+4. **Extract claims**: one LLM call decomposes the prompt into atomic claims (behavior, preservation, constraint, structural). This step has no non-LLM fallback, but failing it no longer erases the run: the deterministic findings are published with `claims_status: "unverifiable"`, as described under [Verdict to action](#verdict-to-action).
 5. **Match, pass one**: deterministic keyword and stem overlap between each claim and each hunk's symbols and summary.
 6. **Match, pass two**: a second LLM call resolves whatever claims pass one left unmatched. If this call fails, those claims degrade to partial rather than failing the run.
 7. **Decide**: merges both passes, resolves preservation claims separately, flags scope creep, and produces the verdict.
@@ -93,7 +93,14 @@ that the existence check was skipped rather than reporting clean.
 
 `knip` and `depcheck` already report undeclared imports repo-wide, and `eslint-plugin-import` reports
 unresolvable ones. What none of them distinguish is a name that has **never been published**, which they
-collapse into the same unresolvable-module message. That distinction is the one this rule adds.
+collapse into the same unresolvable-module message.
+
+Dedicated slopsquat scanners do make that distinction — both tools named `slopcheck`, plus Aikido SafeChain
+and Snyk — so the registry lookup itself is not novel. What they read is different: one parses install
+commands out of markdown and config, the others parse dependency manifests. None of them reads a source-file
+`import`. An import an agent wrote into a `.ts` file and never added to `package.json` is invisible to all of
+them, and that, scoped to the lines the diff added, is what this rule covers. The comparison is in
+[research/intent-landscape.md](../research/intent-landscape.md).
 
 Not covered: workspace protocol imports beyond name matching, imports added on lines the diff did not touch,
 and dynamic `import(expr)` with a computed specifier.

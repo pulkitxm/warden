@@ -99,13 +99,24 @@ Notes the transcripts encode:
 - Binaries are symlinked into /usr/local/bin (or ~/.local/bin) when that directory is writable and already on PATH, so `warden` works in the current shell with no restart; the rc line exists for the shims, which need PATH precedence over the real package managers and therefore only activate in new shells.
 - Every download is checksum-verified before anything is placed on PATH.
 
-## Docker for local development
+## Containers for local development
 
 Host stays clean while warden is in dev:
 
-- `Dockerfile` on `oven/bun`, copies the repo, runs `bun run build`.
-- `make docker-build` and `make docker-run ARGS="check left-pad"` wrap it; the run target mounts the current project directory so checks see the real `package.json` and installs can write to it.
-- CI can reuse the same image later.
+- `Dockerfile` on `oven/bun`, copies the repo, runs `bun run build`. It also installs `git`, `nodejs`, `npm`, and `pnpm@9` so the shims have real package managers to intercept, and creates `/play` as a scratch project.
+- `scripts/docker-build.sh <image> [runtime]` is the shared build wrapper. It takes the runtime as its second argument, so the same script drives both engines, renders a spinner on a TTY and plain progress without one, and prints the captured build log only on failure.
+- The run targets mount the current project directory at `/work`, so checks see the real `package.json` and installs can write to it.
+
+Six targets, three per runtime:
+
+| Target | Runtime | What it does |
+| --- | --- | --- |
+| `make docker-build` | Docker | builds `warden:dev` |
+| `make docker-run` | Docker | interactive shell with shims and completions installed |
+| `make docker-run ARGS="check left-pad"` | Docker | one command through the image entrypoint, no shell |
+| `make adocker-build` | Apple `container` | the same build |
+| `make adocker-run` | Apple `container` | the same shell |
+| `make adocker-install-demo` / `make docker-install-demo` | either | a fresh container with `PATH` reset, to demo `install.sh` from nothing |
 
 ```
 $ make docker-run ARGS="check left-pad"
@@ -114,6 +125,18 @@ docker run --rm -v "$PWD":/work warden:dev check left-pad
 ALLOW  left-pad@1.3.0  risk 3/100 · npm
   verdict: established package, no risk signals
 ```
+
+### The Apple container targets
+
+The `adocker-*` targets are the same recipes against [`apple/container`](https://github.com/apple/container), which runs each Linux container in its own lightweight VM on macOS instead of a shared daemon. Only the runtime binary changes: every flag the recipes use — `build -t`, `--progress=plain`, `run --rm`, `-it`, `--entrypoint`, `-e`, `-v` — is in that CLI's option set, and its Swift ArgumentParser expands a combined `-it` into `-i -t`, so the interactive path needs no rewriting.
+
+Three prerequisites that differ from Docker, and are the reason these targets fail on a machine that has the CLI installed but not ready:
+
+- **macOS on Apple silicon only.** There is no Linux or Intel build.
+- **`container system start` must have been run.** There is no background daemon to fall back on; the build fails immediately if the service is not up.
+- **Images are `arm64` Linux.** `oven/bun:1` publishes an `arm64` manifest, so the `Dockerfile` needs no change, but a base image that is `amd64`-only will not build without Rosetta.
+
+`docker-*` and `adocker-*` produce the same `warden:dev` tag. They are not interchangeable in one session: each runtime keeps its own image store, so building with one does not populate the other.
 
 ## Release trust chain
 

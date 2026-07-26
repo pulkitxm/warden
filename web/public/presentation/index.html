@@ -362,10 +362,11 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
               <div><strong>DROPPED</strong><span>A requested behavior never appeared.</span></div>
               <div><strong>SCOPE CREEP</strong><span>Unrequested files or behavior changed.</span></div>
               <div><strong>HALLUCINATED API</strong><span>Added code calls an export that does not exist.</span></div>
+              <div><strong>UNPUBLISHED IMPORT</strong><span>An added import names a package the registry has never had.</span></div>
             </div>
           </div>
-          <p class="intent-note auto auto-4">When <code>.warden/prompt.txt</code> exists, CI runs the same intent check automatically for changed JavaScript and TypeScript.</p>
-          <aside class="notes">Claim extraction and unmatched semantic comparison can use a configured language model. The hallucinated API check is deterministic static analysis and only reports closed export surfaces it can prove.</aside>
+          <p class="intent-note auto auto-4">The last two are deterministic: no model, no tokens, and they still run when no model is configured at all. When <code>.warden/prompt.txt</code> exists, CI runs the same check for changed JavaScript and TypeScript.</p>
+          <aside class="notes">Claim extraction and unmatched semantic comparison can use a configured language model. The hallucinated API check is deterministic static analysis and only reports closed export surfaces it can prove. The unpublished-import check is a registry existence lookup on added import lines. When no provider is available the deterministic findings are still published, with claims_status unverifiable and the reason in notes, rather than the run erroring out.</aside>
         </section>
 
         <section class="paper agent-contract-slide" data-background-color="#f4f7ff">
@@ -422,6 +423,16 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
             <div class="benchmark-result benign"><strong>0 / 9</strong><span>benign shapes stopped</span></div>
             <div class="benchmark-method"><small>METHOD</small><span>Every case runs through the real resolver and transaction decision with complete graph coverage.</span><b>Regression corpus, not field accuracy.</b></div>
           </div>
+          <div class="corpus-band auto auto-3">
+            <small>INTENT, MEASURED PER RULE · <code>warden intent bench</code></small>
+            <div>
+              <div><b>100%</b><span>unpublished import, precision</span></div>
+              <div><b>100%</b><span>hallucinated API, precision</span></div>
+              <div class="over"><b>60%</b><span>claim matching, precision</span></div>
+              <div class="over"><b>18.2%</b><span>false positives, against a stated 5% budget</span></div>
+            </div>
+            <p>Published because it fails the budget. The deterministic rules block; claim matching is advisory until it earns it.</p>
+          </div>
           <div class="limits-band auto auto-4">
             <div><strong>Not a sandbox</strong><span>Absolute paths and containers can bypass local shims.</span></div>
             <div><strong>Scripts stay suppressed</strong><span>Packages that require install hooks may fail verification.</span></div>
@@ -431,7 +442,9 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
           <p class="maturity-note auto auto-5">Technical alpha: a working control plane with honest boundaries.</p>
           <aside class="notes">[Sources]
 Published benchmark corpus: /web/src/lib/benchmark.json
-Benchmark methodology: /docs/benchmark.md</aside>
+Benchmark methodology: /docs/benchmark.md
+Intent corpus, 23 cases, replayed offline: /web/src/lib/intent-corpus.json
+Intent methodology and the false-positive budget: /docs/intent-corpus.md</aside>
         </section>
 
         <section class="close-slide" data-background-color="#43d8c9">
