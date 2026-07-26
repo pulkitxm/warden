@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: "/install", destination: "/docs/install", permanent: true }];
   },
+  async headers() {
+    return [
+      {
+        source: "/install.sh",
+        headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/docs/cli/:command.md", destination: "/api/cli-md/:command" },
