@@ -71,6 +71,7 @@ const SPIN_MS = 80;
 
 let playback = 0;
 let counterPlayback = 0;
+let packageDemoRequest = 0;
 const staticExport = window.location.search.includes("static");
 
 if (staticExport) document.documentElement.classList.add("static-export");
@@ -114,6 +115,135 @@ const animateCounters = (slide) => {
       520 + index * 160,
     );
   });
+};
+
+const packageDemoFallback = {
+  expres: {
+    name: "expres",
+    version: "0.0.5",
+    description: "Add express compatible methods to your response object",
+    repository: "github.com/cpsubrian/node-expres",
+    downloads: 7348,
+    start: "2026-07-18",
+    end: "2026-07-24",
+    official: false,
+  },
+  express: {
+    name: "express",
+    version: "5.2.1",
+    description: "Fast, unopinionated, minimalist web framework",
+    repository: "github.com/expressjs/express",
+    downloads: 122913839,
+    start: "2026-07-18",
+    end: "2026-07-24",
+    official: true,
+  },
+};
+
+const packageDate = (value) =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+
+const packagePeriod = (start, end) => {
+  const year = new Date(`${end}T00:00:00Z`).getUTCFullYear();
+  return `${packageDate(start)} to ${packageDate(end)} ${year}`;
+};
+
+const packageRepository = (metadata) => {
+  const source =
+    typeof metadata.repository === "string" ? metadata.repository : metadata.repository?.url;
+  if (!source) return "repository not published";
+  return source
+    .replace(/^git\+/, "")
+    .replace(/^git:\/\//, "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\.git$/, "");
+};
+
+const renderPackageDemo = (slide, data, live) => {
+  slide.querySelector("[data-package-path]").textContent = data.name;
+  slide.querySelector("[data-package-name]").textContent = data.name;
+  slide.querySelector("[data-package-version]").textContent = `latest ${data.version}`;
+  slide.querySelector("[data-package-delta]").textContent = data.official
+    ? "official spelling"
+    : 'missing the final "s"';
+  slide.querySelector("[data-package-downloads]").textContent = new Intl.NumberFormat(
+    "en-US",
+  ).format(data.downloads);
+  slide.querySelector("[data-package-period]").textContent = packagePeriod(data.start, data.end);
+  slide.querySelector("[data-package-description]").textContent = data.description;
+  slide.querySelector("[data-package-repository]").textContent = data.repository;
+  const link = slide.querySelector("[data-package-link]");
+  link.href = `https://www.npmjs.com/package/${data.name}`;
+  const verdict = slide.querySelector("[data-package-verdict]");
+  verdict.classList.toggle("official", data.official);
+  verdict.classList.toggle("different", !data.official);
+  verdict.querySelector("strong").textContent = data.official
+    ? "Official Express project"
+    : "Different package";
+  verdict.querySelector("span").textContent = data.official
+    ? "Published from the expressjs/express project."
+    : "Real package, but not the official Express web framework.";
+  const state = slide.querySelector("[data-package-state]");
+  state.classList.toggle("live", live);
+  state.classList.remove("loading");
+  state.lastChild.textContent = live ? " live npm data" : " captured npm data";
+};
+
+const loadPackageDemo = async (slide, name) => {
+  const request = ++packageDemoRequest;
+  const state = slide.querySelector("[data-package-state]");
+  state.classList.remove("live");
+  state.classList.add("loading");
+  state.lastChild.textContent = " loading npm data";
+  try {
+    const [downloadResponse, metadataResponse] = await Promise.all([
+      fetch(`https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`),
+      fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/latest`),
+    ]);
+    if (!downloadResponse.ok || !metadataResponse.ok) throw new Error("npm data unavailable");
+    const [downloads, metadata] = await Promise.all([
+      downloadResponse.json(),
+      metadataResponse.json(),
+    ]);
+    if (request !== packageDemoRequest) return;
+    renderPackageDemo(
+      slide,
+      {
+        name,
+        version: metadata.version,
+        description: metadata.description,
+        repository: packageRepository(metadata),
+        downloads: downloads.downloads,
+        start: downloads.start,
+        end: downloads.end,
+        official: name === "express",
+      },
+      true,
+    );
+  } catch {
+    if (request !== packageDemoRequest) return;
+    renderPackageDemo(slide, packageDemoFallback[name], false);
+  }
+};
+
+const initializePackageDemo = () => {
+  const slide = document.querySelector("[data-package-demo]");
+  if (!slide) return;
+  const select = slide.querySelector("#package-demo-select");
+  const refresh = slide.querySelector("[data-package-refresh]");
+  const show = () => {
+    const name = select.value;
+    renderPackageDemo(slide, packageDemoFallback[name], false);
+    if (!staticExport) loadPackageDemo(slide, name);
+  };
+  select.addEventListener("change", show);
+  select.addEventListener("keydown", (event) => event.stopPropagation());
+  refresh.addEventListener("click", show);
+  show();
 };
 
 const wait = (duration, id) =>
@@ -267,6 +397,8 @@ Reveal.on("slidechanged", (event) => {
 });
 window.addEventListener("beforeprint", renderStaticTerminals);
 window.addEventListener("beforeprint", () => renderFinalCounters());
+
+initializePackageDemo();
 
 const initializeDeck = async () => {
   await document.fonts.ready;

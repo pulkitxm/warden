@@ -64,6 +64,68 @@ Datadog Security Labs, Shai-Hulud 2.0: https://securitylabs.datadoghq.com/articl
 Verizon 2025 Data Breach Investigations Report: https://www.verizon.com/about/news/2025-data-breach-investigations-report</aside>
         </section>
 
+        <section class="paper package-demo-slide" data-background-color="#f4f7ff" data-package-demo>
+          <p class="eyebrow ink auto auto-1">Live package identity</p>
+          <h2 class="ink auto auto-1">One missing letter redirects trust to a different package.</h2>
+          <div class="package-demo-control auto auto-2">
+            <label for="package-demo-select">Package under review</label>
+            <select id="package-demo-select">
+              <option value="expres" selected>expres, different package</option>
+              <option value="express">express, official project</option>
+            </select>
+            <button type="button" data-package-refresh>Refresh live data</button>
+            <span class="package-live-state" data-package-state><i></i> captured npm data</span>
+          </div>
+          <div class="package-demo-browser auto auto-3">
+            <div class="package-browser-bar">
+              <span class="terminal-dots"><i></i><i></i><i></i></span>
+              <span>npmjs.com/package/<b data-package-path>expres</b></span>
+              <a href="https://www.npmjs.com/package/expres" target="_blank" rel="noreferrer" data-package-link>open npm page ↗</a>
+            </div>
+            <div class="package-browser-body">
+              <div class="package-wordmark">
+                <small>PACKAGE NAME</small>
+                <strong data-package-name>expres</strong>
+                <em data-package-delta>missing the final "s"</em>
+                <span data-package-version>latest 0.0.5</span>
+              </div>
+              <div class="package-downloads">
+                <small>DOWNLOADS LAST WEEK</small>
+                <strong data-package-downloads>7,348</strong>
+                <span data-package-period>18 Jul to 24 Jul 2026</span>
+              </div>
+              <div class="package-identity">
+                <div>
+                  <small>WHAT IT IS</small>
+                  <strong data-package-description>Add express compatible methods to your response object</strong>
+                </div>
+                <div>
+                  <small>SOURCE</small>
+                  <strong data-package-repository>github.com/cpsubrian/node-expres</strong>
+                </div>
+                <div class="package-verdict different" data-package-verdict>
+                  <small>IDENTITY RESULT</small>
+                  <strong>Different package</strong>
+                  <span>Real package, but not the official Express web framework.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="package-demo-thesis auto auto-5">
+            <strong>Both names resolve.</strong>
+            <span>Warden checks name similarity, provenance, release history, scripts, and artifact behavior before installation.</span>
+          </div>
+          <aside class="notes">[Sources]
+npm package page for expres: https://www.npmjs.com/package/expres
+npm package page for express: https://www.npmjs.com/package/express
+npm downloads API for expres: https://api.npmjs.org/downloads/point/last-week/expres
+npm downloads API for express: https://api.npmjs.org/downloads/point/last-week/express
+npm registry metadata for expres: https://registry.npmjs.org/expres/latest
+npm registry metadata for express: https://registry.npmjs.org/express/latest
+
+The live viewer uses npm's public APIs. The captured fallback reflects July 18 to 24, 2026. The expres package is a real package with a different purpose and repository. Do not describe it as malicious without separate evidence.</aside>
+        </section>
+
         <section class="paper danger-slide" data-background-color="#f4f7ff">
           <p class="eyebrow ink auto auto-1">The problem</p>
           <h2 class="ink auto auto-1">The dangerous moment happens before a scanner can report it.</h2>
@@ -401,6 +463,7 @@ Benchmark methodology: /docs/benchmark.md</aside>
             <a href="/benchmark" target="_blank" rel="noreferrer"><span>07</span>Warden benchmark corpus and method</a>
             <a href="/docs/transactions" target="_blank" rel="noreferrer"><span>08</span>Transaction model and limitations</a>
             <a href="/docs/coverage" target="_blank" rel="noreferrer"><span>09</span>Command interception coverage</a>
+            <a href="https://www.npmjs.com/package/expres" target="_blank" rel="noreferrer"><span>10</span>npm live package comparison</a>
           </div>
           <p class="source-note auto auto-3">Product claims correspond to the shipped command registry and repository documentation on this revision.</p>
           <aside class="notes">[Sources]

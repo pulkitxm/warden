@@ -42,6 +42,24 @@ Open-source compromise combines high release velocity, enormous reach, automated
 
 These datasets measure different layers and should not be combined into one rate. Together, they establish the pitch premise: short registry exposure can create an industry-scale response because dependency relationships distribute trust automatically.
 
+## Live package identity demonstration
+
+The interactive slide compares two real npm packages:
+
+- `expres` is a response-helper package published from `cpsubrian/node-expres`. It is not the official Express web framework.
+- `express` is the official Express project published from `expressjs/express`.
+
+The viewer fetches the last completed week's download count from npm's public downloads API and the latest version, description, and repository from the npm registry. It defaults to `expres`, then lets the presenter switch to `express`.
+
+The captured July 18 to 24, 2026 fallback is:
+
+- `expres`: 7,348 downloads
+- `express`: 122,913,839 downloads
+
+Do not describe `expres` as malicious without separate evidence. The demonstration proves that both names resolve while representing different software. A successful install does not prove that the requested identity matches the developer's intent.
+
+npm package pages cannot be embedded cross-origin because npm responds with `X-Frame-Options: SAMEORIGIN`. The deck therefore renders a reliable package viewer from npm's public APIs and provides a direct link to the real npm page.
+
 Four forces increase the risk:
 
 - Popular packages are takeover targets, so a compromised maintainer account can affect a large graph quickly.
@@ -279,6 +297,10 @@ Stating these limits is part of the security case.
 - [Datadog Shai-Hulud 2.0 analysis](https://securitylabs.datadoghq.com/articles/shai-hulud-2.0-npm-worm/)
 - [Verizon 2025 Data Breach Investigations Report](https://www.verizon.com/about/news/2025-data-breach-investigations-report)
 - [USENIX Security 2025 package hallucination study](https://www.usenix.org/conference/usenixsecurity25/presentation/spracklen)
+- [npm package page for expres](https://www.npmjs.com/package/expres)
+- [npm package page for express](https://www.npmjs.com/package/express)
+- [npm downloads API](https://api.npmjs.org/downloads/)
+- [npm registry API](https://registry.npmjs.org/)
 - [OSV-Scanner documentation](https://google.github.io/osv-scanner/)
 - [Warden benchmark](https://warden.pulkit.page/benchmark)
 - [Transactions](https://warden.pulkit.page/docs/transactions)

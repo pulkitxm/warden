@@ -1,6 +1,6 @@
 # Warden presentation
 
-This is a 17-slide Reveal.js deck with automatic CSS motion, terminal playback, sourced figures, and a verified PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
+This is an 18-slide Reveal.js deck with automatic CSS motion, terminal playback, a live npm package comparison, sourced figures, and a verified PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
 
 ## Present locally
 
@@ -10,6 +10,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000/presentation/index.html`. Use one arrow-key or space-bar press per slide. Each slide runs its internal animation automatically. Press `F` for full screen and `S` for speaker view. Every terminal slide has a SKIP control in its title bar that jumps straight to the final state, and each terminal scrolls if its output is taller than the pane.
+
+The package identity slide refreshes npm registry metadata and last-week download counts when online. It retains a captured fallback for offline presentations.
 
 ## Ready-to-share outputs
 
