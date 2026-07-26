@@ -51,6 +51,11 @@ const terminalScripts = {
     {
       text: "one approval, bound to that version, tarball, hook and script body",
       kind: "info",
+      pause: 220,
+    },
+    {
+      text: "the script still never runs: the approval authorizes the install, not the code",
+      kind: "dim",
       pause: 0,
     },
   ],
