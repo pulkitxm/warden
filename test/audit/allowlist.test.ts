@@ -1,10 +1,15 @@
 import { expect, test } from "bun:test";
-import { auditAllowlistEntry, auditScripts, readAllowlist } from "../../src/audit/scripts.ts";
+import {
+  auditAllowlistEntry,
+  auditScripts,
+  readAllowlist,
+  readPnpmAllowlist,
+} from "../../src/audit/scripts.ts";
 import type { AuditFs } from "../../src/audit/types.ts";
 
 function fsWith(files: Record<string, string>, globbed: string[] = []): AuditFs {
   return {
-    exists: (path) => path in files,
+    exists: (path) => Object.keys(files).some((name) => path.endsWith(name)),
     readFile: (path) => {
       const key = Object.keys(files)
         .sort((a, b) => b.length - a.length)
@@ -23,46 +28,81 @@ const rulesOf = (
 ) =>
   auditAllowlistEntry(pkg, version, "postinstall", readAllowlist(manifest), "x").map((f) => f.rule);
 
-test("readAllowlist recognises each manager's allowlist in precedence order", () => {
-  expect(readAllowlist({ allowScripts: { esbuild: "0.21.4" } }).manager).toBe("npm");
+test("readAllowlist recognises each manager's native policy shape", () => {
+  expect(readAllowlist({ allowScripts: { "esbuild@0.21.4": true } }).manager).toBe("npm");
   expect(readAllowlist({ trustedDependencies: ["esbuild"] }).manager).toBe("bun");
   expect(readAllowlist({ pnpm: { onlyBuiltDependencies: ["esbuild"] } }).manager).toBe("pnpm");
   expect(readAllowlist({ dependenciesMeta: { esbuild: { built: true } } }).manager).toBe("yarn");
   expect(readAllowlist({}).manager).toBe("none");
 });
 
-test("readAllowlist keeps npm ranges verbatim and widens boolean allowlists", () => {
-  expect(readAllowlist({ allowScripts: { a: "1.2.3" } }).ranges.get("a")).toBe("1.2.3");
-  expect(readAllowlist({ trustedDependencies: ["a"] }).ranges.get("a")).toBe("*");
-  expect(readAllowlist({ pnpm: { onlyBuiltDependencies: ["a"] } }).ranges.get("a")).toBe("*");
-  expect(readAllowlist({ dependenciesMeta: { a: { built: true } } }).ranges.get("a")).toBe("*");
+test("npm policy keys carry selectors and boolean decisions", () => {
+  const policy = readAllowlist({
+    allowScripts: {
+      "esbuild@0.21.4": true,
+      telemetry: false,
+    },
+  });
+  expect(policy.entries).toEqual([
+    { name: "esbuild", range: "0.21.4", allowed: true },
+    { name: "telemetry", allowed: false },
+  ]);
 });
 
-test("readAllowlist ignores empty and unbuilt entries", () => {
-  expect(readAllowlist({ allowScripts: {} }).manager).toBe("none");
-  expect(readAllowlist({ trustedDependencies: [] }).manager).toBe("none");
-  expect(readAllowlist({ pnpm: {} }).manager).toBe("none");
-  expect(readAllowlist({ dependenciesMeta: { a: { built: false } } }).manager).toBe("none");
-  expect(readAllowlist({ dependenciesMeta: { a: {} } }).manager).toBe("none");
+test("scoped package selectors split after the package name", () => {
+  const policy = readAllowlist({ allowScripts: { "@scope/native@1.2.3": true } });
+  expect(policy.entries).toEqual([{ name: "@scope/native", range: "1.2.3", allowed: true }]);
 });
 
-test("a package outside the allowlist is flagged because npm v12 skips it silently", () => {
-  const findings = auditAllowlistEntry("native", "1.0.0", "install", readAllowlist({}), "m");
+test("empty policies remain associated with their package manager", () => {
+  expect(readAllowlist({ allowScripts: {} })).toMatchObject({ manager: "npm", configured: true });
+  expect(readAllowlist({ trustedDependencies: [] })).toMatchObject({
+    manager: "bun",
+    configured: true,
+  });
+  expect(readAllowlist({ dependenciesMeta: {} })).toMatchObject({
+    manager: "yarn",
+    configured: true,
+  });
+});
+
+test("pnpm 11 allowBuilds is read from pnpm-workspace.yaml", () => {
+  const policy = readPnpmAllowlist(`
+allowBuilds:
+  esbuild: true
+  core-js: false
+  "nx@21.6.4 || 21.6.5": true
+`);
+  expect(policy).toMatchObject({ manager: "pnpm", configured: true });
+  expect(policy.entries).toEqual([
+    { name: "esbuild", allowed: true },
+    { name: "core-js", allowed: false },
+    { name: "nx", range: "21.6.4 || 21.6.5", allowed: true },
+  ]);
+});
+
+test("a package outside the active policy is reported without assuming its installer outcome", () => {
+  const findings = auditAllowlistEntry(
+    "native",
+    "1.0.0",
+    "install",
+    readAllowlist({ allowScripts: {} }),
+    "m",
+  );
   expect(findings[0]?.rule).toBe("script_not_allowlisted");
   expect(findings[0]?.level).toBe("warn");
-  expect(findings[0]?.evidence).toContain("still exits 0");
-  expect(findings[0]?.evidence).toContain("install-script allowlist");
+  expect(findings[0]?.evidence).toContain("npm install-script approval");
   expect(findings[0]?.target).toBe("native@1.0.0");
 });
 
-test("the finding names whichever manager's allowlist is in force", () => {
+test("the remediation follows the active package manager", () => {
   const cases: Array<[Parameters<typeof readAllowlist>[0], string]> = [
-    [{ allowScripts: { other: "1.0.0" } }, "npm"],
-    [{ trustedDependencies: ["other"] }, "bun"],
-    [{ pnpm: { onlyBuiltDependencies: ["other"] } }, "pnpm"],
-    [{ dependenciesMeta: { other: { built: true } } }, "yarn"],
+    [{ allowScripts: {} }, "npm approve-scripts"],
+    [{ trustedDependencies: [] }, "bun pm trust"],
+    [{ pnpm: { onlyBuiltDependencies: [] } }, "pnpm approve-builds"],
+    [{ dependenciesMeta: {} }, "dependenciesMeta"],
   ];
-  for (const [manifest, label] of cases) {
+  for (const [manifest, command] of cases) {
     const findings = auditAllowlistEntry(
       "missing",
       "1.0.0",
@@ -70,26 +110,42 @@ test("the finding names whichever manager's allowlist is in force", () => {
       readAllowlist(manifest),
       "m",
     );
-    expect(findings[0]?.evidence).toContain(`${label} allowlist`);
+    expect(findings[0]?.fix).toContain(command);
   }
 });
 
-test("an exactly pinned allowlist entry is clean", () => {
-  expect(rulesOf("esbuild", "0.21.4", { allowScripts: { esbuild: "0.21.4" } })).toEqual([]);
-  expect(rulesOf("esbuild", "0.21.4", { allowScripts: { esbuild: ">=0.21.0 <0.22.0" } })).toEqual(
-    [],
-  );
+test("exact npm pins and exact version disjunctions are clean", () => {
+  expect(rulesOf("esbuild", "0.21.4", { allowScripts: { "esbuild@0.21.4": true } })).toEqual([]);
+  expect(
+    rulesOf("esbuild", "0.21.4", {
+      allowScripts: { "esbuild@0.21.3 || 0.21.4": true },
+    }),
+  ).toEqual([]);
 });
 
-test("a range that auto-approves future releases is flagged as overbroad", () => {
-  for (const range of ["*", "x", "latest", "0.x", "1.x.x", "0.21.x"]) {
-    expect(`${range}:${rulesOf("esbuild", "0.21.4", { allowScripts: { esbuild: range } })}`).toBe(
-      `${range}:script_allowlist_overbroad`,
-    );
+test("name-only approvals and ranges are overbroad", () => {
+  for (const selector of [
+    "esbuild",
+    "esbuild@*",
+    "esbuild@latest",
+    "esbuild@0.x",
+    "esbuild@^0.21.0",
+  ]) {
+    expect(rulesOf("esbuild", "0.21.4", { allowScripts: { [selector]: true } })).toEqual([
+      "script_allowlist_overbroad",
+    ]);
   }
 });
 
-test("boolean allowlists are inherently overbroad", () => {
+test("a broad approval remains visible beside an exact pin", () => {
+  expect(
+    rulesOf("esbuild", "0.21.4", {
+      allowScripts: { "esbuild@0.21.4": true, esbuild: true },
+    }),
+  ).toEqual(["script_allowlist_overbroad"]);
+});
+
+test("boolean-only manager approvals are reported as unpinned", () => {
   expect(rulesOf("esbuild", "0.21.4", { trustedDependencies: ["esbuild"] })).toEqual([
     "script_allowlist_overbroad",
   ]);
@@ -98,31 +154,37 @@ test("boolean allowlists are inherently overbroad", () => {
   ]);
 });
 
-test("an allowlist the installed version has outgrown is stale, not silently trusted", () => {
+test("an exact approval for another installed version is stale", () => {
   const findings = auditAllowlistEntry(
     "quiet",
     "2.0.0",
     "install",
-    readAllowlist({ allowScripts: { quiet: "1.0.0" } }),
+    readAllowlist({ allowScripts: { "quiet@1.0.0": true } }),
     "m",
   );
   expect(findings[0]?.rule).toBe("script_allowlist_stale");
-  expect(findings[0]?.evidence).toContain('"1.0.0"');
+  expect(findings[0]?.evidence).toContain("1.0.0");
 });
 
-test("an entry with no resolvable version is not judged stale", () => {
-  expect(rulesOf("quiet", undefined, { allowScripts: { quiet: "1.0.0" } })).toEqual([]);
+test("an explicit denial is intentional and produces no posture warning", () => {
+  expect(rulesOf("telemetry", "2.0.0", { allowScripts: { telemetry: false } })).toEqual([]);
+  expect(
+    rulesOf("telemetry", "2.0.0", {
+      dependenciesMeta: { telemetry: { built: false } },
+    }),
+  ).toEqual([]);
 });
 
-test("auditScripts flags dependency hooks against the allowlist but never the root manifest", () => {
+test("auditScripts checks dependency hooks against npm policy but never the root manifest", () => {
   const report = auditScripts(
     "/proj",
     fsWith(
       {
         "package.json": JSON.stringify({
           name: "root",
+          packageManager: "npm@12.0.1",
           scripts: { postinstall: "node ./scripts/setup.js" },
-          allowScripts: { reviewed: "1.0.0" },
+          allowScripts: { "reviewed@1.0.0": true },
         }),
         "node_modules/reviewed/package.json": JSON.stringify({
           name: "reviewed",
@@ -140,34 +202,80 @@ test("auditScripts flags dependency hooks against the allowlist but never the ro
   );
 
   const allowlistRules = report.findings
-    .filter((f) => f.rule.startsWith("script_not_allowlisted") || f.rule.includes("allowlist"))
-    .map((f) => `${f.target}:${f.rule}`);
+    .filter((finding) => finding.rule.includes("allowlist"))
+    .map((finding) => `${finding.target}:${finding.rule}`);
   expect(allowlistRules).toEqual(["native@2.0.0:script_not_allowlisted"]);
-  expect(report.findings.some((f) => f.target.startsWith("root"))).toBe(true);
-  expect(report.findings.some((f) => f.target === "root" && f.rule.includes("allowlist"))).toBe(
-    false,
-  );
+  expect(report.findings.some((finding) => finding.target.startsWith("root"))).toBe(true);
+  expect(
+    report.findings.some(
+      (finding) => finding.target === "root" && finding.rule.includes("allowlist"),
+    ),
+  ).toBe(false);
 });
 
-test("each dependency is judged against the allowlist once, not per hook", () => {
+test("pnpm projects use allowBuilds from pnpm-workspace.yaml", () => {
   const report = auditScripts(
     "/proj",
     fsWith(
       {
-        "package.json": JSON.stringify({ name: "root" }),
+        "package.json": JSON.stringify({ name: "root", packageManager: "pnpm@11.13.0" }),
+        "pnpm-workspace.yaml": "allowBuilds:\n  esbuild@0.21.4: true\n",
+        "node_modules/esbuild/package.json": JSON.stringify({
+          name: "esbuild",
+          version: "0.21.4",
+          scripts: { postinstall: "node install.js" },
+        }),
+      },
+      ["node_modules/esbuild/package.json"],
+    ),
+  );
+  expect(report.findings.filter((finding) => finding.rule.includes("allowlist"))).toEqual([]);
+});
+
+test("each installed version is judged once even when a package has several hooks", () => {
+  const report = auditScripts(
+    "/proj",
+    fsWith(
+      {
+        "package.json": JSON.stringify({ name: "root", allowScripts: {} }),
         "node_modules/multi/package.json": JSON.stringify({
           name: "multi",
           version: "1.0.0",
           scripts: { preinstall: "echo a", install: "echo b", postinstall: "echo c" },
         }),
+        "node_modules/other/node_modules/multi/package.json": JSON.stringify({
+          name: "multi",
+          version: "2.0.0",
+          scripts: { install: "echo d" },
+        }),
       },
-      ["node_modules/multi/package.json"],
+      ["node_modules/multi/package.json", "node_modules/other/node_modules/multi/package.json"],
     ),
   );
-  expect(report.findings.filter((f) => f.rule === "script_not_allowlisted")).toHaveLength(1);
+  expect(
+    report.findings.filter((finding) => finding.rule === "script_not_allowlisted"),
+  ).toHaveLength(2);
 });
 
-test("an unreadable root manifest degrades to no allowlist rather than throwing", () => {
+test("prepublish is audited as a script but not treated as an install approval hook", () => {
+  const report = auditScripts(
+    "/proj",
+    fsWith(
+      {
+        "package.json": JSON.stringify({ name: "root", allowScripts: {} }),
+        "node_modules/publisher/package.json": JSON.stringify({
+          name: "publisher",
+          version: "1.0.0",
+          scripts: { prepublish: "echo publish" },
+        }),
+      },
+      ["node_modules/publisher/package.json"],
+    ),
+  );
+  expect(report.findings.map((finding) => finding.rule)).toEqual(["script_lifecycle_present"]);
+});
+
+test("an unreadable root manifest degrades without throwing", () => {
   const report = auditScripts(
     "/proj",
     fsWith(
@@ -182,5 +290,5 @@ test("an unreadable root manifest degrades to no allowlist rather than throwing"
       ["node_modules/native/package.json"],
     ),
   );
-  expect(report.findings.map((f) => f.rule)).toContain("script_not_allowlisted");
+  expect(report.findings.map((finding) => finding.rule)).toContain("script_not_allowlisted");
 });
