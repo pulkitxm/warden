@@ -9,11 +9,11 @@ cd web
 npm run dev
 ```
 
-Open `http://localhost:3000/presentation/index.html`. Use one arrow-key or space-bar press per slide. Each slide runs its internal animation automatically. Press `F` for full screen and `S` for speaker view.
+Open `http://localhost:3000/presentation/index.html`. Use one arrow-key or space-bar press per slide. Each slide runs its internal animation automatically. Press `F` for full screen and `S` for speaker view. Every terminal slide has a SKIP control in its title bar that jumps straight to the final state, and each terminal scrolls if its output is taller than the pane.
 
 ## Ready-to-share outputs
 
-- `warden-deck.pdf`: 13-page, 16:9 presentation export
+- `warden-deck.pdf`: 10-page, 16:9 presentation export, one page per slide
 
 ## Structure
 

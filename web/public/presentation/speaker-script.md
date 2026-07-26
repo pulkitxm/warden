@@ -1,6 +1,6 @@
 # Warden speaker script
 
-One block per slide, in order. Read it straight through, pause where the terminal is typing.
+One block per slide, in order. Read it straight through, pause where the terminal is typing. Every terminal slide has a SKIP control in its title bar: press it to jump straight to the final state when you are short on time.
 
 ## 1. Cover
 
@@ -14,7 +14,11 @@ The package is the payload. In 2025 alone, Sonatype found four hundred fifty fou
 
 Here's the loop: resolve, verify, diff, scan, score, before anything runs. Watch this. We run `warden check` against a typosquatted package. It verifies integrity, checks the release diff, checks provenance, scans the code, and blocks it at a risk score of one hundred, before the install even starts.
 
-## 4. Live product: doctor
+## 4. Nothing is silent
+
+Resolving a real graph is minutes of registry work, and a security tool that goes quiet for minutes is a security tool people turn off. So Warden narrates it. On a terminal that's one line, rewritten in place: the phase it is in, how far through it is, the package it is on, and the clock. When the output is a pipe, a log, or a coding agent, there is no spinner: a phase that is still running after two seconds announces itself, repeats every fifteen, and prints its duration when it finishes. Anything faster than a second stays silent.
+
+## 5. Live product: doctor
 
 Same gate, run backward, across what's already installed. `wnpm doctor` audits your dependencies against OSV advisories, finds a critical vulnerability, and tries the official fix. But the official fix itself fails the supply chain gate, so it's marked unfixable and Warden tells you exactly why.
 
