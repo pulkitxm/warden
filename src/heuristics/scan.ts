@@ -21,18 +21,36 @@ export interface Finding {
   detail: string;
 }
 
+const IPV4 = /(?<![\w.])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w.])/g;
+
+const HOST_KEYWORD =
+  /\b(?:curl|wget|nc|ncat|netcat|ping|ssh|scp|sftp|telnet|host|hostname|server|servers|connect|createConnection|dial|target|addr|address|ip|proxy|endpoint|origin|url|uri|resolver|nameserver|upstream)\b[\W]*$/i;
+
+function isPublicIpv4(octets: number[]): boolean {
+  if (octets.some((x) => x > 255)) return false;
+  const [a, b] = octets as [number, number, number, number];
+  if (a === 0 || a === 127 || a === 255) return false;
+  if (a === 10) return false;
+  if (a === 169 && b === 254) return false;
+  if (a === 172 && b >= 16 && b <= 31) return false;
+  if (a === 192 && b === 168) return false;
+  return true;
+}
+
+function addressedAsHost(text: string, start: number, end: number): boolean {
+  if (start === 0 && end === text.length) return true;
+  const before = text.slice(Math.max(0, start - 24), start);
+  if (/(?:\/\/|@|=|:)\s*$/.test(before)) return true;
+  if (/^(?::\d{1,5}(?![\d.])|\/)/.test(text.slice(end, end + 8))) return true;
+  return HOST_KEYWORD.test(before);
+}
+
 function findPublicIp(s: string): boolean {
-  const re = /\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g;
-  for (const m of s.matchAll(re)) {
-    const o = [m[1], m[2], m[3], m[4]].map((x) => Number(x));
-    if (o.some((x) => x > 255)) continue;
-    const [a, b] = o as [number, number, number, number];
-    if (a === 0 || a === 127 || a === 255) continue;
-    if (a === 10) continue;
-    if (a === 169 && b === 254) continue;
-    if (a === 172 && b >= 16 && b <= 31) continue;
-    if (a === 192 && b === 168) continue;
-    return true;
+  for (const m of s.matchAll(IPV4)) {
+    const octets = [m[1], m[2], m[3], m[4]].map((x) => Number(x));
+    if (!isPublicIpv4(octets)) continue;
+    const start = m.index ?? 0;
+    if (addressedAsHost(s, start, start + (m[0] as string).length)) return true;
   }
   return false;
 }

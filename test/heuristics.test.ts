@@ -356,3 +356,46 @@ test("a publisher email change alone corroborates but does not warn by itself", 
   expect(email?.action).toBeUndefined();
   expect(signals.reduce((sum, signal) => sum + signal.weight, 0)).toBeLessThan(25);
 });
+
+const kinds = (findings: Array<{ kind: string }>) => findings.map((f) => f.kind);
+
+test("svg path data is geometry, not a network address", () => {
+  const icon = [
+    'const Lightbulb = [["path",{',
+    '  d: "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"',
+    "}]];",
+    "export { Lightbulb as default };",
+  ].join("\n");
+  expect(kinds(scanJs(icon))).not.toContain("raw_ip");
+});
+
+test("a bare address in a string literal is still a network address", () => {
+  expect(kinds(scanJs('const c2 = "185.62.190.9";'))).toContain("raw_ip");
+  expect(kinds(scanJs("net.connect(4444, '203.0.113.42');"))).toContain("raw_ip");
+});
+
+test("an address with an explicit port is a network address wherever it appears", () => {
+  expect(kinds(scanJs('send("beacon 203.0.113.42:4444 now");'))).toContain("raw_ip");
+});
+
+test("an address followed by a path is a network address", () => {
+  expect(kinds(scanJs('const u = "grab 203.0.113.42/collect";'))).toContain("raw_ip");
+});
+
+test("an address named as a host is a network address even without a port or scheme", () => {
+  expect(kinds(scanShell("nc 203.0.113.42 4444"))).toContain("raw_ip");
+  expect(kinds(scanShell("ping 203.0.113.42"))).toContain("raw_ip");
+});
+
+test("coordinate runs in a shell script are not addresses", () => {
+  expect(kinds(scanShell("echo 1.5 3.5.7.7 1.3"))).not.toContain("raw_ip");
+});
+
+test("private and loopback ranges stay excluded", () => {
+  for (const address of ["127.0.0.1", "10.0.0.1", "192.168.0.1", "172.16.0.1", "169.254.1.1"])
+    expect(kinds(scanJs(`const h = "${address}";`))).not.toContain("raw_ip");
+});
+
+test("an octet above the legal range is not an address at all", () => {
+  expect(kinds(scanJs('const v = "999.1.1.1";'))).not.toContain("raw_ip");
+});
