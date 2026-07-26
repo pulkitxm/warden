@@ -78,41 +78,37 @@ const facts = [
 const planSample = `Warden plan: npm install @fastify/jwt
 
 Direct changes
-  + @fastify/jwt 9.1.0
+  + @fastify/jwt 10.2.0
 
 Graph changes
-  + 7 transitive packages
-  ~ 2 existing packages resolved to a different version
-  = 214 unchanged
-
-Execution surface
-  1 changed packages carry an install script
-  1 of those are new relative to the current graph
+  + 20 transitive packages
+  ~ 0 existing packages resolved to a different version
+  = 65 unchanged
 
 Analysis coverage
-  9 of 9 changed packages analyzed (100%)
+  21 of 21 changed packages analyzed (100%)
 
-Decision: NEEDS_APPROVAL
-  fast-jwt@5.0.6 has a postinstall script
+Decision: WARN
+  @fastify/error: @fastify/error@4.2.0 warrants review: code requires child_process; code recursively deletes files; publisher email changed from the previous version.
 
 Next action
-  warden approve-script fast-jwt@5.0.6 --hook postinstall`;
+  warden apply wtxn_8f2eb19ab77eb529`;
 
 const transactionSteps = [
   {
     step: "01",
     command: "warden plan -- npm install @fastify/jwt",
-    body: "Resolve the complete prospective graph from registry metadata. Nothing is downloaded, unpacked, or executed to build it. Every added or changed package is vetted, transitive ones included.",
+    body: "Resolve the complete prospective graph, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. Every added or changed package is vetted, transitive ones included.",
   },
   {
     step: "02",
-    command: "warden approve-script fast-jwt@5.0.6 --hook postinstall",
-    body: "One transitive package wants to run code at install time. Approve that exact hook, bound to the version, the tarball integrity, and a hash of the script body. Any of those changing voids it.",
+    command: "warden approve-script esbuild@0.28.1 --hook postinstall",
+    body: "When the change brings in a package that runs code at install time, approve that exact hook, bound to the version, the tarball integrity, and a hash of the script body. Any of those changing voids it.",
   },
   {
     step: "03",
-    command: "warden apply wtxn_0a1b2c3d",
-    body: "Install through your own package manager with lifecycle scripts suppressed natively, run your tests, typecheck, and build, and roll the manifest back if anything fails.",
+    command: "warden apply wtxn_8f2eb19ab77eb529",
+    body: "Replay the planned command through your own package manager with lifecycle scripts suppressed natively, run your tests, typecheck, and build, and roll the manifest and lockfiles back if anything fails.",
   },
   {
     step: "04",
@@ -123,16 +119,16 @@ const transactionSteps = [
 
 const doctorSample = `2 issue(s) found, 2 affect production
   critical  acme-http@1.0.0 [GHSA-ACME-HTTP-0001]
-    request smuggling via keep-alive handling (fixed in 1.0.1)
+    acme-http request smuggling via keep-alive header handling (fixed in 1.0.1)
 
 supply-chain gate on candidate fixes:
-  BLOCK acme-http@1.0.1  install_script, exfiltration, provenance_downgrade
+  BLOCK acme-http@1.0.1  install_script, exfiltration, provenance_downgrade, metadata_anomaly
 
-UNFIXABLE acme-http: every candidate fix was blocked by the gate
+UNFIXABLE acme-http: every candidate fix was blocked by the supply-chain gate
 
 plan minimal: smallest safe upgrade  recommended
   acme-json 2.1.0 -> 2.1.4  patch, in range
-  verification: install ok 163ms - test ok 205ms (passed)`;
+  verification: install ok 189ms · test ok 199ms (passed)`;
 
 export default function HomePage() {
   return (
@@ -214,8 +210,8 @@ export default function HomePage() {
               Every dependency change is a transaction
             </p>
             <h2 className="mt-4 max-w-3xl text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              You typed one package name. Seven more arrived with it, and one of them wanted to run
-              code.
+              You typed one package name. Twenty more arrived with it, and one of them had already
+              changed hands.
             </h2>
             <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-fog">
               Checking only the name on the command line leaves the rest of the graph unexamined.

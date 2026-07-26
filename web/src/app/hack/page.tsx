@@ -69,7 +69,7 @@ Decision: NEEDS_APPROVAL
   esbuild@0.28.1 has a postinstall script
 
 Next action
-  warden approve-script esbuild@0.28.1 --hook postinstall`,
+  warden approve-script esbuild@0.28.1 --hook postinstall --plan wtxn_d0d5d95c8db60694`,
   },
   {
     step: "02",

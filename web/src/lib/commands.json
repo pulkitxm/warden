@@ -209,6 +209,16 @@
         "valueHint": null
       },
       {
+        "name": "--allow-incomplete-analysis",
+        "description": "install a truncated or partially analyzed plan",
+        "valueHint": null
+      },
+      {
+        "name": "--allow-stale-plan",
+        "description": "install even though the graph moved since the plan was made",
+        "valueHint": null
+      },
+      {
         "name": "--json",
         "description": "write the transaction receipt to stdout",
         "valueHint": null
@@ -220,7 +230,7 @@
       }
     ],
     "exitCodes": "0 applied · 20 refused · 30 rolled back or error",
-    "example": "warden apply wtxn_0a1b2c3d"
+    "example": "warden apply wtxn_8f2eb19ab77eb529"
   },
   {
     "name": "approve-script",
