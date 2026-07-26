@@ -9,6 +9,8 @@ import {
   symbolScanFiles,
 } from "../../src/intent/diff.ts";
 
+const slash = (path: string) => path.replace(/\\/g, "/");
+
 function diffFor(file: string, hunk: string[], markers: string[] = []): string {
   return [
     `diff --git a/${file} b/${file}`,
@@ -306,7 +308,7 @@ function makeDeps(over: Partial<WardenDeps> = {}) {
     stderr: (s) => err.push(s),
     cwd: () => "/repo",
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return DEMO_IMAGE;
+      if (slash(path) === "/repo/api-client.ts") return DEMO_IMAGE;
       throw new Error("ENOENT");
     },
     git: (args) => {

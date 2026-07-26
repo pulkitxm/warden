@@ -2,6 +2,7 @@ import { type Evidence, exitCodeFor, type VerdictLevel } from "../schema.ts";
 import { completeJson } from "./llm.ts";
 import type {
   ClaimRow,
+  ClaimsStatus,
   ClaimStatus,
   ClassifiedHunk,
   HallucinationFinding,
@@ -221,6 +222,8 @@ export interface DecideInput {
   hallucinations: HallucinationFinding[];
   llmMatchFailed: boolean;
   llmCalls: { extract_calls: number; match_calls: number };
+  claimsStatus?: ClaimsStatus;
+  notes?: string[];
 }
 
 function hunkRef(hunk: ClassifiedHunk): string {
@@ -345,41 +348,53 @@ export function decide(input: DecideInput): IntentReport {
     }
   }
 
-  const scopeCreep: ScopeCreepRow[] = input.hunks
-    .filter(
-      (hunk) =>
-        !cited.has(hunk.id) &&
-        !["formatting_only", "test_or_doc"].includes(hunk.category) &&
-        hunk.addedLines >= SCOPE_CREEP_MIN_ADDED_LINES,
-    )
-    .sort((a, b) => b.addedLines - a.addedLines)
-    .map((hunk) => ({
-      hunk_id: hunk.id,
-      file: hunk.file,
-      line_start: hunk.lineStart,
-      line_end: hunk.lineEnd,
-      added_lines: hunk.addedLines,
-      summary: hunk.summary,
-    }));
+  const claimsStatus: ClaimsStatus = input.claimsStatus ?? "verified";
+  const notes = [...(input.notes ?? [])];
+  const scopeCreep: ScopeCreepRow[] =
+    claimsStatus === "unverifiable"
+      ? []
+      : input.hunks
+          .filter(
+            (hunk) =>
+              !cited.has(hunk.id) &&
+              !["formatting_only", "test_or_doc"].includes(hunk.category) &&
+              hunk.addedLines >= SCOPE_CREEP_MIN_ADDED_LINES,
+          )
+          .sort((a, b) => b.addedLines - a.addedLines)
+          .map((hunk) => ({
+            hunk_id: hunk.id,
+            file: hunk.file,
+            line_start: hunk.lineStart,
+            line_end: hunk.lineEnd,
+            added_lines: hunk.addedLines,
+            summary: hunk.summary,
+          }));
+  if (claimsStatus === "unverifiable") {
+    notes.push(
+      `scope creep not assessed: it needs a claim set, and ${input.hunks.length} hunk(s) were classified without one`,
+    );
+  }
 
   const dropped = rows.some((row) => row.verdict === "dropped");
   const partial = rows.some((row) => row.verdict === "partial");
   const level: VerdictLevel =
     dropped || input.hallucinations.length > 0
       ? "block"
-      : partial || scopeCreep.length > 0
+      : partial || scopeCreep.length > 0 || claimsStatus === "unverifiable"
         ? "warn"
         : "allow";
   return {
-    schema_version: 1,
+    schema_version: 2,
     source: "prompt",
     prompt: input.prompt,
     base: input.base,
     claims: rows,
+    claims_status: claimsStatus,
     scope_creep: scopeCreep,
     hallucinations: input.hallucinations,
     verdict: level,
     exit: exitCodeFor(level),
     llm: input.llmCalls,
+    notes,
   };
 }

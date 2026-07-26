@@ -152,6 +152,32 @@ test("the published benchmark matches what the binary produces today", async () 
   );
 });
 
+test("the published intent corpus figures match what the binary produces today", async () => {
+  const { CORPUS_CASES } = await import("../src/intent/corpus/cases.ts");
+  const { runCorpus } = await import("../src/intent/corpus/run.ts");
+  const published = await import("../web/src/lib/intent-corpus.json");
+  const fresh = await runCorpus(CORPUS_CASES, published.default.analyzer_version);
+  expect(fresh.totals).toEqual(published.default.totals);
+  expect(fresh.verdicts).toEqual(published.default.verdicts);
+  expect(fresh.falsePositives).toEqual(published.default.falsePositives);
+  expect(fresh.rules).toEqual(published.default.rules);
+  expect(fresh.results.map((row) => `${row.id}:${row.actualVerdict}`)).toEqual(
+    published.default.results.map((row) => `${row.id}:${row.actualVerdict}`),
+  );
+});
+
+test("the intent corpus numbers stated in the docs are the generated ones", async () => {
+  const published = await import("../web/src/lib/intent-corpus.json");
+  const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const corpusDoc = read("../docs/intent-corpus.md");
+  expect(corpusDoc).toContain(percent(published.default.falsePositives.rate));
+  expect(corpusDoc).toContain(percent(published.default.verdicts.rate));
+  for (const [rule, score] of Object.entries(published.default.rules)) {
+    expect(corpusDoc).toContain(rule);
+    expect(corpusDoc).toContain(percent(score.precision));
+  }
+});
+
 test("every doc page belongs to a declared section", async () => {
   const { DOC_PAGES, DOC_SECTIONS } = await import("../web/src/lib/docs.ts");
   for (const page of DOC_PAGES) {

@@ -3,6 +3,8 @@ import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/mai
 import type { IntentReport } from "../../src/intent/types.ts";
 import type { Verdict } from "../../src/schema.ts";
 
+const slash = (path: string) => path.replace(/\\/g, "/");
+
 const ENV_KEYS = ["OPENAI_API_KEY", "GROQ_API_KEY", "OLLAMA_API_KEY", "WNPM_LLM_PROVIDER"];
 const saved = new Map<string, string | undefined>();
 const realFetch = globalThis.fetch;
@@ -111,9 +113,9 @@ function makeDeps(over: Partial<WardenDeps> = {}) {
     cwd: () => "/repo",
     exists: () => false,
     mkdir: () => undefined,
-    writeFile: (path, data) => files.set(path, data),
+    writeFile: (path, data) => files.set(slash(path), data),
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return IMAGE;
+      if (slash(path) === "/repo/api-client.ts") return IMAGE;
       throw new Error("ENOENT");
     },
     git: (args) => {
@@ -176,10 +178,10 @@ test("warden ci skips intent when no js files changed", async () => {
 test("warden ci reads the intent prompt from .warden/prompt.txt", async () => {
   mockLlm();
   const state = makeDeps();
-  state.deps.exists = (path) => path === "/repo/.warden/prompt.txt";
+  state.deps.exists = (path) => slash(path) === "/repo/.warden/prompt.txt";
   const baseRead = state.deps.readFile;
   state.deps.readFile = (path) =>
-    path === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
+    slash(path) === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
   expect(await runWarden(["ci"], state.deps)).toBe(20);
   expect(state.err.join("")).toContain("intent  ");
 });
@@ -204,8 +206,8 @@ test("warden ci keeps the guard verdict when it outranks intent", async () => {
   const state = makeDeps({
     check: (spec) => Promise.resolve(verdict(spec, "block")),
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return IMAGE;
-      if (path === "/repo/package.json") return '{"dependencies":{"expres":"1.0.0"}}';
+      if (slash(path) === "/repo/api-client.ts") return IMAGE;
+      if (slash(path) === "/repo/package.json") return '{"dependencies":{"expres":"1.0.0"}}';
       throw new Error("ENOENT");
     },
     git: (args) => {

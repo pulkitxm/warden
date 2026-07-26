@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
 import type { IntentReport } from "../../src/intent/types.ts";
 
+const slash = (path: string) => path.replace(/\\/g, "/");
+
 const ENV_KEYS = ["OPENAI_API_KEY", "GROQ_API_KEY", "OLLAMA_API_KEY", "WNPM_LLM_PROVIDER"];
 const saved = new Map<string, string | undefined>();
 const realFetch = globalThis.fetch;
@@ -117,10 +119,10 @@ function makeDeps(over: Partial<WardenDeps> = {}) {
     stderr: (s) => err.push(s),
     cwd: () => "/repo",
     mkdir: () => undefined,
-    writeFile: (path, data) => files.set(path, data),
+    writeFile: (path, data) => files.set(slash(path), data),
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return DEMO_IMAGE;
-      if (path === "/repo/pagination.ts") return PAGINATION_IMAGE;
+      if (slash(path) === "/repo/api-client.ts") return DEMO_IMAGE;
+      if (slash(path) === "/repo/pagination.ts") return PAGINATION_IMAGE;
       throw new Error("ENOENT");
     },
     git: (args) => {
@@ -171,7 +173,7 @@ test("warden intent check reads the prompt from .warden/prompt.txt", async () =>
   const state = makeDeps();
   const baseRead = state.deps.readFile;
   state.deps.readFile = (path) =>
-    path === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
+    slash(path) === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
   expect(await runWarden(["intent", "check"], state.deps)).toBe(20);
 });
 
@@ -208,14 +210,19 @@ test("warden intent check degrades to warn when the match llm fails", async () =
   expect(written.hallucinations).toHaveLength(1);
 });
 
-test("warden intent check surfaces extract failures with a deterministic hallucination note", async () => {
+test("a failed extraction still blocks on the hallucination the deterministic scan found", async () => {
   globalThis.fetch = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
   const state = makeDeps();
-  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(30);
+  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(20);
+  const written = JSON.parse(state.files.get("/repo/.warden/intent-report.json")!) as IntentReport;
+  expect(written.claims_status).toBe("unverifiable");
+  expect(written.claims).toEqual([]);
+  expect(written.hallucinations).toHaveLength(1);
+  expect(written.notes.join(" ")).toContain("groq 503");
+  expect(written.notes.join(" ")).toContain("1 hallucinated api(s) found");
   const rendered = state.err.join("");
-  expect(rendered).toContain("groq 503");
-  expect(rendered).toContain("hallucinated api(s): axios.instance.throttle");
-  expect(rendered).toContain("hint: check your llm setup");
+  expect(rendered).toContain("CLAIMS NOT VERIFIED");
+  expect(rendered).toContain("axios.instance.throttle");
 });
 
 const CLEAN_IMAGE = [
@@ -243,11 +250,11 @@ const CLEAN_DIFF = [
   "",
 ].join("\n");
 
-test("warden intent check errors without a note when nothing deterministic is found", async () => {
+test("a failed extraction with nothing deterministic to report warns instead of erroring", async () => {
   globalThis.fetch = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
   const state = makeDeps({
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return CLEAN_IMAGE;
+      if (slash(path) === "/repo/api-client.ts") return CLEAN_IMAGE;
       throw new Error("ENOENT");
     },
     git: (args) => {
@@ -255,10 +262,13 @@ test("warden intent check errors without a note when nothing deterministic is fo
       return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
     },
   });
-  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(30);
-  const rendered = state.err.join("");
-  expect(rendered).toContain("groq 503");
-  expect(rendered).not.toContain("deterministic scan still found");
+  expect(await runWarden(["intent", "check", "--prompt", "add x"], state.deps)).toBe(10);
+  const written = JSON.parse(state.files.get("/repo/.warden/intent-report.json")!) as IntentReport;
+  expect(written.claims_status).toBe("unverifiable");
+  expect(written.verdict).toBe("warn");
+  expect(written.hallucinations).toEqual([]);
+  expect(written.notes.join(" ")).toContain("groq 503");
+  expect(written.notes.join(" ")).toContain("scope creep not assessed");
 });
 
 test("warden intent check cleans git noise and gives a git-focused hint", async () => {
@@ -304,7 +314,7 @@ test("warden intent check exits clean when everything is delivered", async () =>
   ].join("\n");
   const state = makeDeps({
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return cleanImage;
+      if (slash(path) === "/repo/api-client.ts") return cleanImage;
       throw new Error("ENOENT");
     },
     git: (args) => {
@@ -339,7 +349,7 @@ test("warden intent scans untracked new files and skips noise", async () => {
   };
   const state = makeDeps({
     readFile: (path) => {
-      const hit = files[path];
+      const hit = files[slash(path)];
       if (hit !== undefined) return hit;
       throw new Error("ENOENT");
     },

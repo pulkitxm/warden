@@ -17,16 +17,18 @@ function row(over: Partial<ClaimRow>): ClaimRow {
 
 function report(over: Partial<IntentReport> = {}): IntentReport {
   return {
-    schema_version: 1,
+    schema_version: 2,
     source: "prompt",
     prompt: "add rate limiting",
     base: "abc123def4567890",
     claims: [],
+    claims_status: "verified",
     scope_creep: [],
     hallucinations: [],
     verdict: "allow",
     exit: 0,
     llm: { extract_calls: 1, match_calls: 1 },
+    notes: [],
     ...over,
   };
 }

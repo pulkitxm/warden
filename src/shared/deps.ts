@@ -11,6 +11,8 @@ export interface RunDeps {
   doctor?: (dir: string, opts: DoctorOptions) => Promise<DoctorReport>;
 }
 
+export type GitDeps = Pick<WardenDeps, "git">;
+
 export interface WardenDeps extends RunDeps {
   spawnIn: (cmd: string[], cwd: string, env?: Record<string, string>) => number;
   spawnQuiet: (cmd: string[], cwd: string, env?: Record<string, string>) => number;

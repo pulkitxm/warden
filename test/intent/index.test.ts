@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/main.ts";
 import { parseIntentArgs } from "../../src/intent/index.ts";
-import { SCHEMA_VERSION } from "../../src/schema.ts";
+import { INTENT_SCHEMA_VERSION } from "../../src/schema.ts";
 
 function makeDeps(over: Partial<WardenDeps> = {}) {
   const out: string[] = [];
@@ -40,10 +40,12 @@ test("warden intent schema prints the intent report schema", async () => {
     required: string[];
     properties: { schema_version: { const: number } };
   };
-  expect(schema.properties.schema_version.const).toBe(SCHEMA_VERSION);
+  expect(schema.properties.schema_version.const).toBe(INTENT_SCHEMA_VERSION);
   expect(schema.required).toContain("claims");
+  expect(schema.required).toContain("claims_status");
   expect(schema.required).toContain("hallucinations");
   expect(schema.required).toContain("scope_creep");
+  expect(schema.required).toContain("notes");
 });
 
 test("unknown intent verb fails with a typed usage error", async () => {
@@ -69,5 +71,31 @@ test("an unknown flag surfaces as a typed analysis error", async () => {
 test("warden intent --help renders the command help", async () => {
   const state = makeDeps();
   expect(await runWarden(["intent", "--help"], state.deps)).toBe(0);
-  expect(state.err.join("")).toContain("usage: warden intent [check|extract|diff|symbols|schema]");
+  expect(state.err.join("")).toContain(
+    "usage: warden intent [check|extract|diff|symbols|bench|schema]",
+  );
+});
+
+test("warden intent bench runs the corpus offline and reports per-rule figures", async () => {
+  const state = makeDeps();
+  const exit = await runWarden(["intent", "bench"], state.deps);
+  const rendered = state.err.join("");
+  expect(rendered).toContain("Warden intent corpus");
+  expect(rendered).toContain("claim_matching");
+  expect(rendered).toContain("hallucination");
+  expect(rendered).toContain("false positives");
+  expect([0, 20]).toContain(exit);
+});
+
+test("warden intent bench --json emits the report the docs are generated from", async () => {
+  const state = makeDeps();
+  await runWarden(["intent", "bench", "--json"], state.deps);
+  const report = JSON.parse(state.out.join("")) as {
+    schema_version: number;
+    rules: Record<string, { precision: number }>;
+    falsePositives: { budget: number };
+  };
+  expect(report.schema_version).toBe(1);
+  expect(report.falsePositives.budget).toBe(0.05);
+  expect(Object.keys(report.rules)).toEqual(["claim_matching", "scope_creep", "hallucination"]);
 });

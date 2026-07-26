@@ -23,6 +23,9 @@ export function intentSummaryLine(report: IntentReport): string {
 
 export function renderIntentReport(report: IntentReport): string {
   const lines: string[] = ["", `${bold("VERDICT:")} ${intentSummaryLine(report)}`, ""];
+  if (report.claims_status === "unverifiable") {
+    lines.push(`  ⚠️ CLAIMS NOT VERIFIED: the prompt could not be decomposed`);
+  }
   for (const row of report.claims) {
     const refs = row.hunk_refs.length ? row.hunk_refs.join(", ") : (row.evidence[0]?.detail ?? "");
     lines.push(`  ${icon(row)} ${label(row)}  ${dim(`[${refs}]`)}`);
@@ -39,6 +42,8 @@ export function renderIntentReport(report: IntentReport): string {
     lines.push(`     ${finding.proof}`);
   }
   lines.push("");
+  for (const note of report.notes) lines.push(dim(`  note: ${note}`));
+  if (report.notes.length) lines.push("");
   lines.push(
     dim(
       `  prompt-as-spec · merge-base ${report.base.slice(0, 12)} · llm calls: ${

@@ -1,0 +1,449 @@
+{
+  "schema_version": 1,
+  "analyzer_version": "0.1.0",
+  "totals": {
+    "cases": 18,
+    "conforming": 10,
+    "violating": 7,
+    "degraded": 1
+  },
+  "verdicts": {
+    "correct": 13,
+    "rate": 0.7222222222222222
+  },
+  "falsePositives": {
+    "count": 4,
+    "rate": 0.4,
+    "budget": 0.05,
+    "withinBudget": false
+  },
+  "rules": {
+    "claim_matching": {
+      "positives": 2,
+      "truePositives": 2,
+      "falsePositives": 5,
+      "falseNegatives": 0,
+      "precision": 0.2857142857142857,
+      "recall": 1
+    },
+    "scope_creep": {
+      "positives": 1,
+      "truePositives": 1,
+      "falsePositives": 0,
+      "falseNegatives": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "hallucination": {
+      "positives": 3,
+      "truePositives": 3,
+      "falsePositives": 0,
+      "falseNegatives": 0,
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "results": [
+    {
+      "id": "conforming-retry-helper",
+      "shape": "a diff that delivers every requirement of a small, well-scoped prompt",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered",
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "dropped-requirement",
+      "shape": "a diff that implements one requirement and silently ignores a second",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "delivered",
+        "dropped",
+        "dropped"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered",
+        "dropped",
+        "dropped"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "unrequested-scope",
+      "shape": "a diff that delivers a one-function request and also rewrites an untouched module",
+      "kind": "violating",
+      "expectedVerdict": "warn",
+      "actualVerdict": "warn",
+      "expectedClaims": [
+        "delivered",
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": true,
+      "actualScopeCreep": true,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "hallucinated-member-curated",
+      "shape": "an added call to a method the curated axios surface does not have",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": "unpinned",
+      "actualClaims": [
+        "partial",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 1,
+      "actualHallucinations": 1,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "hallucinated-member-extracted",
+      "shape": "an added call to a method an untyped installed package does not export",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": "unpinned",
+      "actualClaims": [
+        "partial",
+        "partial",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 1,
+      "actualHallucinations": 1,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "legitimate-wide-refactor",
+      "shape": "an extract-module refactor that touches many lines and was entirely requested",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "partial",
+        "delivered",
+        "dropped"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": false,
+      "knownGap": true
+    },
+    {
+      "id": "formatting-sweep",
+      "shape": "a pure reformat of two functions with no semantic change",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "dropped"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": false,
+      "knownGap": true
+    },
+    {
+      "id": "foreign-language-file",
+      "shape": "a requested Python script the JavaScript classifier cannot read",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "contradictory-prompt",
+      "shape": "a prompt whose two requirements cannot both hold, half delivered and half violated",
+      "kind": "violating",
+      "expectedVerdict": "warn",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered",
+        "partial"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": false,
+      "knownGap": true
+    },
+    {
+      "id": "behaviour-preserving-rename",
+      "shape": "a rename of the very function a preservation claim names, with its behaviour intact",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "dropped"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": false,
+      "knownGap": true
+    },
+    {
+      "id": "partial-delivery",
+      "shape": "a requirement half met: the check exists but the requested error detail does not",
+      "kind": "violating",
+      "expectedVerdict": "warn",
+      "actualVerdict": "warn",
+      "expectedClaims": [
+        "delivered",
+        "partial"
+      ],
+      "actualClaims": [
+        "delivered",
+        "partial"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "llm-unavailable-with-finding",
+      "shape": "no llm credential, and a deterministic hallucination the run must still report",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": [],
+      "actualClaims": [],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 1,
+      "actualHallucinations": 1,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "llm-match-unavailable",
+      "shape": "extraction works but the match call fails, so unmatched claims cannot be judged",
+      "kind": "degraded",
+      "expectedVerdict": "warn",
+      "actualVerdict": "warn",
+      "expectedClaims": [
+        "partial",
+        "partial",
+        "partial"
+      ],
+      "actualClaims": [
+        "partial",
+        "partial",
+        "partial"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "test-only-change",
+      "shape": "a requested test file and nothing else",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "docs-only-change",
+      "shape": "a requested readme section and nothing else",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered",
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "manifest-only-change",
+      "shape": "a requested dependency range bump touching only package.json",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "single-line-fix",
+      "shape": "a one-line bug fix exactly as asked",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "inline-simplification",
+      "shape": "a requested simplification that removes a local variable and shortens the body",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered",
+        "delivered",
+        "delivered"
+      ],
+      "actualClaims": [
+        "dropped",
+        "dropped",
+        "partial"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "correct": false,
+      "knownGap": true
+    }
+  ],
+  "knownGaps": [
+    "legitimate-wide-refactor",
+    "formatting-sweep",
+    "contradictory-prompt",
+    "behaviour-preserving-rename",
+    "inline-simplification"
+  ],
+  "staleGaps": [],
+  "method": [
+    "every case runs through the same pipeline the cli uses, with the llm replaced by a recorded response",
+    "diffs are synthesized from before and after file images by an lcs differ that matches git's hunk boundaries",
+    "a conforming case counts as a false positive when the verdict is anything other than allow",
+    "a degraded case exercises behaviour when a provider is unavailable, so it is scored for correctness but kept out of the false-positive denominator",
+    "claim matching is scored on detecting a dropped claim, which is the outcome that blocks",
+    "scope creep and hallucination are scored per case on whether the rule fired at all, not per hunk",
+    "cases listed as known gaps are counted as failures in these figures, not excluded from them",
+    "these are curated shapes, not a sample of real pull requests; read the rates as regression signals"
+  ]
+}
