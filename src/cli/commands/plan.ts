@@ -8,7 +8,7 @@ import { EXIT } from "../../schema.ts";
 import { bold, c, dim } from "../../shared/ansi.ts";
 import type { WardenDeps } from "../../shared/deps.ts";
 import { wardenFailure } from "../../shared/errors.ts";
-import { detectManager } from "../../shared/manager.ts";
+import { detectManager, MANAGER_NAMES } from "../../shared/manager.ts";
 import { isQuiet } from "../../shared/output.ts";
 
 export const PLAN_DIR = join(".warden", "plans");
@@ -44,7 +44,8 @@ export function specsFromArgv(argv: string[]): string[] {
 }
 
 export function managerFromArgv(argv: string[]): string | undefined {
-  return wordsFromArgv(argv).find((word) => RUNNERS.includes(word));
+  const flagged = MANAGER_NAMES.find((name) => argv.includes(`--${name}`));
+  return flagged ?? wordsFromArgv(argv).find((word) => RUNNERS.includes(word));
 }
 
 export function renderPlan(plan: TransactionPlan): string {

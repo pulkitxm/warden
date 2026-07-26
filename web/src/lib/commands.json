@@ -36,6 +36,37 @@
     "example": "warden check lockfile --json"
   },
   {
+    "name": "install",
+    "description": "vet packages, then install them with lifecycle scripts suppressed",
+    "positional": {
+      "kind": "[pkg[@version]...]"
+    },
+    "flags": [
+      {
+        "name": "--npm|--pnpm|--yarn|--bun",
+        "description": "install with that manager instead of the detected one",
+        "valueHint": null
+      },
+      {
+        "name": "--json",
+        "description": "write the verdicts to stdout",
+        "valueHint": null
+      },
+      {
+        "name": "--allow-risky",
+        "description": "install even when a package is blocked",
+        "valueHint": null
+      },
+      {
+        "name": "--help",
+        "description": "show this help",
+        "valueHint": null
+      }
+    ],
+    "exitCodes": "0 installed · 20 blocked · 30 error",
+    "example": "warden install --bun express"
+  },
+  {
     "name": "ci",
     "description": "run all checks against the merge-base diff",
     "positional": null,
@@ -141,6 +172,11 @@
       "kind": "[-- <manager> <command>|<pkg>...]"
     },
     "flags": [
+      {
+        "name": "--npm|--pnpm|--yarn|--bun",
+        "description": "plan for that manager instead of the detected one",
+        "valueHint": null
+      },
       {
         "name": "--json",
         "description": "write the transaction plan to stdout",

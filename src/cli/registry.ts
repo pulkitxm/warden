@@ -22,6 +22,7 @@ import {
   zshCompletions,
 } from "./help.ts";
 import { TRANSACTION_COMMANDS } from "./registry-transactions.ts";
+import { runWnpm } from "./wnpm.ts";
 
 export function runWardenCompletions(argv: string[], deps: WardenDeps): number {
   const shell = argv[0];
@@ -86,6 +87,25 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     exitCodes: "0 allow · 10 warn · 20 block · 30 error",
     example: "warden check lockfile --json",
     run: runWardenCheck,
+  },
+  {
+    name: "install",
+    learnMore: "package-managers",
+    aliases: ["i", "add"],
+    description: "vet packages, then install them with lifecycle scripts suppressed",
+    positional: { kind: "[pkg[@version]...]" },
+    flags: [
+      {
+        name: "--npm|--pnpm|--yarn|--bun",
+        description: "install with that manager instead of the detected one",
+      },
+      { name: "--json", description: "write the verdicts to stdout" },
+      { name: "--allow-risky", description: "install even when a package is blocked" },
+      helpFlag,
+    ],
+    exitCodes: "0 installed · 20 blocked · 30 error",
+    example: "warden install --bun express",
+    run: (argv, deps) => runWnpm(["install", ...argv], deps),
   },
   {
     name: "ci",

@@ -168,6 +168,33 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
   },
 
+  install: {
+    intro:
+      "The short way to add a dependency through Warden. `warden install` vets every package first, refuses on a block, and then hands the install to your own package manager with lifecycle scripts suppressed. It is the same path as `wnpm install`, under the verb people reach for.",
+    whenToUse: [
+      "Adding a package you have not used before, when you want the vetting without setting up the shims.",
+      "In a container, a CI job, or an agent loop, where a single binary is easier to reason about than a shim on PATH.",
+      "When the project's manager is not the one you want to install with, using `--npm`, `--pnpm`, `--yarn`, or `--bun`.",
+    ],
+    examples: [
+      { command: "warden install express", description: "Vet, then install with the detected manager." },
+      {
+        command: "warden install --bun express",
+        description: "Install with Bun regardless of what the project looks like.",
+      },
+      {
+        command: "warden i left-pad chalk --json",
+        description: "The verdicts as JSON. `i` and `add` are aliases of `install`.",
+      },
+    ],
+    behaviour:
+      "Named packages are vetted in parallel, eight at a time; with no names, the direct dependencies in `package.json` are vetted instead. A single `block` stops the install before anything is downloaded or executed. The install itself runs through npm, pnpm, Yarn, or Bun with that manager's own script suppression, and the shims, if installed, still gate the resulting graph transaction.",
+    gotchas: [
+      "This is a vetted install, not a transaction: it does not write a plan or a receipt. Use `warden plan` and `warden apply` when you want the graph decision and the receipt.",
+      "The manager flag chooses the manager, it does not install that manager. A missing one is reported rather than silently swapped.",
+    ],
+  },
+
   policy: {
     intro:
       "Package managers have been growing real security controls of their own: npm has script approvals and source restrictions, pnpm 11 has build allowlists and a release age gate, Yarn disables dependency postinstalls by default, Bun runs nothing outside `trustedDependencies`. Warden does not duplicate them. `warden policy` takes one manager-neutral intent and compiles it into the strongest primitive each manager actually has.",

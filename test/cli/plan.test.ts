@@ -129,6 +129,12 @@ test("the manager named in the command is the one the plan is built for", () => 
   expect(managerFromArgv(["left-pad"])).toBeUndefined();
 });
 
+test("a manager flag plans for that manager without the -- preamble", () => {
+  expect(managerFromArgv(["--bun", "express"])).toBe("bun");
+  expect(managerFromArgv(["--yarn", "--", "npm", "install", "left-pad"])).toBe("yarn");
+  expect(specsFromArgv(["--bun", "express"])).toEqual(["express"]);
+});
+
 test("planning npm install does not report it as a bun install", async () => {
   const { deps, written } = makeDeps({
     [join(CWD, "package.json")]: manifest(),

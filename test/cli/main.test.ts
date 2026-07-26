@@ -362,6 +362,26 @@ test("wnpm falls back to package.json direct deps and preserves the project mana
   expect(spawns).toEqual([["pnpm", "install", "--ignore-scripts"]]);
 });
 
+test("warden install vets and installs, with the manager flag on either side of the verb", async () => {
+  for (const argv of [
+    ["install", "--bun", "express"],
+    ["--bun", "install", "express"],
+    ["--bun", "i", "express"],
+    ["add", "--bun", "express"],
+  ]) {
+    const { deps, spawns, err } = makeWardenDeps();
+    expect(await runWarden(argv, deps)).toBe(0);
+    expect(spawns).toEqual([["bun", "add", "express"]]);
+    expect(err.join("")).toContain("vetting 1 package(s)");
+  }
+});
+
+test("warden install --help documents the manager flags", async () => {
+  const { deps, err } = makeWardenDeps();
+  expect(await runWarden(["install", "--help"], deps)).toBe(0);
+  expect(err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
+});
+
 test("wnpm --bun installs with bun even when the project looks like npm", async () => {
   const { deps, err, spawns } = makeDeps({
     readFile: (path) => {

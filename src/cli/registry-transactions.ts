@@ -15,7 +15,14 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     name: "plan",
     description: "resolve the prospective dependency graph and decide before anything installs",
     positional: { kind: "[-- <manager> <command>|<pkg>...]" },
-    flags: [{ name: "--json", description: "write the transaction plan to stdout" }, helpFlag],
+    flags: [
+      {
+        name: "--npm|--pnpm|--yarn|--bun",
+        description: "plan for that manager instead of the detected one",
+      },
+      { name: "--json", description: "write the transaction plan to stdout" },
+      helpFlag,
+    ],
     exitCodes: "0 allow · 10 warn or needs approval · 20 block · 30 error",
     example: "warden plan -- npm install @fastify/jwt",
     run: runWardenPlan,

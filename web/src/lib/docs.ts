@@ -1649,13 +1649,17 @@ Warden never installs anything itself. Every install and every one-off execution
 ## Name one yourself
 
 \`\`\`sh
+warden install --bun express
 wnpm --pnpm install express
 wnpm --yarn install
 wnpx --bun cowsay hello
 warden plan -- pnpm add zod
+warden plan --bun express
 \`\`\`
 
-\`--npm\`, \`--pnpm\`, \`--yarn\`, and \`--bun\` work on \`wnpm\` and \`wnpx\`. \`warden plan\` takes the manager from the command you are planning, after \`--\`, which is why the plan echoes back the command you actually typed.
+\`warden install\` is the same vetted install as \`wnpm install\`, under the verb people reach for; \`i\` and \`add\` are aliases. The flag may come before the verb, so \`warden --bun install express\` and \`warden install --bun express\` are the same command.
+
+\`--npm\`, \`--pnpm\`, \`--yarn\`, and \`--bun\` work on \`wnpm\`, \`wnpx\`, and \`warden plan\`. \`warden plan\` also takes the manager from the command you are planning, after \`--\`, which is why the plan echoes back the command you actually typed rather than the manager it would have guessed. \`warden apply\` uses whichever manager the plan recorded.
 
 ## What Warden picks when you do not say
 

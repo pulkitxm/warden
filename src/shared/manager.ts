@@ -99,6 +99,13 @@ export const MANAGER_OPTIONS: Record<PackageManager, { type: "boolean" }> = {
   bun: { type: "boolean" },
 };
 
+export function hoistManagerFlags(argv: string[]): string[] {
+  const flags = NAMES.map((name) => `--${name}`);
+  const named = argv.filter((arg) => flags.includes(arg));
+  if (!named.length) return argv;
+  return [...argv.filter((arg) => !flags.includes(arg)), ...named];
+}
+
 export function managerFlag(values: Record<string, unknown>): PackageManager | undefined {
   return NAMES.find((name) => values[name] === true);
 }
