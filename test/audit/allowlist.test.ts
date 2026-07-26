@@ -232,6 +232,17 @@ test("pnpm projects use allowBuilds from pnpm-workspace.yaml", () => {
   expect(report.findings.filter((finding) => finding.rule.includes("allowlist"))).toEqual([]);
 });
 
+test("an invalid pnpm policy becomes an incomplete-scan note", () => {
+  const report = auditScripts(
+    "/proj",
+    fsWith({
+      "package.json": JSON.stringify({ name: "root", packageManager: "pnpm@11.13.0" }),
+      "pnpm-workspace.yaml": "allowBuilds: [",
+    }),
+  );
+  expect(report.notes.join(" ")).toContain("pnpm-workspace.yaml: could not be parsed");
+});
+
 test("each installed version is judged once even when a package has several hooks", () => {
   const report = auditScripts(
     "/proj",
