@@ -10,6 +10,21 @@ Warden turns every dependency change into a planned, policy-checked, narrowly au
 
 By the end, judges should understand that Warden protects the dependency-change moment scanners miss because it plans the whole graph before package code executes and proves that the reviewed result is the result that landed.
 
+## The narrative rule
+
+Every product slide begins with the failure Warden is closing, then shows the command or workflow that closes it, then ends on the proof produced. Commands are evidence of the product rather than the organizing structure of the presentation.
+
+The middle of the deck follows this progression:
+
+1. A package request hides the graph. `warden plan` reveals every changed artifact and the exact authority required.
+2. Installation can drift from review. `warden apply` replays the reviewed request, suppresses scripts, verifies the project, compares graph digests, and writes a receipt.
+3. Local interception can be bypassed. `warden ci --require-transaction-receipt` moves enforcement to the pull request.
+4. Package reputation does not prove release safety. `warden check` examines the artifact, release delta, lockfile, scripts, and registry configuration.
+5. Native safety settings diverge across managers. `warden policy` compiles one intent into the strongest available npm, pnpm, Yarn, and Bun controls.
+6. An advisory fix can introduce a new supply-chain risk. `warden doctor` gates and verifies repair candidates before applying one.
+7. Compiling code can still violate the request. `warden intent check` compares the prompt with the diff and verifies added API calls.
+8. Automation cannot depend on prose output. JSON schemas, typed errors, stable exit codes, handoff bundles, and CI reporters provide a machine contract.
+
 ## The problem
 
 Installing a package can execute code with the developer's permissions. That code can reach environment variables, source, cloud credentials, SSH keys, and registry tokens.
@@ -178,7 +193,7 @@ CI supports summary, JSON, workflow annotation, agent, and SARIF reporters.
 
 ## Demonstration beats
 
-### Plan
+### Plan: hidden graph to exact authority
 
 `warden plan -- npm install esbuild`
 
@@ -188,18 +203,18 @@ CI supports summary, JSON, workflow annotation, agent, and SARIF reporters.
 - decision `NEEDS_APPROVAL`
 - lifecycle scripts remain suppressed
 
-The point is not the command output. The point is that the transaction reveals the complete change and names the one authority requirement.
+The problem is hidden transitive change. The response is the whole-graph plan. The proof is complete artifact coverage plus one narrowly typed authority requirement.
 
-### Doctor
+### Doctor: vulnerable dependency to safe candidate
 
 `warden doctor`
 
 - one advisory fix is rejected because the candidate release adds an install script, exposes exfiltration capability, and loses provenance
 - a separate safe candidate installs and passes the project's test in isolation
 
-The point is that a version fixing a CVE can still be an unsafe release.
+The problem is that a version fixing a CVE can still be an unsafe release. The response is candidate gating and isolated verification. The proof is an accepted plan or an explicit unfixable result.
 
-### Intent
+### Intent: compiling change to verified request
 
 `warden intent check`
 
@@ -209,7 +224,7 @@ The point is that a version fixing a CVE can still be an unsafe release.
 - unrelated pagination file changed
 - added call references an export that does not exist
 
-The point is that compilation success does not prove instruction fidelity.
+The problem is that compilation success does not prove instruction fidelity. The response is prompt-to-diff comparison plus deterministic API validation. The proof separates delivered requirements from dropped work, scope creep, and impossible calls.
 
 ## Benchmark
 

@@ -26,77 +26,77 @@ Plan resolves and analyzes the complete prospective graph. Approve replaces a br
 
 Incomplete coverage cannot become a confident allow.
 
-## 5. Plan demonstration
+## 5. Blind graph to reviewable plan
 
-Here is the whole-graph decision. The request names one package. Warden resolves twenty-seven changed artifacts and analyzes all twenty-seven.
+The failure is not that the developer typed the wrong command. The failure is that the request shows one name while hiding the full graph, new scripts, and authority the change will introduce.
 
-One package introduces execution at install time, so the decision is not allow and not a generic block. It is needs approval, with the exact hook named.
+`warden plan` closes that visibility gap before installation. The request names one package. Warden resolves twenty-seven changed artifacts, analyzes all twenty-seven, and finds one new install-time execution requirement.
 
-The approval is bound to the package, version, tarball integrity, hook, and script body. Change any field and it no longer matches. Approval authorizes the transaction. The package script still never runs.
+The safe next step is neither a broad allow nor a generic block. It is one approval bound to the package, version, tarball integrity, hook, and script body. Change any field and it no longer matches. Approval authorizes the transaction. The package script still never runs.
 
-## 6. Apply and receipt
+## 6. Plan drift to controlled apply
 
-Apply replays the exact manager command that was planned, suppresses every lifecycle script through the manager's native setting, and runs test, typecheck, and build when the project provides them.
+A plan only matters if installation cannot silently resolve a different graph. `warden apply` replays the exact manager command that was planned, suppresses every lifecycle script through the manager's native setting, and runs test, typecheck, and build when the project provides them.
 
 It then digests the graph that actually landed. If that graph differs from the plan, or a verification step fails, Warden restores the manifest and every lockfile.
 
 The receipt records the reviewed graph, observed graph, policy, coverage, approvals, suppressed scripts, verification, and result. The honest boundary is that rollback does not restore node_modules or side effects from project verification.
 
-## 7. The control that survives bypass
+## 7. Local bypass to receipt-backed CI
 
-There are three enforcement layers. Guidance teaches the safe loop. Interception mediates normal package-manager commands. Verification makes CI demand a valid transaction receipt.
+Local interception is useful but bypassable. There are three enforcement layers. Guidance teaches the safe loop. Interception mediates normal package-manager commands. Verification makes CI demand a valid transaction receipt.
 
 An absolute path or a container can bypass a PATH shim. Warden does not pretend otherwise. The receipt gate is the control that does not trust the developer machine. If the dependency graph changed without valid evidence, the pull request does not merge.
 
-## 8. Release evidence and repository surfaces
+## 8. Package reputation to release evidence
 
-The package engine verifies integrity, compares the release with its predecessor, scans JavaScript through an AST walk, checks name attacks and curated intel, and produces a deterministic score.
+A familiar package name does not prove that the current release is safe. `warden check` verifies integrity, compares the release with its predecessor, scans JavaScript through an AST walk, checks name attacks and curated intel, and produces a deterministic score.
 
 Warden also audits three repository surfaces. The lockfile answers where bytes will come from. The lifecycle-script audit answers what code would run during installation. The registry-config audit answers where credentials could be sent.
 
 Repeat verdicts are cached by tarball integrity and analyzer version, so analysis stays fast without trusting an older result for different bytes or different rules.
 
-## 9. One policy across managers
+## 9. Manager drift to compiled policy
 
-Package managers already expose valuable controls, but each manager names and types them differently. Warden takes one repository intent and compiles it into the strongest native settings available for npm, pnpm, Yarn, or Bun.
+Package managers already expose valuable controls, but each manager names and types them differently. That creates four chances for the same safety intent to drift. `warden policy` takes one repository intent and compiles it into the strongest native settings available for npm, pnpm, Yarn, or Bun.
 
 It also names gaps instead of hiding them. If a manager cannot express semantic downgrade blocking or lockfile reverification, Warden enforces that intent in the transaction plan and receipt gate.
 
 The project keeps its chosen package manager. Warden detects and preserves it rather than silently changing tools.
 
-## 10. Safe dependency repair
+## 10. Risky remediation to verified repair
 
 A vulnerability advisory can name a fixed version that is itself a supply-chain risk. Doctor does more than list CVEs.
 
-It reads advisories, builds minimal and latest repair plans, gates every candidate through the same package engine, and verifies surviving plans in an isolated copy of the project before applying one.
+`warden doctor` reads advisories, builds minimal and latest repair plans, gates every candidate through the same package engine, and verifies surviving plans in an isolated copy of the project before applying one.
 
 In this demonstration, the official fix adds a suspicious install script and loses provenance, so Warden marks it unfixable. A different safe repair installs, passes tests, and is applied.
 
-## 11. Intent verification
+## 11. Semantic failure to intent evidence
 
 Dependency security is only one failure mode in agent-driven changes. Code can compile while dropping a requirement, changing unrelated scope, or calling an API that never existed.
 
-Warden decomposes the prompt into claims and compares those claims with the diff. It separates delivered and preserved requirements from dropped work and scope creep. A deterministic symbol scan checks newly added member calls against package exports it can prove.
+`warden intent check` decomposes the prompt into claims and compares those claims with the diff. It separates delivered and preserved requirements from dropped work and scope creep. A deterministic symbol scan checks newly added member calls against package exports it can prove.
 
 When the repository carries a prompt file, CI runs the same check automatically for changed JavaScript and TypeScript.
 
-## 12. Automation contract
+## 12. Terminal prose to automation contract
 
-Automation needs something stronger than prose logs. Every Warden surface follows the same exit-code contract and exposes structured JSON, versioned schemas, typed errors, evidence, a suggested fix, and a verification command.
+Automation cannot reliably interpret changing terminal prose. Every Warden surface follows the same exit-code contract and exposes structured JSON, versioned schemas, typed errors, evidence, a suggested fix, and a verification command.
 
 Registry-authored strings are sanitized and kept under an untrusted boundary so a security tool does not become an instruction-injection path.
 
 Adapter setup reports which guidance, interception, post-change, and tool capabilities are actually available. The generated tool surface is read-only. Project-changing commands remain human-controlled.
 
-## 13. The full product
+## 13. Problems choose the command
 
-This is the shipped command surface organized by the question it answers.
+The audience does not need to memorize a command catalog. Start with the operational failure, then choose the Warden response that produces the required proof.
 
-For package trust, teams can check, explain, trace history, compare candidates, record a trusted baseline, and inventory scripts awaiting approval.
+When a release is risky, check, explain, history, compare, baseline, and scripts produce a verdict, evidence trail, safer candidate ranking, and remediation.
 
-For guardrail health, teams can publish interception coverage, diagnose integrations, detect the workspace, initialize project controls, choose protect or observe behavior, and inspect verdict history.
+When a guardrail may be broken, coverage, integrations doctor, detect, init, config, and log expose missing layers, repair the setup, and preserve verdict history.
 
-For dependable automation, Warden preserves the selected package manager, emits five CI reporter formats, publishes schemas and completions, reproduces its benchmark, and provides a complete uninstall path.
+When a team or automated system needs durable proof, install, ci, schema, completions, benchmark, and uninstall provide manager-preserving execution, stable report contracts, reproducible evidence, and lifecycle control.
 
 ## 14. Evidence and limits
 

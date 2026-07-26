@@ -209,7 +209,10 @@ Reveal.on("ready", (event) => {
   else playTerminal(event.currentSlide);
 });
 
-Reveal.on("slidechanged", (event) => playTerminal(event.currentSlide));
+Reveal.on("slidechanged", (event) => {
+  if (staticExport) renderFinalTerminal(event.currentSlide);
+  else playTerminal(event.currentSlide);
+});
 window.addEventListener("beforeprint", renderStaticTerminals);
 
 const initializeDeck = async () => {

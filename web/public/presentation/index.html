@@ -114,8 +114,8 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
 
         <section class="dark evidence-terminal" data-background-color="#081022" data-terminal="plan">
           <div class="terminal-heading auto auto-1">
-            <p class="eyebrow">Plan answers the missing question</p>
-            <h2>What will this command actually change?</h2>
+            <p class="eyebrow">Problem 01 · Blind graph</p>
+            <h2>A package name does not reveal the graph, scripts, or authority it will add.</h2>
           </div>
           <div class="terminal-evidence-layout">
             <div class="terminal-shell auto auto-2">
@@ -123,18 +123,18 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
               <div class="terminal-screen" aria-live="polite"></div>
             </div>
             <div class="evidence-rail auto auto-3">
-              <div><small>GRAPH</small><strong>27 changed</strong><span>direct and transitive</span></div>
-              <div><small>COVERAGE</small><strong>27 analyzed</strong><span>nothing silently skipped</span></div>
-              <div><small>AUTHORITY</small><strong>1 requirement</strong><span>the exact postinstall hook</span></div>
+              <div><small>REQUEST SHOWS</small><strong>1 name</strong><span>the direct package only</span></div>
+              <div><small>WARDEN PLAN REVEALS</small><strong>27 changes</strong><span>all 27 artifacts analyzed</span></div>
+              <div><small>SAFE NEXT STEP</small><strong>1 approval</strong><span>bound to the exact postinstall hook</span></div>
             </div>
           </div>
-          <p class="terminal-caption auto auto-4">The approval is bound to package, version, tarball integrity, hook, and script body. The script still does not run.</p>
+          <p class="terminal-caption auto auto-4"><code>warden plan</code> turns an install request into a reviewable transaction. The script still does not run.</p>
           <aside class="notes">The manager resolves in a throwaway directory when possible. Warden falls back to registry metadata when the manager cannot perform a lockfile-only resolve.</aside>
         </section>
 
         <section class="paper apply-slide" data-background-color="#f4f7ff">
-          <p class="eyebrow ink auto auto-1">Controlled execution</p>
-          <h2 class="ink auto auto-1">Apply detects drift, verifies the project, and leaves a receipt.</h2>
+          <p class="eyebrow ink auto auto-1">Problem 02 · Plan drift</p>
+          <h2 class="ink auto auto-1">A safe plan is worthless if installation resolves something different.</h2>
           <div class="apply-track auto auto-2">
             <div><small>REPLAY</small><strong>exact planned request</strong><span>manager, argv, working directory, dependency class</span></div>
             <i>→</i>
@@ -162,8 +162,8 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
         </section>
 
         <section class="dark enforcement-slide" data-background-color="#101a38">
-          <p class="eyebrow auto auto-1">Defense in depth</p>
-          <h2 class="auto auto-1">The receipt is the control that survives a local bypass.</h2>
+          <p class="eyebrow auto auto-1">Problem 03 · Local bypass</p>
+          <h2 class="auto auto-1">A local guard can be bypassed. The pull request still needs proof.</h2>
           <div class="enforcement-stack auto auto-2">
             <div class="enforcement-layer guidance">
               <small>GUIDANCE</small>
@@ -189,8 +189,8 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
         </section>
 
         <section class="paper surfaces-slide" data-background-color="#f4f7ff">
-          <p class="eyebrow ink auto auto-1">Evidence, not reputation</p>
-          <h2 class="ink auto auto-1">Warden checks the release delta and the repository surfaces around it.</h2>
+          <p class="eyebrow ink auto auto-1">Problem 04 · Reputation</p>
+          <h2 class="ink auto auto-1">A trusted package name says nothing about this release's code or source.</h2>
           <div class="surface-layout auto auto-2">
             <div class="release-spine">
               <small>PUBLISHED PACKAGE</small>
@@ -208,8 +208,8 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
         </section>
 
         <section class="dark policy-slide" data-background-color="#081022">
-          <p class="eyebrow auto auto-1">One intent, four managers</p>
-          <h2 class="auto auto-1">Native safety settings should not depend on remembering four dialects.</h2>
+          <p class="eyebrow auto auto-1">Problem 05 · Manager drift</p>
+          <h2 class="auto auto-1">One safety policy becomes four opportunities for settings to diverge.</h2>
           <div class="policy-layout auto auto-2">
             <div class="policy-intent">
               <small>REPOSITORY INTENT</small>
@@ -234,7 +234,7 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
 
         <section class="paper doctor-slide" data-background-color="#f4f7ff" data-terminal="doctor">
           <div class="terminal-heading auto auto-1">
-            <p class="eyebrow ink">Safe repair</p>
+            <p class="eyebrow ink">Problem 06 · Risky remediation</p>
             <h2 class="ink">A vulnerability fix is not safe until the candidate release passes the gate.</h2>
           </div>
           <div class="doctor-layout">
@@ -254,7 +254,7 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
 
         <section class="dark intent-slide" data-background-color="#101a38" data-terminal="intent">
           <div class="terminal-heading auto auto-1">
-            <p class="eyebrow">Prompt as specification</p>
+            <p class="eyebrow">Problem 07 · Semantic failure</p>
             <h2>Code can compile and still fail the request.</h2>
           </div>
           <div class="intent-layout">
@@ -273,8 +273,8 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
         </section>
 
         <section class="paper agent-contract-slide" data-background-color="#f4f7ff">
-          <p class="eyebrow ink auto auto-1">Built for automation</p>
-          <h2 class="ink auto auto-1">An agent receives a decision, evidence, a fix, and a finish line.</h2>
+          <p class="eyebrow ink auto auto-1">Problem 08 · Unstructured automation</p>
+          <h2 class="ink auto auto-1">Automation needs a decision contract, not terminal prose.</h2>
           <div class="contract-flow auto auto-2">
             <div><small>INPUT</small><strong>package request or code diff</strong></div>
             <i>→</i>
@@ -293,38 +293,29 @@ USENIX Security 2025 package hallucination study: https://www.usenix.org/confere
         </section>
 
         <section class="dark toolkit-slide" data-background-color="#081022">
-          <p class="eyebrow auto auto-1">The rest of the product</p>
-          <h2 class="auto auto-1">Every command answers an operational question.</h2>
-          <div class="question-rails auto auto-2">
-            <div class="question-rail">
-              <strong>Can I trust this package or release?</strong>
-              <span><code>check</code> vet the artifact</span>
-              <span><code>explain</code> show what changed and what to do</span>
-              <span><code>history</code> trace publisher, provenance, and scripts</span>
-              <span><code>compare</code> rank candidates on evidence</span>
-              <span><code>baseline</code> record a trusted reference</span>
-              <span><code>scripts</code> show hooks still awaiting approval</span>
+          <p class="eyebrow auto auto-1">When something fails</p>
+          <h2 class="auto auto-1">Start with the operational problem. The command follows.</h2>
+          <div class="problem-command-map auto auto-2">
+            <div class="problem-command-header">
+              <span>FAILURE</span><span>WARDEN RESPONSE</span><span>PROOF PRODUCED</span>
             </div>
-            <div class="question-rail">
-              <strong>Are the guardrails actually active?</strong>
-              <span><code>coverage</code> publish the intercepted command matrix</span>
-              <span><code>integrations doctor</code> inspect PATH, shims, adapters, and CI</span>
-              <span><code>detect</code> classify manager, topology, framework, and tooling</span>
-              <span><code>init</code> add config, workflow, hooks, and context</span>
-              <span><code>config</code> choose protect or observe behavior</span>
-              <span><code>log</code> render recorded verdict history</span>
+            <div class="problem-command-row release-problem">
+              <div><small>RISKY RELEASE</small><strong>The team needs evidence and a safer candidate.</strong></div>
+              <div class="command-cluster"><code>check</code><code>explain</code><code>history</code><code>compare</code><code>baseline</code><code>scripts</code></div>
+              <div><strong>release verdict</strong><span>evidence trail, candidate ranking, and exact remediation</span></div>
             </div>
-            <div class="question-rail">
-              <strong>Can teams and systems depend on it?</strong>
-              <span><code>install</code> preserve the project's chosen manager</span>
-              <span><code>ci</code> emit summary, JSON, annotations, agent, or SARIF</span>
-              <span><code>schema</code> publish versioned report contracts</span>
-              <span><code>completions</code> generate bash, zsh, and fish support</span>
-              <span><code>benchmark</code> reproduce regression evidence</span>
-              <span><code>uninstall</code> remove shims, config, cache, and shell setup</span>
+            <div class="problem-command-row guardrail-problem">
+              <div><small>BROKEN GUARDRAIL</small><strong>Interception or repository setup may be incomplete.</strong></div>
+              <div class="command-cluster"><code>coverage</code><code>integrations doctor</code><code>detect</code><code>init</code><code>config</code><code>log</code></div>
+              <div><strong>coverage and repair</strong><span>missing layers, concrete fixes, and recorded verdict history</span></div>
+            </div>
+            <div class="problem-command-row automation-problem">
+              <div><small>MISSING SYSTEM PROOF</small><strong>CI and tools need stable, machine-readable evidence.</strong></div>
+              <div class="command-cluster"><code>install</code><code>ci</code><code>schema</code><code>completions</code><code>benchmark</code><code>uninstall</code></div>
+              <div><strong>repeatable operations</strong><span>manager-preserving execution, report contracts, and lifecycle control</span></div>
             </div>
           </div>
-          <aside class="notes">This slide groups the shipped command registry by user decision instead of presenting a flat command list.</aside>
+          <aside class="notes">The complete shipped command registry is still covered, but commands are grouped under the failure that makes each one necessary. The audience should remember the problem-to-proof loop rather than a command catalog.</aside>
         </section>
 
         <section class="paper evidence-slide" data-background-color="#f4f7ff">
