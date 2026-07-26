@@ -17,6 +17,16 @@ The package identity slide refreshes npm registry metadata and last-week downloa
 
 - `warden-deck.pdf`: 16:9 presentation export, one page per slide
 
+Regenerate it with `make deck-pdf` after changing any slide, and commit the result. The script serves this
+directory, loads it with `?print-pdf&static` so every terminal renders its final state instead of animating,
+sizes the PDF page to Reveal's own `.pdf-page` box, and fails if the export is not exactly 18 pages. It needs
+network access once, to fetch Reveal from jsDelivr, which it then serves to the browser itself.
+
+Two things in `styles.css` exist because of this export and should move together with it. The print rules
+that lay slides out for a plain browser `Ctrl+P` are scoped to `html:not(.print-pdf)`, because Reveal's
+print-pdf mode builds its own `.pdf-page` wrappers and the two layouts fight when both apply. Reveal's
+print-pdf stylesheet also zeroes slide padding, so `html.print-pdf` restores this deck's `54px 58px 38px`.
+
 ## Structure
 
 - `index.html`: slide content and citations

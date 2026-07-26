@@ -2485,8 +2485,8 @@ body {
     margin: 0;
   }
 
-  html,
-  body {
+  html:not(.print-pdf),
+  html:not(.print-pdf) body {
     width: 1280px !important;
     height: auto !important;
     min-height: 0 !important;
@@ -2503,13 +2503,13 @@ body {
     display: none !important;
   }
 
-  .reveal {
+  html:not(.print-pdf) .reveal {
     width: 1280px !important;
     height: auto !important;
     min-height: 0 !important;
   }
 
-  .reveal .slides {
+  html:not(.print-pdf) .reveal .slides {
     position: static !important;
     width: 1280px !important;
     height: auto !important;
@@ -2519,7 +2519,7 @@ body {
     perspective: none !important;
   }
 
-  .reveal .slides section {
+  html:not(.print-pdf) .reveal .slides section {
     position: relative !important;
     display: block !important;
     width: 1280px !important;
@@ -2534,9 +2534,13 @@ body {
     visibility: visible !important;
   }
 
-  .reveal .slides section + section {
+  html:not(.print-pdf) .reveal .slides section + section {
     break-before: page !important;
     page-break-before: always !important;
+  }
+
+  html.print-pdf .reveal .slides section {
+    padding: 54px 58px 38px !important;
   }
 
   .reveal .slides section.dark {
@@ -2554,7 +2558,7 @@ body {
     color: var(--ink) !important;
   }
 
-  .reveal .slides section:last-child {
+  html:not(.print-pdf) .reveal .slides section:last-child {
     break-after: auto !important;
     page-break-after: auto !important;
   }

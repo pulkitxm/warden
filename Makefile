@@ -1,4 +1,4 @@
-.PHONY: install build test test-doctor test-intent test-shell typecheck web-dev web-build ci ci-comments ci-format ci-smoke ci-web doctor-demo docker-build docker-run docker-install-demo adocker-build adocker-run adocker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck web-dev web-build ci ci-comments ci-format ci-smoke ci-web doctor-demo deck-pdf docker-build docker-run docker-install-demo adocker-build adocker-run adocker-install-demo
 
 install:
 	bun install
@@ -61,6 +61,9 @@ ci:
 
 doctor-demo: build
 	bun scripts/doctor-demo.ts
+
+deck-pdf:
+	node scripts/export-deck-pdf.mjs
 
 docker-build:
 	@sh scripts/docker-build.sh warden:dev
