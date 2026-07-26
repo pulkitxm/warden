@@ -776,6 +776,26 @@ warden approve-script sharp@0.33.5 --hook install --scope user
 
 An approval binds the package name, the exact version, the tarball integrity, the hook, and a hash of the normalized script body. Change any one of those and it no longer applies. Repo approvals live in \`.warden/approvals.json\` and are meant to be committed, so a decision reviewed once covers the whole team.
 
+After approving the example above, \`.warden/approvals.json\` looks like this:
+
+\`\`\`json
+{
+  "schema_version": 1,
+  "approvals": [
+    {
+      "schema_version": 1,
+      "package": "esbuild",
+      "version": "0.25.8",
+      "integrity": "sha512-vVC0USHGtMi8+R4Kz8rt6JhEWLxsv9Rnu/lGYbPR8u47B+DCBksq9JarW0zOO7bs37hyOK1l2/oqtbciutL5+Q==",
+      "hook": "postinstall",
+      "script_hash": "sha256:912d4d8f507b7b392ae422a459f98da9",
+      "scope": "repo",
+      "approved_at": "2026-07-26T09:30:00.000Z"
+    }
+  ]
+}
+\`\`\`
+
 This replaces the pattern of a single broad override. A bypass scoped to exactly what was reviewed can be audited later; one that means "allow risk" cannot.
 
 ## Apply
