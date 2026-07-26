@@ -38,6 +38,8 @@ That last step is the honest part of the pitch. PATH shims are convenience, not 
 - decision `NEEDS_APPROVAL`, with the exact approval command printed
 - scripts stay suppressed until the approval exists
 
+One thing to rehearse rather than discover on stage. A plan has two resolvers, and it names the one it used in its `resolver` field. When npm or pnpm is on `PATH`, Warden lets that manager resolve in a throwaway directory, which is the most faithful answer to "what would this manager select" but carries no lifecycle-hook or platform detail, so the execution surface reads as zero and the decision comes back `ALLOW`. The numbers above come from the metadata walk, which is the fallback and what the interception shim always uses. Run the demo the way the shim runs it, or in a project whose manager cannot do a lockfile-only resolve, and check the output before the room does.
+
 Contrast with what a scanner would say: "esbuild is fine." Warden's answer is "esbuild is fine, and here is the one piece of code in this change that wants to execute."
 
 Measured detection, reproducible with `warden benchmark`: 12 of 12 curated attack shapes stopped, 0 of 9 benign shapes stopped. Those are curated regression shapes, not field accuracy, and the deck should say so.
