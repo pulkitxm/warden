@@ -32,7 +32,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
     { name: "Docs", path: "/docs" },
     { name: page.title, path },
   ];
-  const html = await renderMarkdown(page.body);
+  const content = await renderMarkdown(page.body);
   const index = DOC_PAGES.findIndex((entry) => entry.slug === page.slug);
   const previous = DOC_PAGES[index - 1];
   const next = DOC_PAGES[index + 1];
@@ -63,7 +63,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
           };
         })}
       >
-        <Prose html={html} />
+        <Prose>{content}</Prose>
       </DocsPage>
     </>
   );

@@ -55,7 +55,7 @@ A trust layer that sits **above** per-package-manager settings and **beside** CV
 `;
 
 export default async function AboutPage() {
-  const html = await renderMarkdown(body);
+  const content = await renderMarkdown(body);
   const trail = [
     { name: "Home", path: "/" },
     { name: "About", path: "/about" },
@@ -73,7 +73,7 @@ export default async function AboutPage() {
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{META.title}</h1>
         <p className="mt-4 text-lg leading-relaxed text-fog">{META.description}</p>
         <hr className="my-8 border-white/10" />
-        <Prose html={html} />
+        <Prose>{content}</Prose>
         <p className="mt-10 text-sm text-fog">
           Read the{" "}
           <Link href="/docs/security" className="text-mint hover:text-white">

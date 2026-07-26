@@ -276,11 +276,34 @@ const withWeb = webInstalled ? test : test.skip;
 
 const MARKDOWN_MODULE = new URL("../web/src/lib/markdown.ts", import.meta.url).href;
 
+interface RenderedNode {
+  type?: unknown;
+  props?: Record<string, unknown>;
+}
+
+function serialize(node: unknown): string {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(serialize).join("");
+
+  const element = node as RenderedNode;
+  if (!element.props) return "";
+  if (typeof element.type === "function") {
+    return serialize((element.type as (props: unknown) => unknown)(element.props));
+  }
+  const tag = typeof element.type === "string" ? element.type : "component";
+  const attributes = Object.entries(element.props)
+    .filter(([key]) => key !== "children")
+    .map(([key, value]) => ` ${key === "className" ? "class" : key}="${String(value)}"`)
+    .join("");
+  return `<${tag}${attributes}>${serialize(element.props.children)}</${tag}>`;
+}
+
 async function loadRenderMarkdown(): Promise<(body: string) => Promise<string>> {
   const loaded = (await import(MARKDOWN_MODULE)) as {
-    renderMarkdown: (body: string) => Promise<string>;
+    renderMarkdown: (body: string) => Promise<unknown>;
   };
-  return loaded.renderMarkdown;
+  return async (body: string) => serialize(await loaded.renderMarkdown(body));
 }
 
 withWeb(
@@ -304,6 +327,17 @@ withWeb("terminal output is syntax highlighted whether the fence says term or te
     expect(`${lang}: ${html.includes("terminal-block")}`).toBe(`${lang}: true`);
     expect(`${lang}: ${html.includes("t-prompt")}`).toBe(`${lang}: true`);
   }
+});
+
+withWeb("internal doc links render through next/link, external links stay anchors", async () => {
+  const renderMarkdown = await loadRenderMarkdown();
+  const html = await renderMarkdown(
+    "See [concepts](/docs/concepts), [the repo](https://github.com/pulkitxm/warden), and [this heading](#gate).\n",
+  );
+  expect(html).toContain('<component href="/docs/concepts"');
+  expect(html).not.toContain('<a href="/docs/concepts"');
+  expect(html).toContain('<a href="https://github.com/pulkitxm/warden"');
+  expect(html).toContain('<a href="#gate"');
 });
 
 withWeb("a language fence shiki knows is still highlighted by shiki", async () => {
