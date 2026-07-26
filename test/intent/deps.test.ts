@@ -1,11 +1,18 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import {
   collectAddedImports,
   declaredPackages,
   packageNameOf,
   scanDependencies,
 } from "../../src/intent/deps.ts";
+import { registryPackageExists } from "../../src/intent/index.ts";
 import type { IntentPipelineDeps } from "../../src/intent/types.ts";
+
+const realFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 const ROOT = "/repo";
 
@@ -233,6 +240,33 @@ test("an installed undeclared package never reaches the registry lookup", async 
   );
   expect(asked).toEqual([]);
   expect(scan.findings[0]!.level).toBe("warn");
+});
+
+test("the registry lookup answers true for a name the registry serves", async () => {
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        name: "ky",
+        "dist-tags": { latest: "1.0.0" },
+        versions: { "1.0.0": { version: "1.0.0", dist: { tarball: "t", integrity: "i" } } },
+        time: { "1.0.0": "2026-01-01T00:00:00.000Z" },
+      }),
+      { status: 200 },
+    )) as unknown as typeof fetch;
+  expect(await registryPackageExists("ky")).toBe(true);
+});
+
+test("the registry lookup answers false for a name the registry has never published", async () => {
+  globalThis.fetch = (async () =>
+    new Response("Not found", { status: 404 })) as unknown as typeof fetch;
+  expect(await registryPackageExists("warden-nonexistent-probe-pkg-xyz")).toBe(false);
+});
+
+test("an unreachable registry answers null, so absence is never mistaken for proof", async () => {
+  globalThis.fetch = (() => {
+    throw new Error("getaddrinfo ENOTFOUND");
+  }) as unknown as typeof fetch;
+  expect(await registryPackageExists("ky")).toBeNull();
 });
 
 test("importing the package's own name is not an undeclared import", async () => {
