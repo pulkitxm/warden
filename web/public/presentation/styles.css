@@ -1019,7 +1019,7 @@ body {
   body {
     width: 1280px !important;
     height: auto !important;
-    min-height: 7200px !important;
+    min-height: 0 !important;
     margin: 0 !important;
     overflow: hidden !important;
     background: #fff !important;
@@ -1034,13 +1034,13 @@ body {
   .reveal {
     width: 1280px !important;
     height: auto !important;
-    min-height: 7200px !important;
+    min-height: 0 !important;
   }
   .reveal .slides {
     position: static !important;
     width: 1280px !important;
     height: auto !important;
-    min-height: 7200px !important;
+    min-height: 0 !important;
     inset: auto !important;
     transform: none !important;
     perspective: none !important;
@@ -1048,6 +1048,8 @@ body {
   .reveal .slides section {
     display: block !important;
     position: relative !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
     inset: auto !important;
     width: 1280px !important;
     height: 720px !important;
@@ -1090,6 +1092,7 @@ body {
     background: var(--mint) !important;
   }
   .command-grid {
+    display: grid !important;
     grid-template-columns: repeat(4, 1fr) !important;
   }
   .agent-layout {
@@ -1129,5 +1132,63 @@ body {
     transform: none !important;
     translate: none !important;
     animation: none !important;
+  }
+  .cover-visual {
+    position: absolute !important;
+    width: 590px !important;
+    height: 590px !important;
+    right: -40px !important;
+    top: 66px !important;
+  }
+  .orbit,
+  .scan-beam,
+  .signal,
+  .cover-package,
+  .verdict-seal {
+    position: absolute !important;
+  }
+  .threat-constellation {
+    position: relative !important;
+    height: 430px !important;
+  }
+  .threat-core,
+  .threat-node,
+  .threat-lines {
+    position: absolute !important;
+  }
+  .threat-core,
+  .threat-node,
+  .verdict-seal {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .threat-core {
+    width: 270px !important;
+    height: 270px !important;
+  }
+  .threat-node {
+    width: 150px !important;
+    height: 150px !important;
+  }
+  .verdict-seal {
+    width: 214px !important;
+    height: 214px !important;
+  }
+  .close-verdict {
+    position: absolute !important;
+    right: 72px !important;
+    top: 165px !important;
+    width: 310px !important;
+    height: 310px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .source-matrix {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
   }
 }

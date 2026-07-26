@@ -13,7 +13,7 @@ Open `http://localhost:3000/presentation/index.html`. Use one arrow-key or space
 
 ## Ready-to-share outputs
 
-- `warden-deck.pdf`: 10-page, 16:9 presentation export, one page per slide
+- `warden-deck.pdf`: 16:9 presentation export, one page per slide
 
 ## Structure
 
