@@ -26,12 +26,6 @@ const links = [
     external: true,
   },
   {
-    label: "Demo video",
-    href: "/presentation/warden-preview.mp4",
-    detail: "Two minutes",
-    external: true,
-  },
-  {
     label: "Speaker notes",
     href: "/presentation/presentation-context.md",
     detail: "Narrative and timings",
@@ -181,16 +175,6 @@ export default function HackPage() {
           </a>
           .
         </p>
-      </section>
-
-      <section className="mt-14">
-        <h2 className="text-xl font-bold text-white sm:text-2xl">The demo</h2>
-        <div className="mt-4 overflow-hidden rounded-2xl border border-white/12 bg-black/40">
-          {/* biome-ignore lint/a11y/useMediaCaption: product screen capture with no speech */}
-          <video controls preload="metadata" className="w-full" playsInline>
-            <source src="/presentation/warden-preview.mp4" type="video/mp4" />
-          </video>
-        </div>
       </section>
 
       <section className="mt-14">

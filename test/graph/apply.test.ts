@@ -240,7 +240,7 @@ test("each manager gets its own install verb and suppression mechanism", async (
   for (const [manager, expected] of [
     ["pnpm", ["pnpm", "add", "esbuild@0.25.8", "--ignore-scripts"]],
     ["yarn", ["yarn", "add", "esbuild@0.25.8"]],
-    ["bun", ["bun", "add", "esbuild@0.25.8"]],
+    ["bun", ["bun", "add", "esbuild@0.25.8", "--ignore-scripts"]],
   ] as const) {
     const { deps, commands } = makeDeps();
     await applyTransaction(plan({ manager }), deps);
@@ -282,4 +282,61 @@ test("a corrupt manifest degrades to running no verification steps", async () =>
   });
   expect(receipt.result).toBe("applied");
   expect(receipt.verification.test).toBe("skipped");
+});
+
+test("a truncated plan is refused, because it was never fully reviewed", async () => {
+  const { deps, commands } = makeDeps();
+  const receipt = await applyTransaction(plan({ truncated: true }), deps);
+  expect(receipt.result).toBe("refused");
+  expect(receipt.reason).toContain("truncated");
+  expect(commands).toEqual([]);
+});
+
+test("a plan with unanalyzed packages is refused rather than installed", async () => {
+  const { deps, commands } = makeDeps();
+  const receipt = await applyTransaction(
+    plan({
+      artifacts: [
+        {
+          package: "mystery",
+          version: "1.0.0",
+          verdict: "unchecked",
+          summary: "beyond the analysis budget for this plan",
+          categories: [],
+        },
+      ],
+    }),
+    deps,
+  );
+  expect(receipt.result).toBe("refused");
+  expect(receipt.reason).toContain("never analyzed");
+  expect(commands).toEqual([]);
+});
+
+test("a script approval does not license incomplete analysis", async () => {
+  const { deps } = makeDeps({ approvals: [approval()] });
+  const receipt = await applyTransaction(
+    plan({
+      truncated: true,
+      delta: { ...plan().delta, scriptSurface: [change()], newScriptSurface: [change()] },
+    }),
+    deps,
+  );
+  expect(receipt.result).toBe("refused");
+  expect(receipt.reason).toContain("truncated");
+});
+
+test("incomplete analysis can be overridden only by its own explicit option", async () => {
+  const { deps } = makeDeps();
+  const receipt = await applyTransaction(plan({ truncated: true }), deps, {
+    verify: false,
+    allowIncompleteAnalysis: true,
+  });
+  expect(receipt.result).toBe("applied");
+});
+
+test("bun installs with scripts suppressed like npm and pnpm", async () => {
+  const { deps, commands } = makeDeps();
+  await applyTransaction(plan({ manager: "bun" }), deps);
+  expect(commands[0]).toEqual(["bun", "add", "esbuild@0.25.8", "--ignore-scripts"]);
 });

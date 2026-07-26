@@ -4,15 +4,14 @@
 
 Safe dependency changes for humans and coding agents.
 
-A dependency change is a transaction, not a package name. `warden plan` resolves the complete prospective graph, direct and transitive, without running a line of package code, diffs it against your lockfile, vets every added or changed package, and returns one decision. `warden apply` installs with lifecycle scripts suppressed by your own package manager, runs your tests, rolls back on failure, and writes a receipt. `warden ci --require-transaction-receipt` fails a pull request whose graph changed without one, which is the control that does not depend on anything having worked locally.
+A dependency change is a transaction, not a package name. `warden plan` resolves the complete prospective graph, direct and transitive, without running a line of package code, diffs it against your lockfile, vets every added or changed package, and returns one decision. `warden apply` installs with lifecycle scripts suppressed by your own package manager, runs your tests, restores the root manifest on failure, and writes a receipt. `warden ci --require-transaction-receipt` fails a pull request whose graph changed without one, which is the control that does not depend on anything having worked locally.
 
 ## Hackathon submission
 
-**[warden.pulkit.page/hack](https://warden.pulkit.page/hack)** collects the deck, the demo video, and the four demo beats on one page.
+**[warden.pulkit.page/hack](https://warden.pulkit.page/hack)** collects the deck, the slide PDF, and the four demo beats on one page.
 
 - [Live deck](https://warden.pulkit.page/presentation/index.html)
 - [Slide PDF](https://warden.pulkit.page/presentation/warden-deck.pdf)
-- [Demo video](https://warden.pulkit.page/presentation/warden-preview.mp4)
 - [Speaker notes](https://warden.pulkit.page/presentation/presentation-context.md)
 
 ## Try it

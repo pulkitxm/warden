@@ -554,3 +554,30 @@ test("an unwritable receipt directory does not lose the outcome", async () => {
   await runWarden(["apply", plan.plan_id, "--json"], deps);
   expect(JSON.parse(out[0] as string).reason).toContain("receipt could not be written");
 });
+
+test("a receipt whose plan is gone cannot confirm the policy it was issued under", async () => {
+  const receipt: TransactionReceipt = {
+    schema_version: 1,
+    transaction_id: "wtxn_t",
+    plan_id: "wtxn_vanished",
+    command: "npm install esbuild",
+    manager: { name: "npm" },
+    graph_before: "sha256:before",
+    graph_after: "sha256:after",
+    policy_digest: "sha256:p",
+    artifacts: [],
+    approvals: [],
+    suppressed_scripts: [],
+    verification: { install: "pass", test: "pass", typecheck: "skipped", build: "skipped" },
+    result: "applied",
+    analyzer_version: "test",
+  };
+  const { deps, out } = makeDeps({
+    [join(CWD, ".warden", "last-receipt.json")]: JSON.stringify(receipt),
+  });
+  expect(await runWarden(["verify", "--json"], deps)).toBe(20);
+  const report = JSON.parse(out[0] as string);
+  const policy = report.checks.find((check: { name: string }) => check.name === "policy digest");
+  expect(policy.ok).toBe(false);
+  expect(policy.detail).toContain("cannot be confirmed");
+});

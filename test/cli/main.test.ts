@@ -371,7 +371,7 @@ test("warden install vets and installs, with the manager flag on either side of 
   ]) {
     const { deps, spawns, err } = makeWardenDeps();
     expect(await runWarden(argv, deps)).toBe(0);
-    expect(spawns).toEqual([["bun", "add", "express"]]);
+    expect(spawns).toEqual([["bun", "add", "express", "--ignore-scripts"]]);
     expect(err.join("")).toContain("vetting 1 package(s)");
   }
 });
@@ -393,7 +393,7 @@ test("wnpm --bun installs with bun even when the project looks like npm", async 
   });
   expect(await runWnpm(["--bun", "install", "express"], deps)).toBe(0);
   expect(err.join("")).toContain("installing via bun (invoked as bun)");
-  expect(spawns).toEqual([["bun", "add", "express"]]);
+  expect(spawns).toEqual([["bun", "add", "express", "--ignore-scripts"]]);
 });
 
 test("every manager flag is accepted by wnpm", async () => {
@@ -401,7 +401,7 @@ test("every manager flag is accepted by wnpm", async () => {
     "--npm": ["npm", "install", "express", "--ignore-scripts"],
     "--pnpm": ["pnpm", "add", "express", "--ignore-scripts"],
     "--yarn": ["yarn", "add", "express"],
-    "--bun": ["bun", "add", "express"],
+    "--bun": ["bun", "add", "express", "--ignore-scripts"],
   };
   for (const [flag, command] of Object.entries(expected)) {
     const { deps, spawns } = makeDeps();
@@ -438,10 +438,10 @@ test("the wnpm and wnpx usage lines name the manager flags", async () => {
   expect(wnpx.err.join("")).toContain("--npm|--pnpm|--yarn|--bun");
 });
 
-test("wnpm via bun omits --ignore-scripts, because bun disables scripts by default", async () => {
+test("wnpm via bun suppresses scripts, because bun ships a default trusted list", async () => {
   const { deps, spawns } = makeDeps({ which: (p) => (p === "bun" ? "/usr/bin/bun" : null) });
   expect(await runWnpm(["add", "left-pad"], deps)).toBe(0);
-  expect(spawns).toEqual([["bun", "add", "left-pad"]]);
+  expect(spawns).toEqual([["bun", "add", "left-pad", "--ignore-scripts"]]);
 });
 
 test("wnpm never silently switches a project to a different manager", async () => {

@@ -757,11 +757,13 @@ This lives under \`policy\` in \`warden.config.json\`. Anything you leave out in
 
 | Intent | npm | pnpm | Yarn | Bun |
 | --- | --- | --- | --- | --- |
-| Deny dependency scripts | \`ignore-scripts\` | \`strictDepBuilds\`, \`allowBuilds\` | \`enableScripts\` | \`trustedDependencies\` |
-| Minimum release age | \`minimum-release-age\` | \`minimumReleaseAge\` | \`minimumReleaseAge\` | Warden |
-| Block git and url sources | \`allow-git\`, \`allow-remote\` | \`blockExoticSubdeps\` | Warden | Warden |
+| Deny dependency scripts | \`ignore-scripts\` | \`strictDepBuilds\`, \`allowBuilds\` | \`enableScripts\` | \`install.ignoreScripts\` |
+| Minimum release age | \`min-release-age\` (days) | \`minimumReleaseAge\` (minutes) | \`npmMinimalAgeGate\` (duration) | Warden |
+| Block git and url sources | \`allow-git\`, \`allow-remote\`, \`allow-directory\`, \`allow-file\` | \`blockExoticSubdeps\` | Warden | Warden |
 | Re-verify the lockfile | Warden | \`trustLockfile\` | \`enableHardenedMode\` | Warden |
-| Block downgrades | Warden | \`trustPolicy\` | Warden | Warden |
+| Block semver downgrades | Warden | Warden | Warden | Warden |
+
+Each manager names and types these differently, and the compiler follows the manager rather than a house style. npm counts release age in days, pnpm in minutes, Yarn takes a duration string such as \`1d\`. npm's source settings take \`all\`, \`none\`, or \`root\` rather than a boolean. pnpm's \`trustPolicy: no-downgrade\` covers provenance evidence weakening rather than semantic versions, so a semver downgrade is reported as a gap Warden covers itself. Bun ships a default trusted list, so \`trustedDependencies\` alone is not deny-all.
 
 ## Compiling
 

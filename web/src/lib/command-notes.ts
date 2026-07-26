@@ -87,7 +87,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
 
   apply: {
     intro:
-      "Executes a plan that has already been decided. `warden apply` installs with lifecycle scripts suppressed at the package manager level, refuses to proceed while any new install script is unapproved, runs the project's own verification, rolls back on failure, and writes a transaction receipt.",
+      "Executes a plan that has already been decided. `warden apply` installs with lifecycle scripts suppressed at the package manager level, refuses to proceed while any new install script is unapproved, runs the project's own verification, restores the root manifest on failure, and writes a transaction receipt.",
     whenToUse: [
       "After `warden plan` returned a decision you accept.",
       "In an agent loop, as the only step permitted to change the dependency graph.",
@@ -108,6 +108,8 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "Scripts stay suppressed for the whole install, including for packages whose scripts are approved: approval governs whether the transaction may proceed, not whether Warden hands execution to arbitrary code mid-install. Suppression uses each manager's own mechanism. After a successful install the project's `test`, `typecheck`, and `build` scripts run in that order, stopping at the first failure, and any failure restores `package.json`. The receipt lands in `.warden/receipts/` and is mirrored to `.warden/last-receipt.json`.",
     gotchas: [
       "A blocked plan is refused outright. There is no flag that turns a block into an install.",
+      "Failure restores `package.json`. It does not restore the lockfile, `node_modules`, or anything project verification touched, so this is a manifest rollback rather than a full transaction rollback. Staged application is the fix and is not built yet.",
+      "A plan is also refused when the graph was truncated or any changed package went unanalyzed. A script approval does not cover incomplete analysis.",
       "`--allow-unapproved` proceeds past missing script approvals, but the receipt still records every suppressed script, so the bypass is visible afterwards.",
       "The plan must still be on disk. Re-run `warden plan` if `.warden/plans/` was cleaned.",
     ],
