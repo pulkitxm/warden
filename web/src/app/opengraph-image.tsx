@@ -1,4 +1,4 @@
-import { ogImage, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/og";
+import { OG_CONTENT_TYPE, OG_SIZE, ogImage } from "@/lib/og";
 import { site } from "@/lib/site";
 
 export const alt = `${site.name}: ${site.tagline}`;

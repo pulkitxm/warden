@@ -8,7 +8,14 @@
       "demo/**/*.ts",
       "scripts/**",
       "package.json",
-      "tsconfig.json"
+      "tsconfig.json",
+      "web/**",
+      "!web/node_modules",
+      "!web/.next",
+      "!web/next-env.d.ts",
+      "!web/package-lock.json",
+      "!web/src/lib/commands.json",
+      "!web/src/lib/benchmark.json"
     ]
   },
   "formatter": {
@@ -39,6 +46,20 @@
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["web/src/app/globals.css"],
+      "css": { "parser": { "tailwindDirectives": true } }
+    },
+    {
+      "includes": ["web/src/app/globals.css", "web/public/presentation/styles.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
           }
         }
       }

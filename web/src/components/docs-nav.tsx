@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type CommandRef, type DocPage, DOC_SECTIONS } from "@/lib/docs";
+import { type CommandRef, DOC_SECTIONS, type DocPage } from "@/lib/docs";
 
 interface Group {
   heading: string;

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { Prose } from "@/components/chrome";
 import { DocsPage } from "@/components/docs-page";
-import { headingsOf, renderMarkdown } from "@/lib/markdown";
 import { DOC_PAGES, docBySlug } from "@/lib/docs";
+import { headingsOf, renderMarkdown } from "@/lib/markdown";
 import { breadcrumbs, JsonLd, pageMetadata, techArticle } from "@/lib/seo";
 
 export function generateStaticParams() {

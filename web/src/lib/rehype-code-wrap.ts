@@ -43,7 +43,12 @@ function copyButton(): Element {
     },
     children: [
       COPY_ICON,
-      { type: "element", tagName: "span", properties: {}, children: [{ type: "text", value: "Copy" }] },
+      {
+        type: "element",
+        tagName: "span",
+        properties: {},
+        children: [{ type: "text", value: "Copy" }],
+      },
     ],
   };
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import { footerLinks, nav, site } from "@/lib/site";
 
@@ -83,7 +82,10 @@ export function Footer() {
                     </li>
                   ) : (
                     <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-fog transition hover:text-mint">
+                      <Link
+                        href={link.href}
+                        className="text-sm text-fog transition hover:text-mint"
+                      >
                         {link.label}
                       </Link>
                     </li>

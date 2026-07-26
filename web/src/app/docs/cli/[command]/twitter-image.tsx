@@ -1,1 +1,1 @@
-export { default, alt, size, contentType, generateStaticParams } from "./opengraph-image";
+export { alt, contentType, default, generateStaticParams, size } from "./opengraph-image";

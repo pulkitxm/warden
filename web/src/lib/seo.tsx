@@ -53,11 +53,7 @@ export function breadcrumbs(trail: Array<{ name: string; path: string }>) {
   };
 }
 
-export function techArticle(options: {
-  title: string;
-  description: string;
-  path: string;
-}) {
+export function techArticle(options: { title: string; description: string; path: string }) {
   return {
     "@context": "https://schema.org",
     "@type": "TechArticle",
@@ -69,11 +65,7 @@ export function techArticle(options: {
   };
 }
 
-export function collectionPage(options: {
-  title: string;
-  description: string;
-  path: string;
-}) {
+export function collectionPage(options: { title: string; description: string; path: string }) {
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",

@@ -135,29 +135,59 @@ body {
 }
 
 @keyframes wd-pulse {
-  0% { transform: scale(1); opacity: 1; }
-  70% { transform: scale(2.2); opacity: 0; }
-  100% { transform: scale(1); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 @keyframes wd-glow {
-  from { opacity: 0.55; transform: translate(-50%, -50%) scale(0.94); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  from {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
 }
 @keyframes wd-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 @keyframes wd-spin {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 @keyframes wd-sweep {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .reveal {
-  transition: opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
+  transition:
+    opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .reveal.is-pending {
@@ -197,9 +227,15 @@ body {
   border-radius: 50%;
   background: #354361;
 }
-.window-dots i:first-child { background: var(--color-coral); }
-.window-dots i:nth-child(2) { background: #edbd55; }
-.window-dots i:nth-child(3) { background: var(--color-mint); }
+.window-dots i:first-child {
+  background: var(--color-coral);
+}
+.window-dots i:nth-child(2) {
+  background: #edbd55;
+}
+.window-dots i:nth-child(3) {
+  background: var(--color-mint);
+}
 
 .live-status {
   display: flex;
@@ -238,7 +274,10 @@ body {
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
-.orbit-one { width: 330px; height: 330px; }
+.orbit-one {
+  width: 330px;
+  height: 330px;
+}
 .orbit-two {
   width: 228px;
   height: 228px;
@@ -263,8 +302,18 @@ body {
   position: absolute;
   background: linear-gradient(90deg, transparent, rgba(79, 209, 165, 0.22), transparent);
 }
-.scan-beam::before { top: 50%; left: -34px; right: -34px; height: 1px; }
-.scan-beam::after { top: -34px; bottom: -34px; left: 50%; width: 1px; }
+.scan-beam::before {
+  top: 50%;
+  left: -34px;
+  right: -34px;
+  height: 1px;
+}
+.scan-beam::after {
+  top: -34px;
+  bottom: -34px;
+  left: 50%;
+  width: 1px;
+}
 
 .sweep {
   position: absolute;
@@ -311,7 +360,9 @@ body {
   font-weight: 600;
   color: #fff;
 }
-.package-card span { color: var(--color-mint); }
+.package-card span {
+  color: var(--color-mint);
+}
 
 .verdict-stamp {
   position: absolute;
@@ -327,17 +378,25 @@ body {
   color: #0b1020;
   background: var(--color-coral);
   border-radius: 50%;
-  box-shadow: 0 0 0 12px rgba(255, 107, 91, 0.09), 0 18px 50px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 12px rgba(255, 107, 91, 0.09),
+    0 18px 50px rgba(0, 0, 0, 0.35);
   transform: rotate(-6deg);
-  transition: background 320ms ease, box-shadow 320ms ease;
+  transition:
+    background 320ms ease,
+    box-shadow 320ms ease;
 }
 .verdict-stamp.is-allow {
   background: var(--color-mint);
-  box-shadow: 0 0 0 12px rgba(79, 209, 165, 0.1), 0 18px 50px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 12px rgba(79, 209, 165, 0.1),
+    0 18px 50px rgba(0, 0, 0, 0.35);
 }
 .verdict-stamp.is-warn {
   background: #edbd55;
-  box-shadow: 0 0 0 12px rgba(237, 189, 85, 0.1), 0 18px 50px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 12px rgba(237, 189, 85, 0.1),
+    0 18px 50px rgba(0, 0, 0, 0.35);
 }
 .verdict-stamp small,
 .verdict-stamp span {
@@ -363,9 +422,20 @@ body {
   box-shadow: 0 0 0 6px rgba(79, 209, 165, 0.09);
   animation: wd-pulse 2.6s ease-out infinite;
 }
-.signal-one { top: 74px; left: 132px; }
-.signal-two { right: 150px; bottom: 66px; animation-delay: 600ms; }
-.signal-three { top: 96px; right: 92px; animation-delay: 1.2s; }
+.signal-one {
+  top: 74px;
+  left: 132px;
+}
+.signal-two {
+  right: 150px;
+  bottom: 66px;
+  animation-delay: 600ms;
+}
+.signal-three {
+  top: 96px;
+  right: 92px;
+  animation-delay: 1.2s;
+}
 
 .checkpoint-log {
   display: flex;
@@ -380,7 +450,9 @@ body {
   font-size: 12px;
   line-height: 1.5;
 }
-.checkpoint-log > span { color: var(--color-mint); }
+.checkpoint-log > span {
+  color: var(--color-mint);
+}
 .checkpoint-log i {
   width: 7px;
   height: 15px;
@@ -389,17 +461,47 @@ body {
 }
 
 @media (max-width: 640px) {
-  .checkpoint-stage { height: 330px; }
-  .package-card { left: 18px; top: 150px; width: 150px; }
-  .verdict-stamp { width: 124px; height: 124px; right: 16px; top: 112px; }
-  .verdict-stamp strong { font-size: 22px; }
-  .orbit-one, .sweep { width: 250px; height: 250px; }
-  .orbit-two { width: 176px; height: 176px; }
+  .checkpoint-stage {
+    height: 330px;
+  }
+  .package-card {
+    left: 18px;
+    top: 150px;
+    width: 150px;
+  }
+  .verdict-stamp {
+    width: 124px;
+    height: 124px;
+    right: 16px;
+    top: 112px;
+  }
+  .verdict-stamp strong {
+    font-size: 22px;
+  }
+  .orbit-one,
+  .sweep {
+    width: 250px;
+    height: 250px;
+  }
+  .orbit-two {
+    width: 176px;
+    height: 176px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .reveal.is-pending { opacity: 1; transform: none; transition: none; }
-  .orbit-two, .sweep, .scan-beam, .signal, .live-status i, .checkpoint-log i {
+  .reveal,
+  .reveal.is-pending {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .orbit-two,
+  .sweep,
+  .scan-beam,
+  .signal,
+  .live-status i,
+  .checkpoint-log i {
     animation: none;
   }
 }
@@ -460,7 +562,10 @@ body {
   line-height: 1;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 160ms ease, color 160ms ease, border-color 160ms ease;
+  transition:
+    opacity 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
 }
 .code-wrap:hover .copy-button,
 .copy-button:focus-visible {

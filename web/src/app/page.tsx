@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Checkpoint } from "@/components/checkpoint";
 import { CodeBlock } from "@/components/code";
+import { Reveal } from "@/components/reveal";
 import { Terminal } from "@/components/terminal";
 import { TryIt } from "@/components/try-it";
-import { Reveal } from "@/components/reveal";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -178,14 +178,12 @@ export default function HomePage() {
                   "Complete graph delta, not only the name you typed",
                   "Same policy in your terminal, agent, and CI",
                   "Narrow approvals and verified receipts",
-                ].map(
-                  (item) => (
-                    <span key={item} className="flex items-center gap-2">
-                      <span className="block h-1 w-1 rounded-full bg-mint" />
-                      {item}
-                    </span>
-                  ),
-                )}
+                ].map((item) => (
+                  <span key={item} className="flex items-center gap-2">
+                    <span className="block h-1 w-1 rounded-full bg-mint" />
+                    {item}
+                  </span>
+                ))}
               </div>
             </div>
 

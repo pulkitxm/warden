@@ -1,5 +1,5 @@
-import { docBySlug, DOC_PAGES } from "@/lib/docs";
-import { ogImage, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/og";
+import { DOC_PAGES, docBySlug } from "@/lib/docs";
+import { OG_CONTENT_TYPE, OG_SIZE, ogImage } from "@/lib/og";
 
 export const alt = "Warden documentation";
 export const size = OG_SIZE;

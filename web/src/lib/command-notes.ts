@@ -133,7 +133,8 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
         description: "Approve for your machine rather than for the repository.",
       },
       {
-        command: 'warden approve-script esbuild@0.25.8 --hook postinstall --note "reviewed in PR 412"',
+        command:
+          'warden approve-script esbuild@0.25.8 --hook postinstall --note "reviewed in PR 412"',
         description: "Record why the approval exists, which is what makes it auditable later.",
       },
     ],
@@ -179,7 +180,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "When the project's manager is not the one you want to install with, using `--npm`, `--pnpm`, `--yarn`, or `--bun`.",
     ],
     examples: [
-      { command: "warden install express", description: "Vet, then install with the detected manager." },
+      {
+        command: "warden install express",
+        description: "Vet, then install with the detected manager.",
+      },
       {
         command: "warden install --bun express",
         description: "Install with Bun regardless of what the project looks like.",
@@ -364,7 +368,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     examples: [
       { command: "warden baseline list", description: "Every baseline and how much it is worth." },
       {
-        command: "warden baseline record esbuild@0.25.8 --note \"audited in PR 412\"",
+        command: 'warden baseline record esbuild@0.25.8 --note "audited in PR 412"',
         description: "Pin an exact version as trusted, with the reason.",
       },
       { command: "warden baseline list --json", description: "The structured baselines." },
@@ -435,11 +439,13 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     examples: [
       {
         command: "warden integrations doctor",
-        description: "The full report: shims, PATH precedence, per-tool interception, agent adapter, project manager, and CI workflow.",
+        description:
+          "The full report: shims, PATH precedence, per-tool interception, agent adapter, project manager, and CI workflow.",
       },
       {
         command: "warden integrations doctor --json",
-        description: "The machine-readable report, including how many command forms are mediated and how many documented paths are not.",
+        description:
+          "The machine-readable report, including how many command forms are mediated and how many documented paths are not.",
       },
     ],
     behaviour:
@@ -542,7 +548,8 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       },
       {
         command: "warden intent diff",
-        description: "Show how the diff was parsed and classified into hunks, for debugging a bad match.",
+        description:
+          "Show how the diff was parsed and classified into hunks, for debugging a bad match.",
       },
     ],
     behaviour:
@@ -582,7 +589,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
     examples: [
       { command: "warden init", description: "Interactive. Shows each file before writing it." },
-      { command: "warden init --yes", description: "Accept every offered change, for scripted setup." },
+      {
+        command: "warden init --yes",
+        description: "Accept every offered change, for scripted setup.",
+      },
     ],
     behaviour:
       "Nothing is overwritten without being shown first. The generated workflow uses `warden ci`, and the agent context files describe the pre-install check and the doctor repair loop.",
@@ -596,7 +606,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "As the last step of the agent loop, feeding the finding back with its verify command.",
     ],
     examples: [
-      { command: "warden handoff", description: "Print the handoff bundle for the last failing run." },
+      {
+        command: "warden handoff",
+        description: "Print the handoff bundle for the last failing run.",
+      },
     ],
     behaviour:
       "Reads `.warden/last-run.json`. Every finding carries both a `fix` and a `verify` field, so the agent is told the command that proves the fix worked rather than being left to guess. Adapters exist for Claude, Cursor, Codex, Copilot, Gemini, Aider, and OpenCode.",
@@ -614,7 +627,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     ],
     examples: [
       { command: "warden config", description: "Print the current settings." },
-      { command: "warden config mode brief", description: "Set output verbosity for intercepted installs." },
+      {
+        command: "warden config mode brief",
+        description: "Set output verbosity for intercepted installs.",
+      },
       { command: "warden config intercept off", description: "Stop the shims vetting installs." },
       {
         command: "warden config agent codex",
@@ -670,7 +686,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     examples: [
       { command: "warden completions zsh > ~/.zsh/completions/_warden", description: "zsh." },
       { command: "warden completions bash > /etc/bash_completion.d/warden", description: "bash." },
-      { command: "warden completions fish > ~/.config/fish/completions/warden.fish", description: "fish." },
+      {
+        command: "warden completions fish > ~/.config/fish/completions/warden.fish",
+        description: "fish.",
+      },
     ],
     behaviour:
       "Covers verbs, flags, and finite flag values such as reporters, shells, and check surfaces. Completions are emitted for `wnpm` as well as `warden`.",
@@ -680,8 +699,6 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     intro:
       "Prints the analyzer version. This is the same value that appears as `analyzer_version` in every verdict, so a cached verdict can be tied to the engine that produced it.",
     whenToUse: ["In bug reports, and when pinning a version in CI."],
-    examples: [
-      { command: "warden --version", description: "Print the version." },
-    ],
+    examples: [{ command: "warden --version", description: "Print the version." }],
   },
 };

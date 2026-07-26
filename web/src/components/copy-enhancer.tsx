@@ -46,6 +46,7 @@ async function writeClipboard(text: string): Promise<void> {
 export function CopyEnhancer() {
   const pathname = usePathname();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname rebinds buttons after client-side navigation
   useEffect(() => {
     const buttons = document.querySelectorAll<HTMLButtonElement>(
       ".code-wrap > .copy-button[data-copy='idle']",

@@ -39,6 +39,7 @@ export function ogImage(options: { label: string; title: string; subtitle?: stri
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+        {/* biome-ignore lint/performance/noImgElement: satori renders this, next/image is unavailable */}
         <img src={MARK} width={40} height={40} alt="" />
         <div style={{ color: "#ffffff", fontSize: 32, fontWeight: 700, letterSpacing: -0.5 }}>
           Warden
@@ -70,8 +71,12 @@ export function ogImage(options: { label: string; title: string; subtitle?: stri
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ color: FOG, fontSize: 24, display: "flex" }}>warden.pulkit.page</div>
         <div style={{ display: "flex", gap: 10 }}>
-          <div style={{ width: 54, height: 6, borderRadius: 3, background: CORAL, display: "flex" }} />
-          <div style={{ width: 54, height: 6, borderRadius: 3, background: MINT, display: "flex" }} />
+          <div
+            style={{ width: 54, height: 6, borderRadius: 3, background: CORAL, display: "flex" }}
+          />
+          <div
+            style={{ width: 54, height: 6, borderRadius: 3, background: MINT, display: "flex" }}
+          />
         </div>
       </div>
     </div>,

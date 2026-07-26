@@ -105,7 +105,10 @@ export default function BenchmarkPage() {
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {headline.map((item) => (
-            <div key={item.label} className="rounded-2xl border border-white/12 bg-navy-soft/50 p-5">
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/12 bg-navy-soft/50 p-5"
+            >
               <p className="text-[12.5px] font-semibold tracking-[0.14em] text-mint uppercase">
                 {item.label}
               </p>
