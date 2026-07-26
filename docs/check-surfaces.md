@@ -68,8 +68,6 @@ Reads the project `.npmrc` and the one in your home directory. Findings carry th
 | `config_custom_registry` | warn | Packages resolve from an unfamiliar host. |
 | `config_scripts_forced_on` | warn | `ignore-scripts=false` re-enables install hooks. |
 
-One rule reads the file as a whole rather than line by line: `config_always_auth_third_party` blocks when `always-auth=true` is paired with a registry that is not a known public one, because that combination sends your credential to the third-party host. It is the mechanism behind the September 2025 `npmjs.help` campaign.
-
 ## Why these three
 
 A package check reads a published tarball. These three surfaces are where trust is lost without any package changing:

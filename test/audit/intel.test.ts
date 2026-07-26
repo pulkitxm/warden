@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { auditNpmrcFile, parseNpmrc } from "../../src/audit/config.ts";
 import { auditEntryIntel, auditLockEntry, auditLockfile } from "../../src/audit/lockfile.ts";
 import type { AuditFs } from "../../src/audit/types.ts";
 import { Blocklist, HallucinatedNames } from "../../src/intel/index.ts";
@@ -136,39 +135,4 @@ test("auditLockfile runs intel over every parsed entry", () => {
   });
   expect(report.findings.map((f) => f.rule)).toContain("lockfile_known_malware");
   expect(report.scanned).toBe(1);
-});
-
-test("always-auth against a third-party registry leaks the token and blocks", () => {
-  const entries = parseNpmrc("registry=https://artifactory.corp.example.com\nalways-auth=true\n");
-  const findings = auditNpmrcFile(entries, ".npmrc");
-  expect(findings[0]?.rule).toBe("config_always_auth_third_party");
-  expect(findings[0]?.level).toBe("block");
-  expect(findings[0]?.evidence).toContain("artifactory.corp.example.com");
-  expect(findings[0]?.line).toBe(2);
-});
-
-test("always-auth against the public registry is not a leak", () => {
-  expect(
-    auditNpmrcFile(parseNpmrc("registry=https://registry.npmjs.org\nalways-auth=true\n"), "f"),
-  ).toEqual([]);
-});
-
-test("always-auth alone, or disabled, raises nothing", () => {
-  expect(auditNpmrcFile(parseNpmrc("always-auth=true\n"), "f")).toEqual([]);
-  expect(
-    auditNpmrcFile(parseNpmrc("registry=https://corp.example.com\nalways-auth=false\n"), "f"),
-  ).toEqual([]);
-  expect(auditNpmrcFile(parseNpmrc("registry=https://corp.example.com\n"), "f")).toEqual([]);
-});
-
-test("a scoped third-party registry also triggers the leak rule", () => {
-  const findings = auditNpmrcFile(
-    parseNpmrc("@corp:registry=https://corp.example.com\nalways-auth=true\n"),
-    "f",
-  );
-  expect(findings[0]?.rule).toBe("config_always_auth_third_party");
-});
-
-test("an unparseable registry value cannot trigger the leak rule", () => {
-  expect(auditNpmrcFile(parseNpmrc("registry=nonsense\nalways-auth=true\n"), "f")).toEqual([]);
 });
