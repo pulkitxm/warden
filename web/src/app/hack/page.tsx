@@ -126,7 +126,7 @@ export default function HackPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8">
+    <div className="mx-auto max-w-275 px-5 py-12 sm:px-8">
       <JsonLd
         data={[
           webPage({ title: META.title, description: META.description, path: "/hack" }),

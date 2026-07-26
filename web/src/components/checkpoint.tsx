@@ -117,7 +117,7 @@ export function Checkpoint() {
         <code className="min-w-0 truncate">{example.command}</code>
         <i />
       </div>
-      <div className="border-t border-white/10 bg-[#070b16] px-[18px] py-2.5 font-mono text-[11.5px] text-fog">
+      <div className="border-t border-white/10 bg-[#070b16] px-4.5 py-2.5 font-mono text-[11.5px] text-fog">
         {example.reason}
       </div>
     </div>
