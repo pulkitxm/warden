@@ -53,5 +53,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: make build
-      - run: ./dist/warden ci --reporter github --base origin/${{ github.base_ref || github.event.repository.default_branch }}
+      - run: npm ci --prefix web
+      - run: make ci-warden
+        env:
+          WARDEN_BASE: origin/${{ github.base_ref || github.event.repository.default_branch }}

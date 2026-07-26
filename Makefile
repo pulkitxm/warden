@@ -1,4 +1,4 @@
-.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format ci-smoke doctor-demo docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format ci-smoke ci-warden doctor-demo docker-build docker-run docker-install-demo
 
 install:
 	bun install
@@ -40,6 +40,19 @@ ci-smoke: build
 	./dist/warden schema intent >/dev/null
 	./dist/warden schema audit >/dev/null
 	./dist/warden check lockfile --dir fixtures/doctor-project --json >/dev/null
+
+WARDEN_PROJECTS ?= . web
+WARDEN_BASE ?= origin/main
+
+ci-warden: build
+	./dist/warden ci --reporter github --base $(WARDEN_BASE)
+	@for dir in $(WARDEN_PROJECTS); do \
+		for surface in lockfile scripts config; do \
+			./dist/warden check $$surface --dir $$dir; \
+			status=$$?; \
+			[ $$status -le 10 ] || exit $$status; \
+		done; \
+	done
 
 ci:
 	bun install --frozen-lockfile
