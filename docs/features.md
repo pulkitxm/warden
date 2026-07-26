@@ -83,11 +83,13 @@ See [check surfaces](check-surfaces.md) for the rule tables.
 
 ## Intent verification
 
-`warden intent check` reads the diff against the merge base, decomposes the prompt an agent was given into atomic claims, and checks the diff against them: which claims were delivered, which were dropped, and which hunks were never requested at all. A separate deterministic scan flags calls to APIs a package doesn't export, catching diffs that reference methods that were never real.
+`warden intent check` reads the diff against the merge base, decomposes the prompt an agent was given into atomic claims, and checks the diff against them: which claims were delivered, which were dropped, and which hunks were never requested at all. Two separate deterministic scans need no model at all: one flags calls to APIs a package doesn't export, the other flags an added import of a package that no dependency group declares, or whose name has never been published on the registry.
 
-Claim extraction and part of the matching go through an LLM (`claude`, `codex`, `openai`, `groq`, or `ollama`); the cheap keyword-overlap pass runs first, and the hallucination scan is pure static analysis that never runs code. `warden ci` runs this automatically when `.warden/prompt.txt` exists and JS/TS files changed.
+Claim extraction and part of the matching go through an LLM (`claude`, `codex`, `openai`, `groq`, or `ollama`); the cheap keyword-overlap pass runs first, and both deterministic scans are pure static analysis that never runs code. When no provider is available the report is still published, marked `unverifiable`, with the deterministic findings intact. `warden ci` runs this automatically when `.warden/prompt.txt` exists and JS/TS files changed.
 
-See [docs/intent.md](intent.md) for the full reference, including its real limits.
+`warden intent bench` runs a curated corpus offline and reports precision and recall per rule. The deterministic rules measure at 100% precision; claim matching does not meet its stated 5% false-positive budget and should not be the reason a pull request fails.
+
+See [docs/intent.md](intent.md) for the full reference including its real limits, and [docs/intent-corpus.md](intent-corpus.md) for the measured numbers.
 
 ## Workspace awareness
 

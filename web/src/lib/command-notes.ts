@@ -537,9 +537,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     intro:
       "A package check asks whether a dependency is safe. Intent asks a different question: did this diff do what the prompt asked? It is aimed at code an agent wrote, where the failure mode is not malice but quiet drift.",
     whenToUse: [
+      "Gating on added imports of packages that are undeclared, or that do not exist on the registry at all.",
       "Reviewing an agent's pull request, before reading the diff line by line.",
-      "In CI, through `warden ci --intent-prompt`, to fail on dropped requirements.",
-      "When you suspect a call to an API that does not exist.",
+      "When you suspect a call to an API that does not exist, in a repo that has no type check.",
+      "Not as a blocking gate on claim matching: its measured precision does not meet the stated false-positive budget.",
     ],
     examples: [
       {
@@ -556,11 +557,18 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
         description:
           "Show how the diff was parsed and classified into hunks, for debugging a bad match.",
       },
+      {
+        command: "warden intent bench",
+        description:
+          "Run the evaluation corpus offline and print precision and recall for each rule separately.",
+      },
     ],
     behaviour:
-      "Claims are extracted from the prompt, matched against classified diff hunks, and reported as delivered, partial, or dropped. Unmatched hunks become scope creep. Symbols are checked against a curated API surface database and against the packages actually installed in `node_modules`, by reading exports statically.",
+      "Claims are extracted from the prompt, matched against classified diff hunks, and reported as delivered, partial, or dropped. Unmatched hunks become scope creep. Symbols are checked against a curated API surface database and against the packages actually installed in `node_modules`, by reading exports statically. Every bare import on an added line is checked against `package.json`, the slopsquat intel list, and, for names that are neither declared nor installed, the registry.",
     gotchas: [
-      "Claim extraction can use a model, including zero-key providers via the Claude or Codex CLI. When none is available the deterministic passes still run and the report says the extraction degraded.",
+      'Claim extraction can use a model, including zero-key providers via the Claude or Codex CLI. When none is available the deterministic passes still run, the report is still published with `claims_status: "unverifiable"`, and the exit code is 20 if a deterministic rule found something or 10 if it did not.',
+      "`--offline` skips the registry lookup. The report then records that the existence check was skipped rather than reporting clean.",
+      "There is no waiver mechanism. A verdict you disagree with can only be silenced by removing the prompt, which turns the whole check off.",
       "Matching is heuristic. A prompt narrowed to the change actually being made produces far better results than a paragraph of context.",
       "The prompt can come from `.warden/prompt.txt` instead of a flag, which is how the agent hooks supply it.",
     ],

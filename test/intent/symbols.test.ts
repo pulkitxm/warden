@@ -17,7 +17,7 @@ import type { ApiSurface } from "../../src/intent/types.ts";
 function mapIo(files: Record<string, string>): SurfaceIo {
   return {
     readFile: (path) => {
-      const value = files[path];
+      const value = files[path.replace(/\\/g, "/")];
       if (value === undefined) throw new Error("ENOENT");
       return value;
     },

@@ -98,7 +98,7 @@ function makeDeps() {
     stderr: (s) => err.push(s),
     cwd: () => "/repo",
     mkdir: () => undefined,
-    writeFile: (path, data) => files.set(path, data),
+    writeFile: (path, data) => files.set(path.replace(/\\/g, "/"), data),
   };
   return { deps, out, err, files };
 }

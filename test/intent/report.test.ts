@@ -17,16 +17,19 @@ function row(over: Partial<ClaimRow>): ClaimRow {
 
 function report(over: Partial<IntentReport> = {}): IntentReport {
   return {
-    schema_version: 1,
+    schema_version: 2,
     source: "prompt",
     prompt: "add rate limiting",
     base: "abc123def4567890",
     claims: [],
+    claims_status: "verified",
     scope_creep: [],
     hallucinations: [],
+    dependencies: [],
     verdict: "allow",
     exit: 0,
     llm: { extract_calls: 1, match_calls: 1 },
+    notes: [],
     ...over,
   };
 }
@@ -129,6 +132,71 @@ test("renderIntentReport shows every row class with references and proof", () =>
   expect(rendered).toContain("axios instance has no member 'throttle'");
   expect(rendered).toContain("merge-base abc123def456");
   expect(rendered).toContain("llm calls: 2");
+});
+
+test("renderIntentReport names each dependency rule by what it actually proves", () => {
+  const rendered = renderIntentReport(
+    report({
+      dependencies: [
+        {
+          package: "lodash",
+          file: "batch.js",
+          line: 1,
+          rule: "undeclared_import",
+          level: "warn",
+          proof: "not declared",
+          fix: "declare it",
+        },
+        {
+          package: "react-codeshift",
+          file: "migrate.js",
+          line: 1,
+          rule: "known_hallucinated_name",
+          level: "block",
+          proof: "on the curated list",
+          fix: "remove it",
+        },
+        {
+          package: "fetch-retry-helper-pro",
+          file: "upload.js",
+          line: 2,
+          rule: "unpublished_package",
+          level: "block",
+          proof: "never published",
+          fix: "remove it",
+        },
+      ],
+    }),
+  );
+  expect(rendered).toContain("UNDECLARED: lodash");
+  expect(rendered).toContain("HALLUCINATED NAME: react-codeshift");
+  expect(rendered).toContain("NOT ON THE REGISTRY: fetch-retry-helper-pro");
+  expect(rendered).toContain("fix: declare it");
+});
+
+test("the summary line counts dependency findings alongside hallucinations", () => {
+  const line = intentSummaryLine(
+    report({
+      dependencies: [
+        {
+          package: "lodash",
+          file: "b.js",
+          line: 1,
+          rule: "undeclared_import",
+          level: "warn",
+          proof: "p",
+          fix: "f",
+        },
+      ],
+    }),
+  );
+  expect(line).toContain("1 🚨");
+});
+
+test("a report whose claims could not be verified says so before the rows", () => {
+  const rendered = renderIntentReport(report({ claims_status: "unverifiable", notes: ["why"] }));
+  expect(rendered).toContain("CLAIMS NOT VERIFIED");
+  expect(rendered).toContain("note: why");
 });
 
 test("renderIntentReport handles an empty report", () => {

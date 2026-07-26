@@ -152,11 +152,12 @@ export const COMMAND_REGISTRY: readonly CommandDefinition[] = [
     name: "intent",
     learnMore: "intent",
     description: "verify the diff does what the prompt asked",
-    positional: { kind: "[check|extract|diff|symbols|schema]" },
+    positional: { kind: "[check|extract|diff|symbols|bench|schema]" },
     flags: [
       { name: "--prompt", valueHint: "<text>", description: "the instruction the agent was given" },
       { name: "--base", valueHint: "<ref>", description: "compare against this git ref" },
       { name: "--json", description: "write the intent report JSON to stdout" },
+      { name: "--offline", description: "skip the registry lookup for added imports" },
       helpFlag,
     ],
     exitCodes: "0 met · 10 partial/scope creep · 20 dropped or hallucinated · 30 error",

@@ -7,6 +7,9 @@ A three-minute demo of `warden intent`, verifying that an agent's diff actually 
 - one **scope-creep** rewrite (`pagination.ts`, rewritten cursor-style, nobody asked)
 - one **hallucinated API** (`client.throttle(...)`, axios instances have no `throttle`)
 
+Two things it deliberately does not contain, so you can see the quiet path: no undeclared import, and no
+package name that fails to resolve.
+
 ## Run it
 
 Needs `warden` on your `PATH` (`sh web/public/install.sh`), or run the commands below via `./dist/warden` from the repo root after `bun run build`.
@@ -26,16 +29,25 @@ Expected shape:
 ```
 VERDICT: 5 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
 
-  ✅ Add rate limiting to the API client          [api-client.ts:…]
-  ✅ Preserve existing retry logic                 [no change touches it]
-  ✅ Implement exponential backoff for HTTP 429s   [api-client.ts:…]
-  ✅ Handle empty HTTP responses gracefully        [api-client.ts:…]
-  ✅ Make rate limiting parameters configurable    [api-client.ts:…, config.ts:…]
-  ❌ DROPPED: Log all rate-limited requests        [no matching change found]
-  ⚠️ SCOPE CREEP: pagination.ts, 50+ lines changed, never requested
-  🚨 HALLUCINATED: axios.instance.throttle         [api-client.ts:27]
-     axios instance has no member 'throttle'. Known: get, post, put, delete, …
+  ✅ Add rate limiting mechanism to the API client                    [api-client.ts:1-39]
+  ✅ Preserve existing retry logic in the implementation              [no change names it]
+  ✅ Implement exponential backoff strategy for HTTP 429 responses    [api-client.ts:1-39, rate-limit.test.ts:1-9]
+  ✅ Handle and appropriately respond to empty API responses          [api-client.ts:1-39]
+  ✅ Make the rate limit value configurable via options               [api-client.ts:1-39, config.ts:1-2]
+  ❌ DROPPED: Log every request that is rate-limited or throttled     [no matching change found]
+  ⚠️ SCOPE CREEP: pagination.ts, 55 lines changed, never requested    [pagination.ts:1-57]
+  🚨 HALLUCINATED: axios.instance.throttle                           [api-client.ts:27]
+     axios instance has no member 'throttle'. Known: get, post, put, delete, … (curated signature db)
+
+  prompt-as-spec · merge-base 8d97a781f860 · llm calls: 2
 ```
+
+The claim wording comes from the model, so it rewords between runs. The five counts, the dropped
+requirement, the scope-creep hunk, the hallucinated member, and exit `20` do not.
+
+Note what is deliberately **not** reported: `axios` is imported on an added line and is declared in
+`package.json`, so the undeclared-import rule stays quiet. Delete the `axios` entry from
+`package.json` and re-run to see it fire.
 
 Exit code 20, the same contract as `warden check`: 0 allow · 10 warn · 20 block · 30 error.
 
@@ -45,8 +57,14 @@ Exit code 20, the same contract as `warden check`: 0 allow · 10 warn · 20 bloc
 warden intent extract --prompt "$(cat .warden/prompt.txt)"   # claims ledger only (1 LLM call)
 warden intent diff                                           # deterministic hunk classification (0 tokens)
 warden intent symbols                                        # deterministic hallucination proof (0 tokens)
+warden intent check --offline                                # no registry lookup; the report says so
+warden intent bench                                          # the accuracy corpus, offline, 0 tokens
 bun test ./rate-limit.test.ts                                  # pre-baked micro-test for the backoff claim
 ```
+
+Run `warden intent check` with every provider variable unset to see the degraded path: it still blocks on
+the hallucinated `throttle` call, marks `claims_status` as `unverifiable`, and records in `notes` that
+scope creep was not assessed because there were no claims to assess it against.
 
 ## Both senses in one pass
 

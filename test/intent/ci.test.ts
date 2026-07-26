@@ -3,6 +3,8 @@ import { defaultWardenDeps, runWarden, type WardenDeps } from "../../src/cli/mai
 import type { IntentReport } from "../../src/intent/types.ts";
 import type { Verdict } from "../../src/schema.ts";
 
+const slash = (path: string) => path.replace(/\\/g, "/");
+
 const ENV_KEYS = ["OPENAI_API_KEY", "GROQ_API_KEY", "OLLAMA_API_KEY", "WNPM_LLM_PROVIDER"];
 const saved = new Map<string, string | undefined>();
 const realFetch = globalThis.fetch;
@@ -111,9 +113,9 @@ function makeDeps(over: Partial<WardenDeps> = {}) {
     cwd: () => "/repo",
     exists: () => false,
     mkdir: () => undefined,
-    writeFile: (path, data) => files.set(path, data),
+    writeFile: (path, data) => files.set(slash(path), data),
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return IMAGE;
+      if (slash(path) === "/repo/api-client.ts") return IMAGE;
       throw new Error("ENOENT");
     },
     git: (args) => {
@@ -176,10 +178,10 @@ test("warden ci skips intent when no js files changed", async () => {
 test("warden ci reads the intent prompt from .warden/prompt.txt", async () => {
   mockLlm();
   const state = makeDeps();
-  state.deps.exists = (path) => path === "/repo/.warden/prompt.txt";
+  state.deps.exists = (path) => slash(path) === "/repo/.warden/prompt.txt";
   const baseRead = state.deps.readFile;
   state.deps.readFile = (path) =>
-    path === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
+    slash(path) === "/repo/.warden/prompt.txt" ? "add rate limiting\n" : baseRead(path);
   expect(await runWarden(["ci"], state.deps)).toBe(20);
   expect(state.err.join("")).toContain("intent  ");
 });
@@ -199,13 +201,52 @@ test("warden ci github reporter annotates dropped claims and hallucinations", as
   expect(state.err.join("")).toContain("intent  1 ✅ · 1 ❌ · 0 ⚠️ · 1 🚨");
 });
 
+test("warden ci annotates an added import the manifest never declared", async () => {
+  mockLlm();
+  const undeclaredImage = ['import axios from "axios";', "export const client = axios;"].join("\n");
+  const undeclaredDiff = [
+    "diff --git a/api-client.ts b/api-client.ts",
+    "index 1111111..2222222 100644",
+    "--- a/api-client.ts",
+    "+++ b/api-client.ts",
+    "@@ -1,0 +1,2 @@",
+    '+import axios from "axios";',
+    "+export const client = axios;",
+    "",
+  ].join("\n");
+  const state = makeDeps({
+    readFile: (path) => {
+      if (slash(path) === "/repo/api-client.ts") return undeclaredImage;
+      if (slash(path) === "/repo/package.json") return '{"name":"probe","dependencies":{}}';
+      throw new Error("ENOENT");
+    },
+    git: (args) => {
+      if (args[0] === "rev-parse") return { exitCode: 0, stdout: "true\n", stderr: "" };
+      if (args[0] === "merge-base") return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
+      if (args[0] === "diff" && args[1] === "--name-only")
+        return { exitCode: 0, stdout: "api-client.ts\n", stderr: "" };
+      if (args[0] === "diff") return { exitCode: 0, stdout: undeclaredDiff, stderr: "" };
+      return { exitCode: 1, stdout: "", stderr: "unexpected git call" };
+    },
+  });
+  expect(
+    await runWarden(
+      ["ci", "--reporter", "github", "--intent-prompt", "add rate limiting"],
+      state.deps,
+    ),
+  ).toBe(20);
+  const annotations = state.out.join("");
+  expect(annotations).toContain("intent: undeclared_import axios");
+  expect(annotations).toContain('Fix: add "axios" to package.json');
+});
+
 test("warden ci keeps the guard verdict when it outranks intent", async () => {
   mockLlm();
   const state = makeDeps({
     check: (spec) => Promise.resolve(verdict(spec, "block")),
     readFile: (path) => {
-      if (path === "/repo/api-client.ts") return IMAGE;
-      if (path === "/repo/package.json") return '{"dependencies":{"expres":"1.0.0"}}';
+      if (slash(path) === "/repo/api-client.ts") return IMAGE;
+      if (slash(path) === "/repo/package.json") return '{"dependencies":{"expres":"1.0.0"}}';
       throw new Error("ENOENT");
     },
     git: (args) => {

@@ -1,5 +1,11 @@
 import { bold, dim } from "../shared/ansi.ts";
-import type { ClaimRow, IntentReport } from "./types.ts";
+import type { ClaimRow, DependencyRule, IntentReport } from "./types.ts";
+
+const DEPENDENCY_LABELS: Record<DependencyRule, string> = {
+  undeclared_import: "UNDECLARED",
+  known_hallucinated_name: "HALLUCINATED NAME",
+  unpublished_package: "NOT ON THE REGISTRY",
+};
 
 function icon(row: ClaimRow): string {
   if (row.verdict === "delivered") return "✅";
@@ -18,11 +24,15 @@ export function intentSummaryLine(report: IntentReport): string {
   const dropped = report.claims.filter((row) => row.verdict === "dropped").length;
   const partial =
     report.claims.filter((row) => row.verdict === "partial").length + report.scope_creep.length;
-  return `${delivered} ✅ · ${dropped} ❌ · ${partial} ⚠️ · ${report.hallucinations.length} 🚨`;
+  const flagged = report.hallucinations.length + report.dependencies.length;
+  return `${delivered} ✅ · ${dropped} ❌ · ${partial} ⚠️ · ${flagged} 🚨`;
 }
 
 export function renderIntentReport(report: IntentReport): string {
   const lines: string[] = ["", `${bold("VERDICT:")} ${intentSummaryLine(report)}`, ""];
+  if (report.claims_status === "unverifiable") {
+    lines.push(`  ⚠️ CLAIMS NOT VERIFIED: the prompt could not be decomposed`);
+  }
   for (const row of report.claims) {
     const refs = row.hunk_refs.length ? row.hunk_refs.join(", ") : (row.evidence[0]?.detail ?? "");
     lines.push(`  ${icon(row)} ${label(row)}  ${dim(`[${refs}]`)}`);
@@ -34,11 +44,20 @@ export function renderIntentReport(report: IntentReport): string {
       )}`,
     );
   }
+  for (const finding of report.dependencies) {
+    lines.push(
+      `  🚨 ${DEPENDENCY_LABELS[finding.rule]}: ${finding.package}  ${dim(`[${finding.file}:${finding.line}]`)}`,
+    );
+    lines.push(`     ${finding.proof}`);
+    lines.push(`     fix: ${finding.fix}`);
+  }
   for (const finding of report.hallucinations) {
     lines.push(`  🚨 HALLUCINATED: ${finding.symbol}  ${dim(`[${finding.file}:${finding.line}]`)}`);
     lines.push(`     ${finding.proof}`);
   }
   lines.push("");
+  for (const note of report.notes) lines.push(dim(`  note: ${note}`));
+  if (report.notes.length) lines.push("");
   lines.push(
     dim(
       `  prompt-as-spec · merge-base ${report.base.slice(0, 12)} · llm calls: ${

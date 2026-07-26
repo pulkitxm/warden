@@ -1,4 +1,5 @@
 export const SCHEMA_VERSION = 1 as const;
+export const INTENT_SCHEMA_VERSION = 2 as const;
 export const ANALYZER_VERSION = "0.1.0";
 
 export type Category =
@@ -198,15 +199,20 @@ export const INTENT_JSON_SCHEMA = {
     "prompt",
     "base",
     "claims",
+    "claims_status",
     "scope_creep",
     "hallucinations",
+    "dependencies",
     "verdict",
     "exit",
     "llm",
+    "notes",
   ],
   properties: {
-    schema_version: { type: "integer", const: SCHEMA_VERSION },
+    schema_version: { type: "integer", const: INTENT_SCHEMA_VERSION },
     source: { type: "string", enum: ["prompt"] },
+    claims_status: { type: "string", enum: ["verified", "unverifiable"] },
+    notes: { type: "array", items: { type: "string" } },
     prompt: { type: "string" },
     base: { type: "string" },
     claims: {
@@ -270,6 +276,26 @@ export const INTENT_JSON_SCHEMA = {
           line: { type: "integer" },
           proof: { type: "string" },
           source: { type: "string", enum: ["curated", "node_modules"] },
+        },
+      },
+    },
+    dependencies: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["package", "file", "line", "rule", "level", "proof", "fix"],
+        properties: {
+          package: { type: "string" },
+          file: { type: "string" },
+          line: { type: "integer" },
+          rule: {
+            type: "string",
+            enum: ["undeclared_import", "known_hallucinated_name", "unpublished_package"],
+          },
+          level: { type: "string", enum: ["warn", "block"] },
+          proof: { type: "string" },
+          fix: { type: "string" },
         },
       },
     },

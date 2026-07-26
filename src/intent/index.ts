@@ -1,27 +1,34 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
+import { resolvePackage } from "../registry.ts";
+import { ANALYZER_VERSION, EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
 import type { WardenDeps } from "../shared/deps.ts";
 import { wardenFailure } from "../shared/errors.ts";
 import { gitResult, resolveMergeBase } from "../shared/git.ts";
-import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
+import { CORPUS_CASES } from "./corpus/cases.ts";
+import { renderCorpus } from "./corpus/report.ts";
+import { liveCorpusLlm, runCorpus } from "./corpus/run.ts";
+import { classifyHunks } from "./diff.ts";
 import { extractClaims } from "./extract.ts";
-import { decide, keywordPass, llmPass } from "./match.ts";
+import {
+  collectFileDiffs,
+  type DiffContext,
+  type IntentRun,
+  runIntentPipeline,
+  scanHallucinations,
+} from "./pipeline.ts";
 import { renderIntentReport } from "./report.ts";
-import { findHallucinations } from "./symbols.ts";
-import type {
-  ClassifiedHunk,
-  FileDiff,
-  HallucinationFinding,
-  IntentLedger,
-  IntentReport,
-} from "./types.ts";
+import type { ClassifiedHunk, HallucinationFinding, IntentLedger, PackageExists } from "./types.ts";
+
+export type { IntentRun } from "./pipeline.ts";
+export { liveIntentLlm, runIntentPipeline } from "./pipeline.ts";
 
 export interface IntentFlags {
   verb: string;
   prompt?: string;
   base?: string;
   json: boolean;
+  offline: boolean;
 }
 
 export function parseIntentArgs(argv: string[]): IntentFlags {
@@ -31,6 +38,7 @@ export function parseIntentArgs(argv: string[]): IntentFlags {
       prompt: { type: "string" },
       base: { type: "string" },
       json: { type: "boolean" },
+      offline: { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -39,8 +47,17 @@ export function parseIntentArgs(argv: string[]): IntentFlags {
     prompt: values.prompt,
     base: values.base,
     json: Boolean(values.json),
+    offline: Boolean(values.offline),
   };
 }
+
+export const registryPackageExists: PackageExists = async (name: string) => {
+  try {
+    return (await resolvePackage(name)).existsOnRegistry;
+  } catch {
+    return null;
+  }
+};
 
 function runIntentSchema(_flags: IntentFlags, deps: WardenDeps): number {
   deps.stdout(`${JSON.stringify(INTENT_JSON_SCHEMA, null, 2)}\n`);
@@ -86,52 +103,6 @@ async function runIntentExtract(flags: IntentFlags, deps: WardenDeps): Promise<n
   return EXIT.allow;
 }
 
-interface DiffContext {
-  root: string;
-  mergeBase: string;
-  diffs: FileDiff[];
-  hunks: ClassifiedHunk[];
-}
-
-function untrackedDiffText(deps: WardenDeps, root: string): string {
-  const result = deps.git(["ls-files", "--others", "--exclude-standard"], root);
-  if (result.exitCode !== 0) return "";
-  const sections: string[] = [];
-  for (const raw of result.stdout.split("\n")) {
-    const path = raw.trim();
-    if (path === "" || path.startsWith(".warden/")) continue;
-    if (path === "node_modules" || path.startsWith("node_modules/")) continue;
-    if (path.includes("/node_modules/") || path.startsWith(".git/")) continue;
-    let code: string;
-    try {
-      code = deps.readFile(join(root, path));
-    } catch {
-      continue;
-    }
-    if (code.includes("\u0000")) continue;
-    const lines = code.split("\n");
-    if (lines.length && lines[lines.length - 1] === "") lines.pop();
-    if (!lines.length) continue;
-    sections.push(
-      [
-        `diff --git a/${path} b/${path}`,
-        "new file mode 100644",
-        "--- /dev/null",
-        `+++ b/${path}`,
-        `@@ -0,0 +1,${lines.length} @@`,
-        ...lines.map((line) => `+${line}`),
-      ].join("\n"),
-    );
-  }
-  return sections.join("\n");
-}
-
-function collectFileDiffs(deps: WardenDeps, root: string, mergeBase: string): FileDiff[] {
-  const tracked = gitResult(deps, root, ["diff", mergeBase]);
-  const untracked = untrackedDiffText(deps, root);
-  return parseUnifiedDiff(untracked === "" ? tracked : `${tracked}\n${untracked}`);
-}
-
 function collectDiff(flags: IntentFlags, deps: WardenDeps): DiffContext {
   const root = deps.cwd();
   gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
@@ -157,11 +128,6 @@ function runIntentDiff(flags: IntentFlags, deps: WardenDeps): number {
   return EXIT.allow;
 }
 
-function scanHallucinations(context: DiffContext, deps: WardenDeps): HallucinationFinding[] {
-  const files = symbolScanFiles(context.diffs, (path) => deps.readFile(join(context.root, path)));
-  return findHallucinations(files, context.root, { readFile: deps.readFile });
-}
-
 function renderFindings(findings: HallucinationFinding[]): string {
   if (!findings.length) return "no hallucinated apis found\n";
   const rows = findings.map(
@@ -178,49 +144,17 @@ function runIntentSymbols(flags: IntentFlags, deps: WardenDeps): number {
   return findings.length ? EXIT.block : EXIT.allow;
 }
 
-export interface IntentRun {
-  ledger: IntentLedger;
-  report: IntentReport;
-}
-
-export async function runIntentPipeline(
-  deps: WardenDeps,
-  root: string,
-  mergeBase: string,
-  prompt: string,
-): Promise<IntentRun> {
-  const diffs = collectFileDiffs(deps, root, mergeBase);
-  const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
-  const context: DiffContext = { root, mergeBase, diffs, hunks };
-  const hallucinations = scanHallucinations(context, deps);
-  let ledger: IntentLedger;
-  try {
-    ledger = await extractClaims(prompt);
-  } catch (error) {
-    const note = hallucinations.length
-      ? ` (note: deterministic scan still found ${hallucinations.length} hallucinated api(s): ${hallucinations
-          .map((finding) => finding.symbol)
-          .join(", ")})`
-      : "";
-    throw new Error(`${(error as Error).message}${note}`);
-  }
-  const keyword = keywordPass(ledger.claims, hunks);
-  const matchedClaims = new Set(keyword.map((proposal) => proposal.claimId));
-  const leftovers = ledger.claims.filter(
-    (claim) => claim.kind !== "preservation" && !matchedClaims.has(claim.id),
+async function runIntentBench(flags: IntentFlags, deps: WardenDeps): Promise<number> {
+  const live = process.env.WARDEN_INTENT_CORPUS_LIVE === "1";
+  const report = await runCorpus(
+    CORPUS_CASES,
+    ANALYZER_VERSION,
+    live ? liveCorpusLlm() : undefined,
   );
-  const llm = await llmPass(leftovers, hunks);
-  const report = decide({
-    prompt,
-    base: mergeBase,
-    claims: ledger.claims,
-    hunks,
-    proposals: [...keyword, ...llm.proposals],
-    hallucinations,
-    llmMatchFailed: llm.failed,
-    llmCalls: { extract_calls: 1, match_calls: leftovers.length ? 1 : 0 },
-  });
-  return { ledger, report };
+  if (flags.json) deps.stdout(`${JSON.stringify(report, null, 2)}\n`);
+  deps.stderr(renderCorpus(report));
+  const regressed = report.results.some((result) => !result.correct && !result.knownGap);
+  return regressed || report.staleGaps.length ? EXIT.block : EXIT.allow;
 }
 
 async function runIntentCheck(flags: IntentFlags, deps: WardenDeps): Promise<number> {
@@ -229,7 +163,14 @@ async function runIntentCheck(flags: IntentFlags, deps: WardenDeps): Promise<num
   if (!prompt) return missingPrompt(deps, flags.json);
   gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
   const mergeBase = resolveMergeBase(deps, root, flags.base);
-  const { ledger, report } = await runIntentPipeline(deps, root, mergeBase, prompt);
+  const { ledger, report }: IntentRun = await runIntentPipeline(
+    deps,
+    root,
+    mergeBase,
+    prompt,
+    undefined,
+    flags.offline ? undefined : registryPackageExists,
+  );
   deps.stderr(renderLedger(ledger));
   writeWarden(deps, root, "claims.json", ledger);
   writeWarden(deps, root, "intent-report.json", report);
@@ -246,6 +187,7 @@ const INTENT_VERBS: Record<
   extract: runIntentExtract,
   diff: runIntentDiff,
   symbols: runIntentSymbols,
+  bench: runIntentBench,
   check: runIntentCheck,
 };
 

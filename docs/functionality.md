@@ -297,7 +297,7 @@ Warden doctor: doctor-demo
 
 ## Intent verification: `warden intent check`
 
-`warden intent check` decomposes a prompt into claims with one LLM call, then checks the diff against each claim: matched deterministically first by keyword overlap, then by a second LLM call for whatever is left unmatched. A separate deterministic AST scan flags calls to APIs a package doesn't export:
+`warden intent check` decomposes a prompt into claims with one LLM call, then checks the diff against each claim: matched deterministically first by keyword overlap, then by a second LLM call for whatever is left unmatched. Two deterministic scans need no model: an AST scan for calls to APIs a package doesn't export, and an import scan for packages that are undeclared or were never published.
 
 ```
 $ warden intent check --prompt "add rate limiting to the api client, keep the retry logic, and log every rate-limited request"
@@ -309,7 +309,7 @@ intent claims (3):
 VERDICT: 2 ✅ · 1 ❌ · 1 ⚠️ · 1 🚨
 
   ✅ Add rate limiting to the API client.  [api-client.ts:1-39]
-  ✅ Preserve the existing retry logic.  [no change touches it]
+  ✅ Preserve the existing retry logic.  [no change names it]
   ❌ DROPPED: Log every request affected by rate limiting.  [no matching change found]
   ⚠️ SCOPE CREEP: pagination.ts, 55 lines changed, never requested  [pagination.ts:1-57]
   🚨 HALLUCINATED: axios.instance.throttle  [api-client.ts:27]
@@ -318,7 +318,9 @@ $ echo $?
 20
 ```
 
-The hallucination scan only covers a small curated set of packages plus whatever `node_modules` can be statically proven to have a closed export surface, and only checks member accesses on added lines: see [intent](intent.md) for the exact limits.
+The hallucination scan only covers a small curated set of packages plus whatever `node_modules` can be statically proven to have a closed export surface, and only checks member accesses on added lines: see [intent](intent.md) for the exact limits. On a repo that runs `tsc --noEmit` with `checkJs`, the type checker already catches these and this scan adds little; the import scan and the never-published-package check are the parts nothing else covers.
+
+Accuracy is measured rather than asserted: `warden intent bench` runs a curated corpus offline and reports precision and recall per rule, with the published numbers in [intent-corpus.md](intent-corpus.md). Claim matching does not currently meet its stated 5% false-positive budget, and the docs say so next to the number.
 
 ## Agent-first output
 

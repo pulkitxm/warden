@@ -1,4 +1,9 @@
 import type { Evidence, VerdictLevel } from "../schema.ts";
+import type { WardenDeps } from "../shared/deps.ts";
+
+export type IntentPipelineDeps = Pick<WardenDeps, "git" | "readFile">;
+
+export type PackageExists = (name: string) => Promise<boolean | null>;
 
 export type ClaimKind = "behavior" | "preservation" | "constraint" | "structural";
 
@@ -57,6 +62,7 @@ export interface ClassifiedHunk {
   imports: string[];
   addedLines: number;
   excerpt: string;
+  removedExcerpt: string;
 }
 
 export interface ApiSurface {
@@ -102,15 +108,43 @@ export interface ScopeCreepRow {
   summary: string;
 }
 
+export interface IntentLlm {
+  extract: (prompt: string) => Promise<IntentLedger>;
+  match: (
+    claims: IntentClaim[],
+    hunks: ClassifiedHunk[],
+  ) => Promise<{ proposals: MatchProposal[]; failed: boolean }>;
+}
+
+export type ClaimsStatus = "verified" | "unverifiable";
+
+export type DependencyRule =
+  | "undeclared_import"
+  | "known_hallucinated_name"
+  | "unpublished_package";
+
+export interface DependencyFinding {
+  package: string;
+  file: string;
+  line: number;
+  rule: DependencyRule;
+  level: "warn" | "block";
+  proof: string;
+  fix: string;
+}
+
 export interface IntentReport {
-  schema_version: 1;
+  schema_version: 2;
   source: "prompt";
   prompt: string;
   base: string;
   claims: ClaimRow[];
+  claims_status: ClaimsStatus;
   scope_creep: ScopeCreepRow[];
   hallucinations: HallucinationFinding[];
+  dependencies: DependencyFinding[];
   verdict: VerdictLevel;
   exit: number;
   llm: { extract_calls: number; match_calls: number };
+  notes: string[];
 }
