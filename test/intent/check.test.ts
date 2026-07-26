@@ -271,6 +271,49 @@ test("a failed extraction with nothing deterministic to report warns instead of 
   expect(written.notes.join(" ")).toContain("scope creep not assessed");
 });
 
+const UNDECLARED_IMAGE = [
+  'import axios from "axios";',
+  'import lodash from "lodash";',
+  "const client = axios.create({});",
+  "export { client, lodash };",
+].join("\n");
+
+const UNDECLARED_DIFF = [
+  "diff --git a/api-client.ts b/api-client.ts",
+  "index 1111111..2222222 100644",
+  "--- a/api-client.ts",
+  "+++ b/api-client.ts",
+  "@@ -1,2 +1,4 @@",
+  ' import axios from "axios";',
+  '+import lodash from "lodash";',
+  " const client = axios.create({});",
+  "+export { client, lodash };",
+  "",
+].join("\n");
+
+test("a degraded run whose only finding is an undeclared import warns rather than blocking", async () => {
+  globalThis.fetch = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
+  const state = makeDeps({
+    readFile: (path) => {
+      if (slash(path) === "/repo/api-client.ts") return UNDECLARED_IMAGE;
+      if (slash(path) === "/repo/package.json") return '{"name":"demo"}';
+      throw new Error("ENOENT");
+    },
+    git: (args) => {
+      if (args[0] === "diff") return { exitCode: 0, stdout: UNDECLARED_DIFF, stderr: "" };
+      return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
+    },
+  });
+  expect(await runWarden(["intent", "check", "--prompt", "add x", "--offline"], state.deps)).toBe(
+    10,
+  );
+  const written = JSON.parse(state.files.get("/repo/.warden/intent-report.json")!) as IntentReport;
+  expect(written.claims_status).toBe("unverifiable");
+  expect(written.verdict).toBe("warn");
+  expect(written.dependencies).toMatchObject([{ package: "lodash", rule: "undeclared_import" }]);
+  expect(state.err.join("")).toContain("⚠️ UNDECLARED: lodash");
+});
+
 test("warden intent check cleans git noise and gives a git-focused hint", async () => {
   const state = makeDeps({
     git: () => ({

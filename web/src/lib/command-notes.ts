@@ -566,7 +566,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     behaviour:
       "Claims are extracted from the prompt, matched against classified diff hunks, and reported as delivered, partial, or dropped. Unmatched hunks become scope creep. Symbols are checked against a curated API surface database and against the packages actually installed in `node_modules`, by reading exports statically. Every bare import on an added line is checked against `package.json`, the slopsquat intel list, and, for names that are neither declared nor installed, the registry.",
     gotchas: [
-      'Claim extraction can use a model, including zero-key providers via the Claude or Codex CLI. When none is available the deterministic passes still run, the report is still published with `claims_status: "unverifiable"`, and the exit code is 20 if a deterministic rule found something or 10 if it did not.',
+      'Claim extraction can use a model, including zero-key providers via the Claude or Codex CLI. When none is available the deterministic passes still run, the report is still published with `claims_status: "unverifiable"`, and the exit code is 20 only when a deterministic rule blocked, which a warn-level undeclared import does not.',
       "`--offline` skips the registry lookup. The report then records that the existence check was skipped rather than reporting clean.",
       "There is no waiver mechanism. A verdict you disagree with can only be silenced by removing the prompt, which turns the whole check off.",
       "Matching is heuristic. A prompt narrowed to the change actually being made produces far better results than a paragraph of context.",

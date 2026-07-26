@@ -62,6 +62,12 @@ const terminalScripts = {
     { text: "✗ dropped     log every limited request", kind: "bad", pause: 240 },
     { text: "! scope creep  pagination.ts was never requested", kind: "bad", pause: 230 },
     { text: "! hallucinated  axios.instance.throttle is not exported", kind: "bad", pause: 260 },
+    {
+      text: '! unpublished  import "fetch-retry-helper-pro" has never existed on npm',
+      kind: "bad",
+      pause: 260,
+    },
+    { text: "the last two need no model · llm calls: 2", kind: "dim", pause: 220 },
     { text: "BLOCK  diff does not match the prompt · exit 20", kind: "info", pause: 0 },
   ],
 };

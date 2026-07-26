@@ -96,7 +96,11 @@ In this demonstration, the official fix adds a suspicious install script and los
 
 Dependency security is only one failure mode in agent-driven changes. Code can compile while dropping a requirement, changing unrelated scope, or calling an API that never existed.
 
-`warden intent check` decomposes the prompt into claims and compares those claims with the diff. It separates delivered and preserved requirements from dropped work and scope creep. A deterministic symbol scan checks newly added member calls against package exports it can prove.
+`warden intent check` decomposes the prompt into claims and compares those claims with the diff. It separates delivered and preserved requirements from dropped work and scope creep. Two deterministic scans run alongside it: newly added member calls are checked against package exports the scan can prove, and every bare import on an added line is checked against the manifest and, when it resolves to nothing, against the registry.
+
+Say the deterministic half plainly, because it is the part that earns the block. It uses no model and no tokens, and it still runs when no provider is configured at all: in that state the report is published with `claims_status: "unverifiable"`, the reason is in `notes`, and the run still exits `20` if a deterministic rule found something.
+
+If asked about accuracy, do not deflect. `warden intent bench` replays a 23-case corpus offline and reports precision per rule: the two deterministic rules measure 100%, claim matching measures 60% against a stated 5% false-positive budget, and the overall false-positive rate is 18.2%, which is over budget. That is why claim matching is advisory and the deterministic rules block.
 
 When the repository carries a prompt file, CI runs the same check automatically for changed JavaScript and TypeScript.
 

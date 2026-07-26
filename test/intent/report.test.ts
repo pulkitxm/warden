@@ -174,7 +174,36 @@ test("renderIntentReport names each dependency rule by what it actually proves",
   expect(rendered).toContain("fix: declare it");
 });
 
-test("the summary line counts dependency findings alongside hallucinations", () => {
+test("a dependency finding is marked at the severity that produced the exit code", () => {
+  const rendered = renderIntentReport(
+    report({
+      dependencies: [
+        {
+          package: "lodash",
+          file: "b.js",
+          line: 1,
+          rule: "undeclared_import",
+          level: "warn",
+          proof: "p",
+          fix: "f",
+        },
+        {
+          package: "react-codeshift",
+          file: "b.js",
+          line: 2,
+          rule: "known_hallucinated_name",
+          level: "block",
+          proof: "p",
+          fix: "f",
+        },
+      ],
+    }),
+  );
+  expect(rendered).toContain("⚠️ UNDECLARED: lodash");
+  expect(rendered).toContain("🚨 HALLUCINATED NAME: react-codeshift");
+});
+
+test("the summary line counts a warn dependency as advisory and a block one as flagged", () => {
   const line = intentSummaryLine(
     report({
       dependencies: [
@@ -187,10 +216,19 @@ test("the summary line counts dependency findings alongside hallucinations", () 
           proof: "p",
           fix: "f",
         },
+        {
+          package: "react-codeshift",
+          file: "b.js",
+          line: 2,
+          rule: "known_hallucinated_name",
+          level: "block",
+          proof: "p",
+          fix: "f",
+        },
       ],
     }),
   );
-  expect(line).toContain("1 🚨");
+  expect(line).toBe("0 ✅ · 0 ❌ · 1 ⚠️ · 1 🚨");
 });
 
 test("a report whose claims could not be verified says so before the rows", () => {

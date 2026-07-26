@@ -122,7 +122,7 @@ See [agent-first CLI](agent-first-cli.md).
 See [distribution](distribution.md).
 
 - `install.sh`: detects OS and architecture, downloads the latest release, verifies sha256 checksums, installs `warden`, `wnpm`, and `wnpx` to `~/.warden/bin`, sets up shims for the managers you choose, wires PATH and completions into your shell rc, and links into `/usr/local/bin` when possible. Supports local-source installs (`WARDEN_INSTALL_SOURCE`), a clean upgrade path that preserves config, and full `--uninstall`.
-- Docker workflow, so development never touches the host: `make docker-run` drops into a sandbox with warden preinstalled and interception active, the repo mounted read-write at `/work`, and a scratch playground at `/play`; `make docker-install-demo` demos the installer from scratch in a fresh container.
+- Container workflow, so development never touches the host: `make docker-run` drops into a sandbox with warden preinstalled and interception active, the repo mounted read-write at `/work`, and a scratch playground at `/play`; `make docker-install-demo` demos the installer from scratch in a fresh container. `make adocker-build`, `adocker-run`, and `adocker-install-demo` are the same three against Apple's `container` runtime on macOS, sharing one build script and one `Dockerfile`.
 
 ## Development infrastructure
 
