@@ -240,6 +240,8 @@ const STATUSES = ["delivered", "partial", "dropped"];
 
 const SCOPE_CREEP_MIN_ADDED_LINES = 5;
 
+const JS_LIKE = /\.[cm]?[jt]sx?$/;
+
 export function proposalsSchema(): Record<string, unknown> {
   return {
     type: "object",
@@ -471,6 +473,13 @@ export function decide(input: DecideInput): IntentReport {
 
   const claimsStatus: ClaimsStatus = input.claimsStatus ?? "verified";
   const notes = [...(input.notes ?? [])];
+  const unreadable = input.hunks.filter((hunk) => !JS_LIKE.test(hunk.file));
+  const unreadableFiles = [...new Set(unreadable.map((hunk) => hunk.file))];
+  if (unreadableFiles.length) {
+    notes.push(
+      `${unreadableFiles.length} file(s) are not JavaScript or TypeScript, so they were excluded from claim matching and from scope creep: ${unreadableFiles.join(", ")}`,
+    );
+  }
   const scopeCreep: ScopeCreepRow[] =
     claimsStatus === "unverifiable"
       ? []
@@ -478,6 +487,7 @@ export function decide(input: DecideInput): IntentReport {
           .filter(
             (hunk) =>
               !cited.has(hunk.id) &&
+              JS_LIKE.test(hunk.file) &&
               !["formatting_only", "test_or_doc"].includes(hunk.category) &&
               hunk.addedLines >= SCOPE_CREEP_MIN_ADDED_LINES,
           )

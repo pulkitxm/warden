@@ -118,7 +118,7 @@ rename of the function a claim named; the corpus numbers before and after are in
 
 Any hunk not cited by a matched claim, not `formatting_only` or `test_or_doc`, with 5 or more added lines. This is a fixed line-count threshold, not a semantic judgment about whether the change was actually out of scope. The corpus has one positive case for this rule, so its reported 100% precision is arithmetic rather than evidence, and the threshold remains an uncalibrated heuristic.
 
-Non-JavaScript files classify as `other` and are therefore eligible for scope creep on line count alone. They cannot be keyword-matched to a claim, because the classifier extracts no symbols from them, so whether such a file is flagged depends entirely on the LLM match pass citing it.
+Non-JavaScript files are **excluded** from scope creep, and the report's `notes` names them and says they were excluded from claim matching too. The classifier extracts no symbols from them, so the keyword pass can never match one to a claim, and flagging them on line count alone was a false positive with no evidence behind it. The consequence is stated rather than hidden: a Python or Go file added without being asked for will not be reported as unrequested. If you need that judged, it needs a classifier for that language, which is out of scope here.
 
 ## Providers
 

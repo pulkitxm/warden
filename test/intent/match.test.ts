@@ -468,6 +468,57 @@ test("decide preserves symbols merely spanned by a sibling addition", () => {
   expect(report.claims[0]!.evidence[0]!.detail).toBe("still declared here and not changed");
 });
 
+test("a file the classifier cannot read is excluded from scope creep and said so in notes", () => {
+  const report = decide(
+    decideInput({
+      claims: [claim("c1", "add a python script that prints the build version")],
+      hunks: [
+        hunk("h1", {
+          file: "scripts/version.py",
+          category: "other",
+          symbols: [],
+          changedSymbols: [],
+          summary: "other version.py",
+          addedLines: 20,
+        }),
+      ],
+    }),
+  );
+  expect(report.scope_creep).toEqual([]);
+  expect(report.notes.join(" ")).toContain("not JavaScript or TypeScript");
+  expect(report.notes.join(" ")).toContain("scripts/version.py");
+});
+
+test("a JavaScript file is still eligible for scope creep, so the exclusion is not a blanket amnesty", () => {
+  const report = decide(
+    decideInput({
+      claims: [claim("c1", "add a python script that prints the build version")],
+      hunks: [
+        hunk("h1", { file: "pagination.ts", summary: "other paginate", addedLines: 20 }),
+        hunk("h2", {
+          file: "scripts/version.py",
+          category: "other",
+          symbols: [],
+          changedSymbols: [],
+          summary: "other version.py",
+          addedLines: 20,
+        }),
+      ],
+    }),
+  );
+  expect(report.scope_creep.map((row) => row.file)).toEqual(["pagination.ts"]);
+});
+
+test("a diff with no foreign file adds no exclusion note", () => {
+  const report = decide(
+    decideInput({
+      claims: [claim("c1", "add rate limiting")],
+      hunks: [hunk("h1", { file: "api-client.ts" })],
+    }),
+  );
+  expect(report.notes).toEqual([]);
+});
+
 test("decide reports uncited meaningful hunks as scope creep, largest first", () => {
   const report = decide(
     decideInput({

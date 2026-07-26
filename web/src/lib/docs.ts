@@ -991,7 +991,7 @@ Everything above concerns dependency analysis. [Intent](/docs/intent) is measure
 - **The corpus is 18 to 23 curated shapes, not a sample of real pull requests,** and its conforming population is too small to resolve a 5% budget. The floor of the measurement is stated on that page.
 - **Scope creep is a fixed 5-added-line threshold** with a single positive corpus case behind it. It is an uncalibrated heuristic and is labelled one.
 - **There is no waiver mechanism.** A verdict you disagree with can only be silenced by deleting the prompt, which disables the whole check.
-- **A non-JavaScript file in the diff cannot be keyword-matched to a claim,** because no symbols are extracted from it, so whether it is flagged as scope creep depends entirely on the LLM match pass citing it.
+- **A non-JavaScript file in the diff is excluded from claim matching and from scope creep,** and the report's \`notes\` names it. No symbols are extracted from it, so flagging it on line count alone was a false positive with no evidence behind it. The cost of that choice is that an unrequested Python or Go file is not reported as unrequested.
 - **One recorded provider sample per corpus case.** Nothing measures how much a verdict moves between providers or between runs, and the two flagship zero-key CLI providers cannot set temperature.
 
 ## Model use
