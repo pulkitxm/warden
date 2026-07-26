@@ -70,6 +70,9 @@ const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", 
 const SPIN_MS = 80;
 
 let playback = 0;
+const staticExport = window.location.search.includes("static");
+
+if (staticExport) document.documentElement.classList.add("static-export");
 
 const wait = (duration, id) =>
   new Promise((resolve) => {
@@ -202,7 +205,7 @@ document.addEventListener("click", (event) => {
 });
 
 Reveal.on("ready", (event) => {
-  if (window.location.search.includes("print-pdf")) renderStaticTerminals();
+  if (window.location.search.includes("print-pdf") || staticExport) renderStaticTerminals();
   else playTerminal(event.currentSlide);
 });
 

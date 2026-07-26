@@ -1,6 +1,6 @@
 # Warden presentation
 
-This is a Reveal.js deck with automatic CSS motion, terminal playback, sourced figures, and an audited PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
+This is a 16-slide Reveal.js deck with automatic CSS motion, terminal playback, sourced figures, and a verified PDF export. It is served by the Next.js site as static assets, so `/presentation/index.html` is the deck itself, not a rewrite to anywhere else.
 
 ## Present locally
 
@@ -20,6 +20,7 @@ Open `http://localhost:3000/presentation/index.html`. Use one arrow-key or space
 - `index.html`: slide content and citations
 - `styles.css`: layout, charts, animation, and print styling
 - `deck.js`: Reveal.js setup and terminal playback
-- `presentation-context.md`: problem narrative, incident context, competitive gap, agent support, and speaker notes
+- `speaker-script.md`: slide-by-slide presenter script
+- `presentation-context.md`: transaction narrative, functionality inventory, demo cues, maturity limits, and sources
 
 The deck uses Reveal.js 5.2.1 from jsDelivr, bundled Bricolage Grotesque, and the native macOS terminal font stack.

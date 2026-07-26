@@ -142,6 +142,11 @@ body {
   opacity: 0;
 }
 
+.static-export .auto {
+  opacity: 1 !important;
+  animation: none !important;
+}
+
 .reveal .slides section.present .auto {
   animation: autoFade 0.45s ease-out both;
 }
@@ -186,6 +191,10 @@ body {
 
 .reveal .slides section.present::before {
   animation: curtainFade 0.4s ease-out both;
+}
+
+.static-export .reveal .slides section::before {
+  display: none !important;
 }
 
 .cover {
