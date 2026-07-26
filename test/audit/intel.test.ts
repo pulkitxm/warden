@@ -134,9 +134,9 @@ test("truncated, invalid, and wrongly sized digests are malformed", () => {
 
 test("multiple integrity entries and metadata options remain valid", () => {
   const integrity = `${SHA1} ${SHA512}?download`;
-  expect(auditLockEntry(entry({ integrity }), "f").map((f) => f.rule)).not.toContain(
-    "lockfile_malformed_integrity",
-  );
+  const rules = auditLockEntry(entry({ integrity }), "f").map((f) => f.rule);
+  expect(rules).not.toContain("lockfile_malformed_integrity");
+  expect(rules).not.toContain("lockfile_weak_integrity");
 });
 
 test("auditLockfile runs intel over every parsed entry", () => {

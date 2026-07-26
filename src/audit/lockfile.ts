@@ -197,7 +197,12 @@ export function auditLockEntry(entry: LockEntry, file: string): AuditFinding[] {
       evidence: `integrity "${entry.integrity}" is not a valid subresource integrity hash`,
       fix: "delete the lockfile and reinstall; a hash this shape can never be verified",
     });
-  } else if (entry.integrity?.startsWith("sha1-")) {
+  } else if (
+    entry.integrity
+      ?.trim()
+      .split(/\s+/)
+      .every((token) => token.startsWith("sha1-"))
+  ) {
     out.push({
       rule: "lockfile_weak_integrity",
       level: "warn",
