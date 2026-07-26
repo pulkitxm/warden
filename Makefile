@@ -1,4 +1,4 @@
-.PHONY: install build test test-doctor test-intent test-shell typecheck web-dev web-build ci ci-comments ci-format ci-smoke ci-web doctor-demo docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck web-dev web-build ci ci-comments ci-format ci-smoke ci-web doctor-demo docker-build docker-run docker-install-demo adocker-build adocker-run adocker-install-demo
 
 install:
 	bun install
@@ -72,3 +72,16 @@ docker-install-demo: docker-build
 	@printf 'fresh container; run: sh /app/web/public/install.sh, then: source ~/.bashrc   try installs in /play\n'
 	@printf '%s\n' '────────────────────────────────────────'
 	@docker run --rm -it --entrypoint /bin/bash -e SHELL=/bin/bash -e WARDEN_INSTALL_SOURCE=/app -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin warden:dev
+
+adocker-build:
+	@sh scripts/docker-build.sh warden:dev container
+
+adocker-run: adocker-build
+	$(if $(ARGS),,@printf 'warden preinstalled: shims intercept npm/bun/npx, completions active   repo writable at /work, scratch space in /play\n')
+	@printf '%s\n' '────────────────────────────────────────'
+	@container run --rm $(if $(ARGS),,-it --entrypoint /bin/bash -e SHELL=/bin/bash) -v "$$PWD:/work" warden:dev $(if $(ARGS),$(ARGS),-c 'printf "warden: setting up shims and completions... "; WARDEN_INSTALL_SOURCE=/app sh /app/web/public/install.sh </dev/null >/tmp/warden-install.log 2>&1 && echo "done" || { echo "failed"; tail -n 20 /tmp/warden-install.log; echo "rerun: sh /app/web/public/install.sh"; }; exec bash')
+
+adocker-install-demo: adocker-build
+	@printf 'fresh container; run: sh /app/web/public/install.sh, then: source ~/.bashrc   try installs in /play\n'
+	@printf '%s\n' '────────────────────────────────────────'
+	@container run --rm -it --entrypoint /bin/bash -e SHELL=/bin/bash -e WARDEN_INSTALL_SOURCE=/app -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin warden:dev
