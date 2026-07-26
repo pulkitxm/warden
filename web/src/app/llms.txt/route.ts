@@ -49,7 +49,6 @@ ${cli}
 
 ## Project
 
-- [Install](${absolute("/install")}): install script, from source, and CI setup.
 - [Benchmark](${absolute("/benchmark")}): measured detection and false-positive rates, with the corpus behind them.
 - [install.sh](${absolute("/install.sh")}): the install script itself, served as plain text.
 - [Hackathon](${absolute("/hack")}): the deck, the slide PDF, and the four demo beats.

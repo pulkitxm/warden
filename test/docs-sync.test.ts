@@ -248,12 +248,23 @@ test("llms.txt groups the docs by section and states the reading paths", async (
   expect(route).toContain("/benchmark");
 });
 
+test("the install page moved into the docs and the old url still redirects", async () => {
+  const config = readFileSync(
+    fileURLToPath(new URL("../web/next.config.ts", import.meta.url)),
+    "utf8",
+  );
+  expect(config).toContain('source: "/install"');
+  expect(config).toContain('destination: "/docs/install"');
+  const { DOC_PAGES } = await import("../web/src/lib/docs.ts");
+  expect(DOC_PAGES.some((page) => page.slug === "install")).toBe(true);
+});
+
 test("the sitemap lists every standalone page, not only the docs", async () => {
   const sitemap = readFileSync(
     fileURLToPath(new URL("../web/src/app/sitemap.ts", import.meta.url)),
     "utf8",
   );
-  for (const path of ["/", "/docs", "/docs/cli", "/install", "/benchmark", "/hack", "/changelog"]) {
+  for (const path of ["/", "/docs", "/docs/cli", "/benchmark", "/hack", "/changelog"]) {
     expect(sitemap).toContain(`"${path}"`);
   }
 });

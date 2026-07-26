@@ -1,7 +1,15 @@
 import { maxSatisfying, satisfies } from "../semver.ts";
 import { progressCount, progressDetail } from "../shared/progress.ts";
 
-export const LIFECYCLE_HOOKS = ["preinstall", "install", "postinstall", "prepare", "prepublish"];
+export const INSTALL_HOOKS = ["preinstall", "install", "postinstall"];
+
+export const SOURCE_BUILD_HOOKS = ["prepare"];
+
+export const LIFECYCLE_HOOKS = [...INSTALL_HOOKS, ...SOURCE_BUILD_HOOKS];
+
+export function hooksThatRunFor(source: "registry" | "source"): string[] {
+  return source === "registry" ? INSTALL_HOOKS : LIFECYCLE_HOOKS;
+}
 
 export interface PackumentVersion {
   version: string;
@@ -74,9 +82,12 @@ function selectVersion(pack: Packument, range: string): string | null {
   return maxSatisfying(versions, range) ?? null;
 }
 
-function hooksOf(scripts: Record<string, string> | undefined): string[] {
+function hooksOf(
+  scripts: Record<string, string> | undefined,
+  source: "registry" | "source" = "registry",
+): string[] {
   if (!scripts) return [];
-  return LIFECYCLE_HOOKS.filter(
+  return hooksThatRunFor(source).filter(
     (hook) => typeof scripts[hook] === "string" && scripts[hook] !== "",
   );
 }

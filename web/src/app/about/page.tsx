@@ -84,7 +84,7 @@ export default async function AboutPage() {
             concepts
           </Link>
           , or{" "}
-          <Link href="/install" className="text-mint hover:text-white">
+          <Link href="/docs/install" className="text-mint hover:text-white">
             install it
           </Link>
           . Source on{" "}

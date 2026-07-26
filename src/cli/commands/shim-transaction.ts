@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { parseSpec } from "../../engine.ts";
 import { manifestRequirements, readInstalledGraph } from "../../graph/installed.ts";
 import { buildPlan, type TransactionPlan } from "../../graph/plan.ts";
@@ -59,6 +60,15 @@ export async function runWardenShimTransaction(argv: string[], deps: WardenDeps)
 
   let plan: TransactionPlan;
   try {
+    if (classified.specs.length && !deps.exists(join(root, "package.json"))) {
+      return emit({
+        ...SKIPPED,
+        decision: "block",
+        exit: EXIT.error,
+        reasons: [`there is no package.json in ${root}, so this install has no project to change`],
+      });
+    }
+
     const installed = readInstalledGraph(fs, root);
     const existing = manifestRequirements(fs, root);
     const direct = classified.specs.map((spec) => {

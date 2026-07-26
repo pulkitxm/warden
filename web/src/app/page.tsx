@@ -161,7 +161,7 @@ export default function HomePage() {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  href="/install"
+                  href="/docs/install"
                   className="rounded-xl bg-coral px-5 py-3 font-semibold text-navy transition hover:bg-white"
                 >
                   Protect this machine
@@ -405,7 +405,7 @@ export default function HomePage() {
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
-                href="/install"
+                href="/docs/install"
                 className="rounded-xl bg-coral px-5 py-3 font-semibold text-navy transition hover:bg-white"
               >
                 Install guide

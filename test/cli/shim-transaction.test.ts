@@ -213,3 +213,12 @@ test("an already-installed package is not re-planned as an addition", async () =
   expect(result.added).toBe(0);
   expect(result.decision).toBe("allow");
 });
+
+test("a directory with no package.json is reported rather than handed to the manager", async () => {
+  const { deps, out } = makeDeps();
+  await runWarden(["shim-transaction", "npm", "install", "left-pad"], deps);
+  const result = gate(out);
+  expect(result.decision).toBe("block");
+  expect(result.exit).toBe(30);
+  expect(result.reasons.join(" ")).toContain("no package.json");
+});

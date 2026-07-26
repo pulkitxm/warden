@@ -1130,9 +1130,9 @@ Twelve attack shapes, each exercising a path that per-package checking misses:
 | \`mal-optional-dep\` | a malicious optional dependency |
 | \`mal-diamond\` | a diamond whose shared package is compromised |
 | \`mal-cycle\` | a dependency cycle containing a malicious node |
-| \`mal-prepare-hook\` | a prepare script, which npm also runs at install time |
+| \`mal-install-hook\` | a bare install hook, easy to overlook next to postinstall |
 
-Eight benign shapes that must not be stopped: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, an unchanged project, and an upgrade of a package whose install script was already trusted.
+Nine benign shapes that must not be stopped: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, an unchanged project, an upgrade of a package whose install script was already trusted, and a graph whose packages carry only \`prepare\` and \`prepublish\`.
 
 ## Regression, not marketing
 
@@ -1690,6 +1690,80 @@ Yarn and Bun take no \`--ignore-scripts\` argument: they suppress dependency scr
 The shims decide what \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`npx\`, and \`bunx\` mean on your \`PATH\`; \`warden coverage\` says which of their subcommands are actually mediated. That is [interception](/docs/interception), and it is a separate question from which manager a Warden command chooses to run.
 `;
 
+const install = `
+## Install script
+
+\`\`\`sh
+curl -fsSL https://warden.pulkit.page/install.sh | sh
+\`\`\`
+
+This installs \`warden\`, \`wnpm\`, and \`wnpx\`, and offers to place shims ahead of the package managers it detects.
+
+Read the script before running it. That advice applies to every install script, including this one, so it is served as plain text at [warden.pulkit.page/install.sh](/install.sh) and is the same file as [install.sh](https://github.com/pulkitxm/warden/blob/main/install.sh) in the repository.
+
+## From source
+
+This is what the test suite runs against.
+
+\`\`\`sh
+git clone https://github.com/pulkitxm/warden
+cd warden
+make install
+bun run build
+\`\`\`
+
+You get \`dist/warden\`, \`dist/wnpm\`, and \`dist/wnpx\`. Put them on your \`PATH\`.
+
+## Verify it works
+
+\`\`\`sh
+warden --version
+warden check express@5
+\`\`\`
+
+A clean package exits \`0\`. Try a name that does not exist to see a block.
+
+## Shell completions
+
+\`\`\`sh
+warden completions zsh  > ~/.zsh/completions/_warden
+warden completions bash > /etc/bash_completion.d/warden
+warden completions fish > ~/.config/fish/completions/warden.fish
+\`\`\`
+
+Completions cover verbs, flags, and finite flag values, and are generated from the same registry as the help text.
+
+## Interception
+
+The shims sit ahead of \`npm\`, \`pnpm\`, \`yarn\`, \`bun\`, \`npx\`, and \`bunx\`, so installs are vetted without changing how you type. Non-install subcommands pass straight through.
+
+\`\`\`sh
+warden config intercept off   # disable
+warden config                 # inspect current settings
+\`\`\`
+
+## In CI
+
+\`\`\`yaml
+- uses: actions/checkout@v5
+  with:
+    fetch-depth: 0
+- uses: oven-sh/setup-bun@v2
+- run: curl -fsSL https://warden.pulkit.page/install.sh | sh
+- run: warden ci --reporter github --base origin/\${{ github.base_ref }}
+\`\`\`
+
+\`fetch-depth: 0\` matters, because \`warden ci\` needs the merge base.
+
+## Uninstall
+
+\`\`\`sh
+warden uninstall
+\`\`\`
+
+Removes the binaries, shims, config, cache, and shell setup.
+`;
+
 const PAGES: DocPage[] = [
   {
     slug: "getting-started",
@@ -1698,7 +1772,7 @@ const PAGES: DocPage[] = [
       "Install Warden, vet your first package, audit an existing project, and put the gate in CI.",
     section: "Start",
     body: gettingStarted,
-    related: ["concepts", "cli", "package-managers"],
+    related: ["install", "concepts", "cli", "package-managers"],
   },
   {
     slug: "concepts",
@@ -1940,9 +2014,19 @@ const PAGES: DocPage[] = [
     body: surfacesInternals,
     related: ["check-surfaces", "coverage", "interception"],
   },
+  {
+    slug: "install",
+    title: "Install",
+    description:
+      "The install script, building from source, verifying what you installed, shell completions, the CI workflow, and removing Warden.",
+    section: "Start",
+    body: install,
+    related: ["getting-started", "releases", "troubleshooting"],
+  },
 ];
 
 const PAGE_ORDER = [
+  "install",
   "getting-started",
   "concepts",
   "transactions",

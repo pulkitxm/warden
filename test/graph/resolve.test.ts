@@ -325,3 +325,48 @@ test("a star range resolves and never records a conflict against itself", async 
   );
   expect(graph.conflicts).toEqual([]);
 });
+
+test("a registry dependency's prepublish script is not install-time execution", async () => {
+  const { packument } = registry({
+    "es-errors": { "1.3.0": { scripts: { prepublish: "safe-publish-latest", lint: "eslint" } } },
+  });
+  const graph = await resolveGraph([{ name: "es-errors", range: "1.3.0" }], { packument });
+  expect(graph.nodes[0]?.hooks).toEqual([]);
+});
+
+test("a registry dependency's prepare script is not install-time execution either", async () => {
+  const { packument } = registry({
+    axios: { "1.18.1": { scripts: { prepare: "husky install", test: "jest" } } },
+  });
+  const graph = await resolveGraph([{ name: "axios", range: "1.18.1" }], { packument });
+  expect(graph.nodes[0]?.hooks).toEqual([]);
+});
+
+test("the three hooks that really run on a dependency install are still reported", async () => {
+  const { packument } = registry({
+    builder: {
+      "1.0.0": {
+        scripts: {
+          preinstall: "node a.js",
+          install: "node b.js",
+          postinstall: "node c.js",
+          prepare: "node d.js",
+          prepublish: "node e.js",
+        },
+      },
+    },
+  });
+  const graph = await resolveGraph([{ name: "builder", range: "1.0.0" }], { packument });
+  expect(graph.nodes[0]?.hooks).toEqual(["preinstall", "install", "postinstall"]);
+});
+
+test("an ordinary express graph reports no install scripts at all", async () => {
+  const { packument } = registry({
+    express: { "5.2.1": { dependencies: { qs: "6.15.3", "path-to-regexp": "8.4.2" } } },
+    qs: { "6.15.3": { scripts: { prepublish: "npm run lint" } } },
+    "path-to-regexp": { "8.4.2": { scripts: { prepare: "tsc" } } },
+  });
+  const graph = await resolveGraph([{ name: "express", range: "5.2.1" }], { packument });
+  const scripted = graph.nodes.filter((node) => node.hooks.length);
+  expect(scripted.map((node) => node.name)).toEqual([]);
+});
