@@ -33,7 +33,10 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     positional: { kind: "<plan-id>" },
     flags: [
       { name: "--no-verify", description: "skip the project verification steps" },
-      { name: "--allow-unapproved", description: "install even when scripts are unapproved" },
+      {
+        name: "--skip-script-approval",
+        description: "apply without approving a new install script; the script stays suppressed",
+      },
       {
         name: "--allow-incomplete-analysis",
         description: "install a truncated or partially analyzed plan",

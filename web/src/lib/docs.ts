@@ -801,7 +801,17 @@ Warden apply: npm install @fastify/jwt
   receipt written to .warden/receipts/wtxn_acb0875bfa27e1ebfa8caeaf.json
 \`\`\`
 
-Scripts stay suppressed for the entire install, including for approved packages. Approval governs whether the transaction may proceed, not whether Warden hands execution to package code mid-install.
+## What an approval authorizes
+
+Warden implements one model, and it is worth stating plainly, because the word "approve" invites the other reading.
+
+Package install scripts never run. Not before an approval, not after one, not for the package you approved. Every install Warden performs suppresses lifecycle scripts through the manager's own mechanism, and the plan and receipt both record \`script_policy: "suppressed"\` so this is not left to interpretation.
+
+An approval is authority over the transaction, not a handoff of execution to package code. Approving \`esbuild\`'s \`postinstall\` says: I have read that script, I accept this graph, proceed with the install. It does not say: run it.
+
+The consequence is worth knowing before you rely on it. A package whose install step exists to fetch or compile a native binary may not work afterwards. That is what verification is for: your tests, typecheck, and build run against the installed graph, and if the package is unusable without its install step, they are what tells you. If they fail, the manifest and lockfiles are restored.
+
+The alternative model, executing a reviewed script in a constrained phase with restricted environment, network, and filesystem, and recording its outputs and filesystem delta in the receipt, is a stronger product. It is not built, and Warden does not claim it.
 
 ## Verify
 
@@ -1545,7 +1555,7 @@ Because the function returns early, a plan that reaches \`needs_approval\` never
 
 \`applyTransaction\` first builds an \`ApprovalRequest\` for every hook in \`newScriptSurface\`, fetching each script body through \`deps.scriptBody\`, and matches it against stored approvals. \`matchesApproval\` requires package, version, integrity, hook, and \`script_hash\` (SHA-256 of the trimmed body, truncated to 32 hex characters) to all be equal, so an approval dies when the version, the tarball integrity, or a single character of the script changes. Note that the integrity used comes from the plan artifact, and \`unchecked\` or \`unanalyzable\` artifacts carry none.
 
-A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--allow-unapproved\` is passed. A \`truncated\` plan, or one carrying any \`unchecked\` artifact, refuses unless \`--allow-incomplete-analysis\` is passed. \`checkPreconditions\` then digests the project's current graph and refuses when it is no longer \`plan.graph_before\`, unless \`--allow-stale-plan\` is passed, so a plan cannot be applied to a project that moved underneath it. Each refusal returns a receipt with result \`refused\` and every verification step \`skipped\`.
+A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--skip-script-approval\` is passed. A \`truncated\` plan, or one carrying any \`unchecked\` artifact, refuses unless \`--allow-incomplete-analysis\` is passed. \`checkPreconditions\` then digests the project's current graph and refuses when it is no longer \`plan.graph_before\`, unless \`--allow-stale-plan\` is passed, so a plan cannot be applied to a project that moved underneath it. Each refusal returns a receipt with result \`refused\` and every verification step \`skipped\`.
 
 Past those gates, \`snapshotProject\` reads \`package.json\` and every lockfile it knows (\`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`bun.lockb\`) and holds their text in memory. The install itself is \`replayCommand(plan.request)\`: the manager plus the exact argv that was planned, with any \`--ignore-scripts\` the user typed filtered out and the manager's own suppression appended, which is \`--ignore-scripts\` for everything except yarn and \`YARN_ENABLE_SCRIPTS=0\` for yarn. A plan with no \`request\`, meaning one written before requests existed, falls back to \`installCommand(manager, packages, true)\`. Suppression is unconditional and applies even when every script is approved, so approval means "we read it", not "we ran it".
 

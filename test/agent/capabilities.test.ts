@@ -108,7 +108,7 @@ test("the instruction section carries a version marker so it can be updated in p
 });
 
 test("the instruction section warns against the bypass flags", () => {
-  expect(instructionSection("0.1.0")).toContain("Never pass `--allow-unapproved`");
+  expect(instructionSection("0.1.0")).toContain("Never pass `--skip-script-approval`");
 });
 
 test("every adapter points at the documentation it was built against", () => {

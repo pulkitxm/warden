@@ -73,7 +73,7 @@ Each plan records `graph_before` and `graph_after` as sha256 digests over the so
 `warden apply <plan-id>` executes a decided plan:
 
 1. Refuse outright if the plan was blocked.
-2. Refuse if any new install script has no matching approval, unless `--allow-unapproved` is passed.
+2. Refuse if any new install script has no matching approval, unless `--skip-script-approval` is passed.
 3. Refuse if the graph was truncated or any changed package went unanalyzed, unless `--allow-incomplete-analysis` is passed.
 4. Refuse if the project's graph has moved since the plan was made, unless `--allow-stale-plan` is passed.
 5. Replay the planned request through the project's own package manager with lifecycle scripts suppressed by that manager's native mechanism.
@@ -82,7 +82,17 @@ Each plan records `graph_before` and `graph_after` as sha256 digests over the so
 8. Restore the manifest and every lockfile if the install fails, a verification step fails, or the observed graph does not match. `node_modules` and anything verification touched are left as the failure left them, so this is not a full transaction rollback.
 9. Write a transaction receipt.
 
-Scripts stay suppressed for the entire install, including for approved packages. An approval governs whether the transaction may proceed at all; it is not a handoff of execution to package code mid-install.
+## What an approval authorizes
+
+Warden implements one model, and it is worth stating plainly, because the word "approve" invites the other reading.
+
+Package install scripts never run. Not before an approval, not after one, not for the package you approved. Every install warden performs suppresses lifecycle scripts through the manager's own mechanism, and the plan and receipt both record `script_policy: "suppressed"` so this is not left to interpretation.
+
+An approval is authority over the transaction, not a handoff of execution to package code. Approving `esbuild`'s `postinstall` says: I have read that script, I accept this graph, proceed with the install. It does not say: run it.
+
+The consequence is real and worth knowing before you rely on it. A package whose install step exists to fetch or compile a native binary may not work afterwards. That is what verification is for: your tests, typecheck, and build run against the installed graph, and if the package is unusable without its install step, they are what tells you. If they fail, the manifest and lockfiles are restored.
+
+The alternative model, executing a reviewed script in a constrained phase with restricted environment, network, and filesystem, and recording its outputs and filesystem delta in the receipt, is a stronger product. It is not built, and warden does not claim it.
 
 ## Narrow approvals
 

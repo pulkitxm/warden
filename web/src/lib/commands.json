@@ -204,8 +204,8 @@
         "valueHint": null
       },
       {
-        "name": "--allow-unapproved",
-        "description": "install even when scripts are unapproved",
+        "name": "--skip-script-approval",
+        "description": "apply without approving a new install script; the script stays suppressed",
         "valueHint": null
       },
       {
