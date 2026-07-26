@@ -89,6 +89,54 @@ const terminalScripts = {
     },
     { text: "1 of 2 issues fixed · exit 10", kind: "info", pause: 0 },
   ],
+  policy: [
+    { text: "warden policy", kind: "command", typed: true, pause: 340 },
+    { text: "Policy compiled for npm", kind: "prompt", pause: 260 },
+    {
+      text: "  Intent   scripts approved · min age 1d · exotic sources block · downgrades block",
+      kind: "good",
+      pause: 300,
+    },
+    { text: "  Native settings", kind: "dim", pause: 180 },
+    { text: "    .npmrc  ignore-scripts = true", kind: "info", pause: 160 },
+    { text: "    .npmrc  min-release-age = 1", kind: "info", pause: 160 },
+    {
+      text: "    .npmrc  allow-git, allow-remote, allow-directory, allow-file = none",
+      kind: "info",
+      pause: 300,
+    },
+    { text: "  Not natively supported", kind: "dim", pause: 180 },
+    {
+      text: "    block version downgrades · npm has no native downgrade policy",
+      kind: "bad",
+      pause: 300,
+    },
+    { text: "  Enforced by warden regardless", kind: "dim", pause: 180 },
+    { text: "    a downgrade is visible in the plan as a version move", kind: "good", pause: 0 },
+  ],
+  receipt: [
+    { text: "warden verify", kind: "command", typed: true, pause: 340 },
+    { text: "WARDEN VERIFY  wtxn_4c1d1f3c55dac2e468c53ff3", kind: "prompt", pause: 280 },
+    {
+      text: "  ok  graph matches receipt  the installed graph is the one the receipt was issued for",
+      kind: "good",
+      pause: 200,
+    },
+    {
+      text: "  ok  policy digest          the receipt was issued under the plan still on disk",
+      kind: "good",
+      pause: 200,
+    },
+    { text: "  ok  result                 the transaction was applied", kind: "good", pause: 200 },
+    { text: "  ok  artifact coverage      27 artifacts carry a verdict", kind: "good", pause: 340 },
+    { text: "warden ci --require-transaction-receipt", kind: "command", pause: 300 },
+    {
+      text: "the dependency graph changed but no warden transaction receipt was committed",
+      kind: "bad",
+      pause: 240,
+    },
+    { text: "exit 20 · the pull request does not merge", kind: "info", pause: 0 },
+  ],
   intent: [
     { text: "warden intent check", kind: "command", typed: true, pause: 380 },
     {

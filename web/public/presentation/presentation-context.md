@@ -42,6 +42,12 @@ Then `warden apply <id>` refuses, naming the unapproved script. Approve it, appl
 
 A scanner says "esbuild is fine." Warden says "esbuild is fine, and here is the one piece of code in this change that wants to execute, and here is proof of what was installed."
 
+Two more slides carry the parts people ask about.
+
+**Policy.** Every manager already has safety settings, and almost nobody sets them, because there are four managers and four spellings. `warden policy` takes one statement of intent and writes each manager's own keys: `ignore-scripts`, `min-release-age`, `allow-git` and friends for npm, the equivalents for pnpm, yarn and bun. The honest half of that slide is the section headed "not natively supported": npm has no downgrade policy, so warden names the gap instead of pretending the setting exists, and enforces it itself in the plan.
+
+**The receipt gate.** This is the answer to "what stops someone bypassing the shim". Nothing, on their machine. `warden verify` checks the installed graph against the receipt, and `warden ci --require-transaction-receipt` fails a pull request whose dependency graph changed without one. An absolute path or a container walks past a shim; nothing walks past a pull request that will not merge.
+
 Measured detection, reproducible with `warden benchmark`: 12 of 12 curated attack shapes stopped, 0 of 9 benign shapes stopped. Say "curated regression shapes," not "field accuracy."
 
 ## 5. What to say about maturity
