@@ -9,11 +9,14 @@ const emptyIntel = {
   hallucinated: new HallucinatedNames([]),
 };
 
+const SHA1 = `sha1-${Buffer.alloc(20).toString("base64")}`;
+const SHA512 = `sha512-${Buffer.alloc(64).toString("base64")}`;
+
 const entry = (over: Partial<LockEntry> = {}): LockEntry => ({
   name: "demo",
   version: "1.0.0",
   resolved: "https://registry.npmjs.org/demo/-/demo-1.0.0.tgz",
-  integrity: "sha512-aaa",
+  integrity: SHA512,
   ...over,
 });
 
@@ -108,13 +111,32 @@ test("a malformed integrity hash is blocked, not silently accepted", () => {
 });
 
 test("valid and weak hashes keep their existing treatment", () => {
-  expect(auditLockEntry(entry({ integrity: "sha512-aaa" }), "f").map((f) => f.rule)).not.toContain(
+  expect(auditLockEntry(entry({ integrity: SHA512 }), "f").map((f) => f.rule)).not.toContain(
     "lockfile_malformed_integrity",
   );
 
-  const weak = auditLockEntry(entry({ integrity: "sha1-abc" }), "f").map((f) => f.rule);
+  const weak = auditLockEntry(entry({ integrity: SHA1 }), "f").map((f) => f.rule);
   expect(weak).toContain("lockfile_weak_integrity");
   expect(weak).not.toContain("lockfile_malformed_integrity");
+});
+
+test("truncated, invalid, and wrongly sized digests are malformed", () => {
+  for (const integrity of [
+    "sha512-aaa",
+    "sha512-%%%",
+    `sha256-${Buffer.alloc(64).toString("base64")}`,
+  ]) {
+    expect(auditLockEntry(entry({ integrity }), "f").map((f) => f.rule)).toContain(
+      "lockfile_malformed_integrity",
+    );
+  }
+});
+
+test("multiple integrity entries and metadata options remain valid", () => {
+  const integrity = `${SHA1} ${SHA512}?download`;
+  expect(auditLockEntry(entry({ integrity }), "f").map((f) => f.rule)).not.toContain(
+    "lockfile_malformed_integrity",
+  );
 });
 
 test("auditLockfile runs intel over every parsed entry", () => {
@@ -125,7 +147,7 @@ test("auditLockfile runs intel over every parsed entry", () => {
       "node_modules/demo": {
         version: "1.0.0",
         resolved: "https://registry.npmjs.org/demo/-/demo-1.0.0.tgz",
-        integrity: "sha512-aaa",
+        integrity: SHA512,
       },
     },
   });

@@ -86,6 +86,26 @@ export function hostOf(resolved: string): string | null {
   }
 }
 
+const DIGEST_BYTES = new Map([
+  ["sha1", 20],
+  ["sha256", 32],
+  ["sha384", 48],
+  ["sha512", 64],
+]);
+
+export function validIntegrity(integrity: string): boolean {
+  const tokens = integrity.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+
+  return tokens.every((token) => {
+    const [metadata, ...options] = token.split("?");
+    if (!metadata || options.some((option) => !/^[\x21-\x7e]*$/.test(option))) return false;
+    const parsed = parseIntegrity(metadata);
+    if (!parsed || !/^[A-Za-z0-9+/]+={0,2}$/.test(parsed.base64)) return false;
+    return Buffer.from(parsed.base64, "base64").byteLength === DIGEST_BYTES.get(parsed.algo);
+  });
+}
+
 function isRemoteProtocol(resolved: string): string | null {
   const match = /^([a-z+]+):/i.exec(resolved);
   const scheme = match?.[1]?.toLowerCase();
@@ -168,16 +188,7 @@ export function auditLockEntry(entry: LockEntry, file: string): AuditFinding[] {
     });
   }
 
-  if (entry.integrity?.startsWith("sha1-")) {
-    out.push({
-      rule: "lockfile_weak_integrity",
-      level: "warn",
-      target,
-      file,
-      evidence: "integrity uses sha1, which is not collision resistant",
-      fix: "reinstall with a current package manager to upgrade the hash to sha512",
-    });
-  } else if (entry.integrity && !parseIntegrity(entry.integrity)) {
+  if (entry.integrity && !validIntegrity(entry.integrity)) {
     out.push({
       rule: "lockfile_malformed_integrity",
       level: "block",
@@ -185,6 +196,15 @@ export function auditLockEntry(entry: LockEntry, file: string): AuditFinding[] {
       file,
       evidence: `integrity "${entry.integrity}" is not a valid subresource integrity hash`,
       fix: "delete the lockfile and reinstall; a hash this shape can never be verified",
+    });
+  } else if (entry.integrity?.startsWith("sha1-")) {
+    out.push({
+      rule: "lockfile_weak_integrity",
+      level: "warn",
+      target,
+      file,
+      evidence: "integrity uses sha1, which is not collision resistant",
+      fix: "reinstall with a current package manager to upgrade the hash to sha512",
     });
   }
 
