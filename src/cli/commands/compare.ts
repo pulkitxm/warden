@@ -2,7 +2,7 @@ import { parseSpec } from "../../engine.ts";
 import { type ComparisonRow, compareRow, rankComparison } from "../../explain/report.ts";
 import { collectApprovals, findApproval } from "../../graph/approvals.ts";
 import { readInstalledGraph } from "../../graph/installed.ts";
-import { LIFECYCLE_HOOKS } from "../../graph/resolve.ts";
+import { INSTALL_HOOKS } from "../../graph/resolve.ts";
 import { fetchPackument, type PackageMeta, resolvePackage } from "../../registry.ts";
 import { EXIT } from "../../schema.ts";
 import { bold, c, dim } from "../../shared/ansi.ts";
@@ -118,7 +118,7 @@ export async function runWardenScripts(argv: string[], deps: WardenDeps): Promis
     const meta = packument?.versions?.[node.version];
     const unapproved = hooks.filter(
       (hook) =>
-        LIFECYCLE_HOOKS.includes(hook) &&
+        INSTALL_HOOKS.includes(hook) &&
         !findApproval(approvals, {
           package: name,
           version: node.version,

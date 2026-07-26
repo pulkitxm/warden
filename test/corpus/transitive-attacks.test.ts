@@ -238,14 +238,28 @@ const ATTACKS: AttackCase[] = [
     mustName: "cycle-b",
   },
   {
-    name: "a prepare script, which npm also runs at install time",
-    shape: "prepare is a lifecycle hook too, and is often overlooked.",
+    name: "a bare install hook, which is easy to overlook next to postinstall",
+    shape: "install runs between preinstall and postinstall on every dependency install.",
     packages: {
-      tooling: { version: "1.0.0", scripts: { prepare: "node setup.js" } },
+      tooling: { version: "1.0.0", scripts: { install: "node setup.js" } },
     },
     root: { name: "tooling", range: "1.0.0" },
     expect: "needs_approval",
     mustName: "tooling",
+  },
+  {
+    name: "publish-time hooks on a dependency are not execution surface",
+    shape:
+      "prepare and prepublish do not run for a registry dependency; flagging them buries real findings.",
+    packages: {
+      app: { version: "1.0.0", dependencies: { helper: "1.0.0" } },
+      helper: {
+        version: "1.0.0",
+        scripts: { prepare: "husky install", prepublish: "npm run lint" },
+      },
+    },
+    root: { name: "app", range: "1.0.0" },
+    expect: "allow",
   },
 ];
 
@@ -283,11 +297,15 @@ test("the corpus covers block, approval, warning, and clean outcomes", () => {
 });
 
 test("no attack in the corpus reaches a silent allow", () => {
-  const dangerous = ATTACKS.filter((attack) => attack.expect === "allow");
-  for (const attack of dangerous) {
+  const installHooks = ["preinstall", "install", "postinstall"];
+  for (const attack of ATTACKS.filter((entry) => entry.expect === "allow")) {
     expect(attack.verdicts ?? {}).toEqual({});
-    expect(Object.values(attack.packages).some((entry) => entry.scripts || entry.deprecated)).toBe(
-      false,
-    );
+    for (const entry of Object.values(attack.packages)) {
+      expect(entry.deprecated).toBeUndefined();
+      const hooks = Object.keys(entry.scripts ?? {});
+      expect(`${attack.name}: ${hooks.filter((hook) => installHooks.includes(hook)).join()}`).toBe(
+        `${attack.name}: `,
+      );
+    }
   }
 });

@@ -37,9 +37,9 @@ Twelve attack shapes, each exercising a path that per-package checking misses:
 | `mal-optional-dep` | a malicious optional dependency |
 | `mal-diamond` | a diamond whose shared package is compromised |
 | `mal-cycle` | a dependency cycle containing a malicious node |
-| `mal-prepare-hook` | a prepare script, which npm also runs at install time |
+| `mal-install-hook` | a bare install hook, easy to overlook next to postinstall |
 
-Eight benign shapes that must not be stopped: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, an unchanged project, and an upgrade of a package whose install script was already trusted.
+Nine benign shapes that must not be stopped: a lone dependency, a ten-level chain, a thirty-wide fan-out, a diamond, scoped packages, caret and tilde ranges, an unchanged project, an upgrade of a package whose install script was already trusted, and a graph whose packages carry only `prepare` and `prepublish`.
 
 ## Regression, not marketing
 

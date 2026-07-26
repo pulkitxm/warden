@@ -152,10 +152,10 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
     expected: "block",
   },
   {
-    id: "mal-prepare-hook",
-    shape: "a prepare script, which npm also runs at install time",
+    id: "mal-install-hook",
+    shape: "a bare install hook, which runs between preinstall and postinstall",
     kind: "malicious",
-    packages: { tooling: { version: "1.0.0", scripts: { prepare: "node setup.js" } } },
+    packages: { tooling: { version: "1.0.0", scripts: { install: "node setup.js" } } },
     root: { name: "tooling", range: "1.0.0" },
     expected: "needs_approval",
   },
@@ -225,6 +225,19 @@ export const BENCHMARK_CASES: BenchmarkCase[] = [
     packages: { stable: { version: "1.0.0" } },
     installed: { stable: { version: "1.0.0" } },
     root: { name: "stable", range: "latest" },
+    expected: "allow",
+  },
+  {
+    id: "benign-publish-only-hooks",
+    shape:
+      "a graph whose packages carry only prepare and prepublish, which never run for a dependency",
+    kind: "benign",
+    packages: {
+      app: { version: "1.0.0", dependencies: { "es-errors": "1.3.0", axios: "1.18.1" } },
+      "es-errors": { version: "1.3.0", scripts: { prepublish: "safe-publish-latest" } },
+      axios: { version: "1.18.1", scripts: { prepare: "husky install" } },
+    },
+    root: { name: "app", range: "latest" },
     expected: "allow",
   },
   {

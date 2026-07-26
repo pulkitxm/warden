@@ -6,7 +6,7 @@ import {
   type LockEntry,
 } from "../audit/lockfile.ts";
 import type { InstalledNode } from "./delta.ts";
-import { LIFECYCLE_HOOKS } from "./resolve.ts";
+import { INSTALL_HOOKS } from "./resolve.ts";
 
 export interface InstalledFs {
   exists: (path: string) => boolean;
@@ -32,7 +32,7 @@ function hooksFromManifest(fs: InstalledFs, root: string, name: string): string[
     const scripts = (JSON.parse(fs.readFile(manifest)) as { scripts?: Record<string, string> })
       .scripts;
     if (!scripts) return [];
-    return LIFECYCLE_HOOKS.filter((hook) => typeof scripts[hook] === "string");
+    return INSTALL_HOOKS.filter((hook) => typeof scripts[hook] === "string");
   } catch {
     return undefined;
   }

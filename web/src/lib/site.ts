@@ -21,14 +21,14 @@ export const nav = [
   { href: "/docs/cli", label: "CLI" },
   { href: "/docs/agents", label: "Agents" },
   { href: "/docs/limitations", label: "Limitations" },
-  { href: "/install", label: "Install" },
+  { href: "/docs/install", label: "Install" },
 ] as const;
 
 export const footerLinks = [
   {
     heading: "Start",
     links: [
-      { href: "/install", label: "Install" },
+      { href: "/docs/install", label: "Install" },
       { href: "/docs/getting-started", label: "Getting started" },
       { href: "/docs/concepts", label: "Concepts" },
       { href: "/docs/troubleshooting", label: "Troubleshooting" },

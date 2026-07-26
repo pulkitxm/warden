@@ -275,7 +275,7 @@ make ci              # the full suite`}
 
       <div className="mt-12 flex flex-wrap gap-3">
         <Link
-          href="/install"
+          href="/docs/install"
           className="rounded-xl bg-coral px-5 py-3 font-semibold text-navy transition hover:bg-white"
         >
           Install Warden
