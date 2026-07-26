@@ -177,8 +177,8 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
           <span
             key={key}
             aria-hidden={key !== state}
-            className={`flex items-center justify-center gap-2 transition-opacity duration-200 ${
-              key === state ? "" : "opacity-0"
+            className={`flex items-center justify-center gap-2 transition-opacity duration-150 ${
+              key === state ? "delay-150" : "opacity-0"
             }`}
           >
             <span className={tone}>{icon}</span>
