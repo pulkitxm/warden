@@ -187,7 +187,11 @@ function unitComparators(unit: string): Comparator[] | null {
     if (!lo || !hi) return null;
     return [...lo, ...hi];
   }
-  const tokens = unit.trim().split(/\s+/).filter(Boolean);
+  const tokens = unit
+    .trim()
+    .replace(/(>=|<=|>|<|=|\^|~)\s+/g, "$1")
+    .split(/\s+/)
+    .filter(Boolean);
   const out: Comparator[] = [];
   for (const t of tokens) {
     if (t === "*" || /^[xX]$/.test(t)) continue;

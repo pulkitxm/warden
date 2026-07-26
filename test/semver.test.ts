@@ -95,6 +95,15 @@ test("satisfies: tilde ranges", () => {
   expect(satisfies("1.0.0", "~x")).toBe(true);
 });
 
+test("satisfies: an operator may be separated from its version by spaces", () => {
+  expect(satisfies("2.1.2", ">= 2.1.2 < 3.0.0")).toBe(true);
+  expect(satisfies("2.9.9", ">= 2.1.2 < 3.0.0")).toBe(true);
+  expect(satisfies("3.0.0", ">= 2.1.2 < 3.0.0")).toBe(false);
+  expect(satisfies("2.1.1", ">= 2.1.2 < 3.0.0")).toBe(false);
+  expect(satisfies("1.5.0", "^ 1.2.3")).toBe(true);
+  expect(satisfies("1.2.9", "~ 1.2.3")).toBe(true);
+});
+
 test("satisfies: comparison operators including partial versions", () => {
   expect(satisfies("1.2.3", ">=1.2.3")).toBe(true);
   expect(satisfies("1.2.2", ">=1.2.3")).toBe(false);
