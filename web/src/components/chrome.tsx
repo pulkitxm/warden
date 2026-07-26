@@ -1,12 +1,11 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import { footerLinks, nav, site } from "@/lib/site";
 
 export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-navy/85 backdrop-blur">
-      <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-5 py-3.5 sm:px-8">
+      <div className="mx-auto flex max-w-350 items-center gap-6 px-5 py-3.5 sm:px-8">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <Logo className="h-6 w-6 text-white" />
           <span className="text-[15px] font-bold tracking-tight text-white">Warden</span>
@@ -54,7 +53,7 @@ function GitHubMark() {
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-white/10 bg-navy-soft/40">
-      <div className="mx-auto max-w-[1400px] px-5 py-14 sm:px-8">
+      <div className="mx-auto max-w-350 px-5 py-14 sm:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2.5">
@@ -83,7 +82,10 @@ export function Footer() {
                     </li>
                   ) : (
                     <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-fog transition hover:text-mint">
+                      <Link
+                        href={link.href}
+                        className="text-sm text-fog transition hover:text-mint"
+                      >
                         {link.label}
                       </Link>
                     </li>

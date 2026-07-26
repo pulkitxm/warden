@@ -25,7 +25,10 @@ export async function GET(
     .join(" ");
 
   const flags = command.flags
-    .map((flag) => `| \`${flag.name}${flag.valueHint ? ` ${flag.valueHint}` : ""}\` | ${flag.description} |`)
+    .map(
+      (flag) =>
+        `| \`${flag.name}${flag.valueHint ? ` ${flag.valueHint}` : ""}\` | ${flag.description} |`,
+    )
     .join("\n");
 
   const values = command.positional?.values?.length

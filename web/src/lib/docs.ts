@@ -653,7 +653,7 @@ warden schema list
 | --- | --- |
 | \`check\` | \`warden check <pkg> --json\`, \`wnpm install --json\`, \`wnpx --json\` |
 | \`ci\` | \`warden ci --reporter json\` |
-| \`audit\` | \`warden check lockfile\|scripts\|config --json\` |
+| \`audit\` | \`warden check lockfile|scripts|config --json\` |
 | \`doctor\` | \`warden doctor --json\`, \`wnpm doctor --json\` |
 | \`intent\` | \`warden intent check --json\` |
 
@@ -670,7 +670,6 @@ warden schema audit
 
 Agents should read these schemas rather than parsing human output. See [agents](/docs/agents).
 `;
-
 
 const transactions = `
 A package name is not a dependency change. Typing \`npm install @fastify/jwt\` adds one name to a manifest and, moments later, an entire resolved subgraph to \`node_modules\`. Vetting only the name that was typed leaves every transitive addition unexamined, and a transitive addition is exactly where a compromised release hides.
@@ -869,7 +868,6 @@ A model can help extract claims from a prompt and rank alternatives. No model de
 
 Instructions, skills, and MCP tools improve how well an agent cooperates with Warden. They are not enforcement by themselves; an agent that ignores them is caught by the shim, and an agent that bypasses the shim is caught in CI.
 `;
-
 
 const coverage = `
 A security tool earns trust through verifiable coverage, not through a claim. Every row below comes from the same command grammar the shim consults at runtime, so this page cannot drift from behaviour. Run \`warden coverage --json\` to get the same matrix from the binary you have installed.
@@ -1813,7 +1811,14 @@ const PAGES: DocPage[] = [
       "Verdicts, exit codes, categories, and the gate-then-verify loop that makes Warden's repairs trustworthy.",
     section: "Start",
     body: concepts,
-    related: ["doctor", "intent", "agents", "how-a-verdict-is-reached", "signals-and-scoring", "getting-started"],
+    related: [
+      "doctor",
+      "intent",
+      "agents",
+      "how-a-verdict-is-reached",
+      "signals-and-scoring",
+      "getting-started",
+    ],
   },
   {
     slug: "doctor",
@@ -1939,13 +1944,7 @@ const PAGES: DocPage[] = [
       "How the shims put Warden in front of npm, pnpm, yarn, and Bun, what each decision does to your install, and where interception genuinely ends.",
     section: "Using Warden",
     body: interception,
-    related: [
-      "coverage",
-      "transactions",
-      "limitations",
-      "package-managers",
-      "how-a-plan-is-built",
-    ],
+    related: ["coverage", "transactions", "limitations", "package-managers", "how-a-plan-is-built"],
   },
   {
     slug: "package-managers",
@@ -2113,8 +2112,10 @@ export function readingMinutes(page: DocPage): number {
 }
 
 export const SECTION_INTROS: Record<string, string> = {
-  Start: "The mental model. Three pages, about fifteen minutes, and everything else follows from them.",
-  "Using Warden": "Task guides. Read the one that matches what you are doing; they do not need to be read in order.",
+  Start:
+    "The mental model. Three pages, about fifteen minutes, and everything else follows from them.",
+  "Using Warden":
+    "Task guides. Read the one that matches what you are doing; they do not need to be read in order.",
   "Trust and boundaries":
     "What is actually covered, what is not, and the measured numbers behind the claims.",
   Reference: "Lookup material. Come here when you need a specific flag, file, or schema.",

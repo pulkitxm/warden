@@ -3,7 +3,9 @@ import { classifyTerminal } from "@/lib/terminal";
 export function Terminal({ output, className = "" }: { output: string; className?: string }) {
   const lines = classifyTerminal(output);
   return (
-    <div className={`terminal-block overflow-x-auto rounded-xl border border-white/12 ${className}`}>
+    <div
+      className={`terminal-block overflow-x-auto rounded-xl border border-white/12 ${className}`}
+    >
       <pre className="terminal">
         <code>
           {lines.map((tokens, index) => (

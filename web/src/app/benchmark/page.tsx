@@ -49,7 +49,7 @@ export default function BenchmarkPage() {
     <section className="mt-12">
       <h2 className="text-xl font-bold tracking-tight text-white">{caption}</h2>
       <div className="mt-4 overflow-x-auto rounded-2xl border border-white/12">
-        <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+        <table className="w-full min-w-160 border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-white/12 bg-navy-soft/50">
               <th className="px-4 py-3 font-semibold text-white">Case</th>
@@ -85,7 +85,7 @@ export default function BenchmarkPage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1400px] px-5 py-12 sm:px-8">
+    <div className="mx-auto max-w-350 px-5 py-12 sm:px-8">
       <JsonLd
         data={[
           {
@@ -105,7 +105,10 @@ export default function BenchmarkPage() {
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {headline.map((item) => (
-            <div key={item.label} className="rounded-2xl border border-white/12 bg-navy-soft/50 p-5">
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/12 bg-navy-soft/50 p-5"
+            >
               <p className="text-[12.5px] font-semibold tracking-[0.14em] text-mint uppercase">
                 {item.label}
               </p>

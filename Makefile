@@ -1,7 +1,8 @@
-.PHONY: install build test test-doctor test-intent test-shell typecheck ci ci-comments ci-format ci-smoke doctor-demo docker-build docker-run docker-install-demo
+.PHONY: install build test test-doctor test-intent test-shell typecheck web-dev web-build ci ci-comments ci-format ci-smoke ci-web doctor-demo docker-build docker-run docker-install-demo
 
 install:
 	bun install
+	cd web && bun install
 	git config core.hooksPath .githooks
 
 build:
@@ -22,6 +23,12 @@ test-shell:
 typecheck:
 	bun run typecheck
 
+web-dev:
+	cd web && bun run dev
+
+web-build:
+	cd web && bun run build
+
 ci-comments:
 	bun scripts/strip-comments.mjs --selftest
 	bun scripts/strip-comments.mjs --check
@@ -41,9 +48,14 @@ ci-smoke: build
 	./dist/warden schema audit >/dev/null
 	./dist/warden check lockfile --dir fixtures/doctor-project --json >/dev/null
 
+ci-web:
+	cd web && bun install --frozen-lockfile
+	cd web && bun run typecheck
+	cd web && bun run build
+
 ci:
 	bun install --frozen-lockfile
-	$(MAKE) ci-comments ci-format test typecheck ci-smoke
+	$(MAKE) ci-comments ci-format test typecheck ci-smoke ci-web
 
 doctor-demo: build
 	bun scripts/doctor-demo.ts

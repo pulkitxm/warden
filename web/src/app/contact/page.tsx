@@ -43,7 +43,7 @@ export default function ContactPage() {
     { name: "Contact", path: "/contact" },
   ];
   return (
-    <div className="mx-auto max-w-[1400px] px-5 py-12 sm:px-8">
+    <div className="mx-auto max-w-350 px-5 py-12 sm:px-8">
       <JsonLd
         data={[
           {

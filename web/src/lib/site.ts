@@ -1,6 +1,7 @@
-export const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://warden.pulkit.page"
-).replace(/\/$/, "");
+export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://warden.pulkit.page").replace(
+  /\/$/,
+  "",
+);
 
 export const site = {
   name: "Warden",

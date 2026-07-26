@@ -36,7 +36,11 @@ const links = [
 ];
 
 const numbers = [
-  { value: "19.7%", label: "of LLM-recommended packages did not exist", source: "USENIX Security 2025" },
+  {
+    value: "19.7%",
+    label: "of LLM-recommended packages did not exist",
+    source: "USENIX Security 2025",
+  },
   { value: "796", label: "packages carried the Shai-Hulud 2.0 worm", source: "Datadog, Nov 2025" },
   { value: ">2B", label: "weekly downloads in the chalk/debug hijack", source: "Wiz, Sept 2025" },
   { value: "454,648", label: "new malicious packages in 2025", source: "Sonatype, 2026" },
@@ -122,7 +126,7 @@ export default function HackPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 py-12 sm:px-8">
+    <div className="mx-auto max-w-275 px-5 py-12 sm:px-8">
       <JsonLd
         data={[
           webPage({ title: META.title, description: META.description, path: "/hack" }),
@@ -235,11 +239,15 @@ export default function HackPage() {
       <section className="mt-14">
         <h2 className="text-xl font-bold text-white sm:text-2xl">Five beats</h2>
         <p className="mt-2 text-[14px] text-fog">
-          The first beat is a real install against the public registry. The other four are reproducible offline against the in-repo fixture registry.
+          The first beat is a real install against the public registry. The other four are
+          reproducible offline against the in-repo fixture registry.
         </p>
         <div className="mt-6 space-y-8">
           {beats.map((beat) => (
-            <div key={beat.step} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+            <div
+              key={beat.step}
+              className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"
+            >
               <div>
                 <span className="font-mono text-[12px] text-mint">{beat.step}</span>
                 <h3 className="mt-2 text-lg font-semibold text-white">{beat.title}</h3>
@@ -276,18 +284,48 @@ make ci              # the full suite`}
         <h2 className="text-xl font-bold text-white sm:text-2xl">What is actually built</h2>
         <div className="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
           {[
-            ["Dependency transactions", "plan the whole prospective graph, approve, apply, verify, receipt"],
-            ["Narrow approvals", "one script, bound to its version, tarball digest, hook, and script body"],
-            ["Receipt-gated CI", "warden ci --require-transaction-receipt, the control a bypassed shim cannot skip"],
-            ["Deterministic engine", "AST capability scan, typosquat distance, curated intel, version diff"],
-            ["Manager-neutral policy", "one policy compiled into npm, pnpm, Yarn, and Bun's own settings"],
-            ["Whole-graph interception", "shims for npm, pnpm, yarn, bun, npx, bunx, gated on the full graph"],
+            [
+              "Dependency transactions",
+              "plan the whole prospective graph, approve, apply, verify, receipt",
+            ],
+            [
+              "Narrow approvals",
+              "one script, bound to its version, tarball digest, hook, and script body",
+            ],
+            [
+              "Receipt-gated CI",
+              "warden ci --require-transaction-receipt, the control a bypassed shim cannot skip",
+            ],
+            [
+              "Deterministic engine",
+              "AST capability scan, typosquat distance, curated intel, version diff",
+            ],
+            [
+              "Manager-neutral policy",
+              "one policy compiled into npm, pnpm, Yarn, and Bun's own settings",
+            ],
+            [
+              "Whole-graph interception",
+              "shims for npm, pnpm, yarn, bun, npx, bunx, gated on the full graph",
+            ],
             ["Repair loop", "OSV audit, supply-chain gate on the fix, isolated verify, apply"],
-            ["Surface audits", "lockfile, install scripts, and .npmrc, across npm, pnpm, yarn, and bun"],
-            ["Agent contracts", "capability-based adapters, a read-only MCP manifest, published schemas"],
+            [
+              "Surface audits",
+              "lockfile, install scripts, and .npmrc, across npm, pnpm, yarn, and bun",
+            ],
+            [
+              "Agent contracts",
+              "capability-based adapters, a read-only MCP manifest, published schemas",
+            ],
             ["Intent", "prompt-as-spec verification and hallucinated-API detection"],
-            ["Published benchmark", "12 of 12 attack shapes stopped, 0 of 9 benign, reproducible with one command"],
-            ["Stated limits", "a Limitations page, a coverage matrix, and analysis coverage on every verdict"],
+            [
+              "Published benchmark",
+              "12 of 12 attack shapes stopped, 0 of 9 benign, reproducible with one command",
+            ],
+            [
+              "Stated limits",
+              "a Limitations page, a coverage matrix, and analysis coverage on every verdict",
+            ],
           ].map(([title, body]) => (
             <div key={title} className="flex gap-2.5">
               <span className="mt-2 block h-1 w-1 shrink-0 rounded-full bg-mint" />

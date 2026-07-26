@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Checkpoint } from "@/components/checkpoint";
 import { CodeBlock } from "@/components/code";
+import { Reveal } from "@/components/reveal";
 import { Terminal } from "@/components/terminal";
 import { TryIt } from "@/components/try-it";
-import { Reveal } from "@/components/reveal";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -142,7 +142,7 @@ export default function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_450px_at_85%_-10%,rgba(79,209,165,0.16),transparent),radial-gradient(700px_400px_at_0%_110%,rgba(255,107,91,0.14),transparent)]"
         />
-        <div className="relative mx-auto max-w-[1400px] px-5 py-16 sm:px-8 lg:py-24">
+        <div className="relative mx-auto max-w-350 px-5 py-16 sm:px-8 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
             <div>
               <p className="inline-flex items-center gap-2 text-[12.5px] font-semibold tracking-[0.16em] text-mint uppercase">
@@ -178,14 +178,12 @@ export default function HomePage() {
                   "Complete graph delta, not only the name you typed",
                   "Same policy in your terminal, agent, and CI",
                   "Narrow approvals and verified receipts",
-                ].map(
-                  (item) => (
-                    <span key={item} className="flex items-center gap-2">
-                      <span className="block h-1 w-1 rounded-full bg-mint" />
-                      {item}
-                    </span>
-                  ),
-                )}
+                ].map((item) => (
+                  <span key={item} className="flex items-center gap-2">
+                    <span className="block h-1 w-1 rounded-full bg-mint" />
+                    {item}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -210,7 +208,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-y border-white/10 bg-navy-soft/30">
-        <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8">
+        <div className="mx-auto max-w-350 px-5 py-20 sm:px-8">
           <Reveal>
             <p className="text-[12.5px] font-semibold tracking-[0.16em] text-mint uppercase">
               Every dependency change is a transaction
@@ -267,7 +265,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8">
+      <section className="mx-auto max-w-350 px-5 py-20 sm:px-8">
         <Reveal>
           <p className="text-[12.5px] font-semibold tracking-[0.16em] text-mint uppercase">
             The missing checkpoint
@@ -290,7 +288,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8">
+      <section className="mx-auto max-w-350 px-5 pb-20 sm:px-8">
         <Reveal>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Try a verdict
@@ -305,7 +303,7 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-5 pb-20 sm:px-8">
+      <section className="mx-auto max-w-350 px-5 pb-20 sm:px-8">
         <Reveal>
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Four jobs, one tool
@@ -330,7 +328,7 @@ export default function HomePage() {
       </section>
 
       <section className="border-y border-white/10 bg-navy-soft/30">
-        <div className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
+        <div className="mx-auto max-w-350 px-5 py-16 sm:px-8">
           <Reveal>
             <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Why this exists
@@ -356,7 +354,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8">
+      <section className="mx-auto max-w-350 px-5 py-20 sm:px-8">
         <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <Reveal>
             <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
@@ -387,7 +385,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-5 pb-24 sm:px-8">
+      <section className="mx-auto max-w-350 px-5 pb-24 sm:px-8">
         <Reveal>
           <div className="rounded-3xl border border-white/12 bg-navy-soft/50 p-8 sm:p-12">
             <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">

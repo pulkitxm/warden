@@ -122,7 +122,9 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
         toc={toc}
         markdownPath={`/docs/cli/${command.name}.md`}
         previous={
-          previous ? { href: `/docs/cli/${previous.name}`, label: `warden ${previous.name}` } : undefined
+          previous
+            ? { href: `/docs/cli/${previous.name}`, label: `warden ${previous.name}` }
+            : undefined
         }
         next={next ? { href: `/docs/cli/${next.name}`, label: `warden ${next.name}` } : undefined}
         related={related}
@@ -236,7 +238,9 @@ export default async function CommandPage({ params }: { params: Promise<{ comman
               --help
             </code>
             ,{" "}
-            <code className="rounded bg-white/8 px-1.5 py-0.5 text-[12.5px] text-[#ffd9d3]">-h</code>
+            <code className="rounded bg-white/8 px-1.5 py-0.5 text-[12.5px] text-[#ffd9d3]">
+              -h
+            </code>
             , and{" "}
             <code className="rounded bg-white/8 px-1.5 py-0.5 text-[12.5px] text-[#ffd9d3]">
               --no-color

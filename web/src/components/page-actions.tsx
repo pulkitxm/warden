@@ -128,14 +128,14 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
     const close = (event: MouseEvent) => {
       if (!container.current?.contains(event.target as Node)) setOpen(false);
     };
-    const escape = (event: KeyboardEvent) => {
+    const dismiss = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", close);
-    document.addEventListener("keydown", escape);
+    document.addEventListener("keydown", dismiss);
     return () => {
       document.removeEventListener("mousedown", close);
-      document.removeEventListener("keydown", escape);
+      document.removeEventListener("keydown", dismiss);
     };
   }, [open]);
 

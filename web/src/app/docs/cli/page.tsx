@@ -51,9 +51,15 @@ export default function CliIndexPage() {
           { id: "exit-codes", text: "Exit codes" },
           { id: "verbs", text: "Verbs" },
         ]}
-        next={first ? { href: `/docs/cli/${first.name}`, label: `warden ${first.name}` } : undefined}
+        next={
+          first ? { href: `/docs/cli/${first.name}`, label: `warden ${first.name}` } : undefined
+        }
         related={[
-          { href: "/docs/concepts", label: "Concepts", description: "Verdicts, exit codes, categories." },
+          {
+            href: "/docs/concepts",
+            label: "Concepts",
+            description: "Verdicts, exit codes, categories.",
+          },
           { href: "/docs/agents", label: "Agents", description: "Driving Warden from a program." },
         ]}
       >
@@ -114,9 +120,7 @@ export default function CliIndexPage() {
                 className="rounded-xl border border-white/12 bg-navy-soft/40 p-4 transition hover:border-mint/40"
               >
                 <code className="font-semibold text-white">warden {command.name}</code>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-fog">
-                  {command.description}
-                </p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-fog">{command.description}</p>
               </Link>
             ))}
           </div>

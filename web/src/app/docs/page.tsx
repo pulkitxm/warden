@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { DocsPage } from "@/components/docs-page";
-import {
-  COMMANDS,
-  DOC_PAGES,
-  DOC_SECTIONS,
-  readingMinutes,
-  SECTION_INTROS,
-} from "@/lib/docs";
+import { COMMANDS, DOC_PAGES, DOC_SECTIONS, readingMinutes, SECTION_INTROS } from "@/lib/docs";
 import { breadcrumbs, collectionPage, JsonLd, pageMetadata } from "@/lib/seo";
 
 const title = "Documentation";
@@ -94,9 +88,7 @@ export default function DocsIndexPage() {
 
   return (
     <>
-      <JsonLd
-        data={[collectionPage({ title, description, path: "/docs" }), breadcrumbs(trail)]}
-      />
+      <JsonLd data={[collectionPage({ title, description, path: "/docs" }), breadcrumbs(trail)]} />
       <DocsPage
         trail={trail}
         eyebrow="Overview"
@@ -175,9 +167,7 @@ export default function DocsIndexPage() {
                 className="rounded-xl border border-white/12 bg-navy-soft/40 px-4 py-3 transition hover:border-mint/40"
               >
                 <code className="text-sm font-semibold text-white">warden {command.name}</code>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-fog">
-                  {command.description}
-                </p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-fog">{command.description}</p>
               </Link>
             ))}
           </div>

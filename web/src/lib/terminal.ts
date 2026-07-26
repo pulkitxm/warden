@@ -1,7 +1,10 @@
 export type TermToken = { text: string; cls?: string };
 
 const RULES: Array<{ pattern: RegExp; cls: string }> = [
-  { pattern: /\b(BLOCK|BLOCKED|UNFIXABLE|FAIL|failed|fail|REFUSED|ROLLED BACK)\b/g, cls: "t-block" },
+  {
+    pattern: /\b(BLOCK|BLOCKED|UNFIXABLE|FAIL|failed|fail|REFUSED|ROLLED BACK)\b/g,
+    cls: "t-block",
+  },
   {
     pattern: /\b(ALLOW|APPLIED|passed|recommended|approved|verified|detected|ready|strong)\b/g,
     cls: "t-allow",
@@ -34,7 +37,10 @@ export function classifyLine(line: string): TermToken[] {
     rule.pattern.lastIndex = 0;
     let match = rule.pattern.exec(line);
     while (match !== null) {
-      const start = match[0].length === match[0].trimStart().length ? match.index : match.index + (match[0].length - match[0].trimStart().length);
+      const start =
+        match[0].length === match[0].trimStart().length
+          ? match.index
+          : match.index + (match[0].length - match[0].trimStart().length);
       const end = match.index + match[0].length;
       if (!marks.some((mark) => start < mark.end && end > mark.start)) {
         marks.push({ start, end, cls: rule.cls });
@@ -49,7 +55,8 @@ export function classifyLine(line: string): TermToken[] {
   if (/^(WARDEN [A-Z]+|Warden [a-z]+)\b/.test(line)) {
     return [{ text: line, cls: "t-head" }];
   }
-  if (/^\s*(Direct changes|Graph changes|Execution surface|Analysis coverage|Next action|Decision|What changed|Why that matters|Prevented|Analysis limits|Safe next action|Method|Files|Enforcement layers|Native settings|Not natively supported|Not supported by this agent|Enforced by warden|Verification|Intent|Trusted baselines|Install scripts)\b/.test(
+  if (
+    /^\s*(Direct changes|Graph changes|Execution surface|Analysis coverage|Next action|Decision|What changed|Why that matters|Prevented|Analysis limits|Safe next action|Method|Files|Enforcement layers|Native settings|Not natively supported|Not supported by this agent|Enforced by warden|Verification|Intent|Trusted baselines|Install scripts)\b/.test(
       line,
     )
   ) {

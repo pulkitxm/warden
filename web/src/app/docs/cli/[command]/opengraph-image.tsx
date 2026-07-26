@@ -1,5 +1,5 @@
 import { COMMANDS, commandBySlug } from "@/lib/docs";
-import { ogImage, OG_CONTENT_TYPE, OG_SIZE } from "@/lib/og";
+import { OG_CONTENT_TYPE, OG_SIZE, ogImage } from "@/lib/og";
 
 export const alt = "Warden CLI reference";
 export const size = OG_SIZE;
