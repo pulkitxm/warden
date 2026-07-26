@@ -944,7 +944,7 @@ The 0 to 100 number is a weighted sum of heuristic signals. It is labelled a heu
 
 A model can help extract claims from a prompt and rank alternatives. No model decides a block. The enforcement core is deterministic, and every model-assisted step reports when it degraded to the deterministic path.
 
-Instructions, skills, and MCP tools improve how well an agent cooperates with Warden. They are not enforcement by themselves; an agent that ignores them is caught by the shim, and an agent that bypasses the shim is caught in CI.
+Instructions, skills, and the generated MCP tool manifest improve how well an agent cooperates with Warden. The manifest is a description of the CLI surface, not a running server: Warden does not speak MCP over stdio yet, and an agent uses it by invoking the binary. They are not enforcement by themselves; an agent that ignores them is caught by the shim, and an agent that bypasses the shim is caught in CI.
 `;
 
 const coverage = `
@@ -1499,7 +1499,7 @@ The popularity table is 108 hardcoded names, so a typosquat of anything outside 
 `;
 
 const graphInternals = `
-Warden's transaction path has four stages that run in order: a resolver produces a flat set of nodes, \`graphDelta\` in \`src/graph/delta.ts\` diffs that set against what is already installed, \`buildPlan\` in \`src/graph/plan.ts\` vets the changed packages and reaches a decision, and \`applyTransaction\` in \`src/graph/apply.ts\` runs the install with lifecycle scripts suppressed and rolls back if anything fails. Each stage is deterministic and its output is serialisable, which is how \`warden plan\` can write a plan to \`.warden/plans/<plan_id>.json\` and \`warden apply\` can later act on exactly that plan.
+Warden's transaction path has four stages that run in order: a resolver produces the prospective set of nodes, either by asking your package manager for a lockfile-only resolve or by walking registry metadata, \`graphDelta\` in \`src/graph/delta.ts\` diffs that set against what is already installed, \`buildPlan\` in \`src/graph/plan.ts\` vets the changed packages and reaches a decision, and \`applyTransaction\` in \`src/graph/apply.ts\` runs the install with lifecycle scripts suppressed and restores the manifest and every lockfile if anything fails. Each stage is deterministic and its output is serialisable, which is how \`warden plan\` can write a plan to \`.warden/plans/<plan_id>.json\` and \`warden apply\` can later act on exactly that plan.
 
 ## Two resolvers
 
@@ -2105,7 +2105,7 @@ const PAGES: DocPage[] = [
     slug: "how-a-plan-is-built",
     title: "How a plan is built",
     description:
-      "Breadth-first registry resolution, one version per name, the node and check budgets, the delta, and how apply suppresses scripts and rolls back.",
+      "Manager-faithful and metadata resolution, the node and check budgets, the delta, and how apply suppresses scripts and restores the manifest and lockfiles.",
     section: "How it works",
     body: graphInternals,
     related: ["transactions", "limitations", "interception"],

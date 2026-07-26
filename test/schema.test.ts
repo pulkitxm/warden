@@ -31,8 +31,18 @@ test("Verdict type keys match JSON Schema required keys", () => {
   const schemaKeys = [...VERDICT_JSON_SCHEMA.required].sort();
   expect(typeKeys).toEqual(schemaKeys);
   expect(Object.keys(VERDICT_JSON_SCHEMA.properties).sort()).toEqual(
-    [...schemaKeys, "untrusted", "inventory"].sort(),
+    [...schemaKeys, "untrusted", "inventory", "compared_against"].sort(),
   );
+});
+
+test("the baseline a release was diffed against is recorded, and is optional", () => {
+  expect([...VERDICT_JSON_SCHEMA.required]).not.toContain("compared_against");
+  expect(VERDICT_JSON_SCHEMA.properties.compared_against.properties.source.enum).toEqual([
+    "recorded",
+    "receipt",
+    "lockfile",
+    "previous-release",
+  ]);
 });
 
 test("inventory is optional, so an older consumer of the verdict contract still parses", () => {

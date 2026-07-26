@@ -43,9 +43,24 @@ Root sketch:
     "dependencies": { "licenses": ["MIT", "Apache-2.0"], "minAgeDays": 30 }
   },
   "cache": { "dir": "~/.warden/cache", "ttlHours": 24 },
-  "ci": { "reporters": ["github", "summary"], "failOn": "block" }
+  "approvals": { "requireRepoScope": true },
+  "ci": {
+    "reporters": ["github", "summary"],
+    "failOn": "block",
+    "allowExceptions": ["coverage-budget"]
+  }
 }
 ```
+
+`approvals.requireRepoScope` makes a personal approval in `~/.warden/approvals.json`
+stop satisfying this project. Only approvals committed to the repository count, so
+approving a script on your own machine cannot quietly authorize it for everyone else.
+
+`ci.allowExceptions` lists the requirement kinds a receipt may have been issued
+against. A transaction applied with `--allow-incomplete-analysis` records a
+`coverage-budget` exception, and `warden ci --require-transaction-receipt` fails on
+any exception the repository has not listed. The default is an empty list, so every
+exception fails until someone decides otherwise in a reviewable file.
 
 Package-level override sketch (`packages/legacy/warden.config.json`):
 

@@ -17,6 +17,7 @@ export interface EngineDeps {
   cache?: VerdictCache;
   blocklist?: Blocklist;
   skipCache?: boolean;
+  baseline?: (name: string) => { version: string; source: string } | undefined;
 }
 
 export function parseSpec(spec: string): { name: string; version?: string } {
@@ -63,7 +64,8 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
   }
 
   progressDetail(`${name}: registry metadata`);
-  const meta = await resolvePackage(name, version);
+  const trusted = deps.baseline?.(name);
+  const meta = await resolvePackage(name, version, trusted?.version);
 
   if (!meta.existsOnRegistry) {
     const input: AnalysisInput = {
@@ -111,7 +113,11 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     current = readTgz(bytes);
   }
   if (meta.previousTarballUrl) {
-    progressDetail(`${meta.name}@${meta.version}: diffing against ${meta.previousVersion}`);
+    progressDetail(
+      `${meta.name}@${meta.version}: diffing against ${meta.previousVersion}${
+        meta.previousIsTrustedBaseline ? ` (${trusted?.source} baseline)` : ""
+      }`,
+    );
     try {
       previous = readTgz(await fetchTarball(meta.previousTarballUrl));
     } catch {
@@ -172,6 +178,16 @@ export async function checkPackage(spec: string, deps: EngineDeps = {}): Promise
     ...base,
     summary,
     ...(untrusted ? { untrusted } : {}),
+    ...(meta.previousVersion
+      ? {
+          compared_against: {
+            version: meta.previousVersion,
+            source: meta.previousIsTrustedBaseline
+              ? (trusted?.source ?? "recorded")
+              : "previous-release",
+          },
+        }
+      : {}),
     inventory: {
       total: artifacts.total,
       analyzed: artifacts.analyzed,

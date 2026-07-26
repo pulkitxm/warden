@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { projectBaseline } from "../../src/cli/deps.ts";
 import {
   defaultDeps,
   defaultWardenDeps,
@@ -546,4 +547,37 @@ test("defaultDeps: spawn returns the command's exit code, readFile reads files",
   expect(typeof defaultDeps.which("sh")).toBe("string");
   expect(defaultDeps.stdout("")).toBe(true);
   expect(defaultDeps.stderr("")).toBe(true);
+});
+
+test("an analysis compares against the baseline the project actually trusts", () => {
+  const root = mkdtempSync(join(tmpdir(), "warden-baseline-"));
+  mkdirSync(join(root, ".warden"), { recursive: true });
+
+  expect(projectBaseline("left-pad", root)).toBeUndefined();
+
+  writeFileSync(
+    join(root, "package-lock.json"),
+    JSON.stringify({ packages: { "node_modules/left-pad": { version: "1.2.0" } } }),
+  );
+  expect(projectBaseline("left-pad", root)).toEqual({ version: "1.2.0", source: "lockfile" });
+
+  writeFileSync(
+    join(root, ".warden", "baselines.json"),
+    JSON.stringify({
+      schema_version: 1,
+      baselines: [
+        { package: "left-pad", version: "1.1.0", recordedAt: "2026-01-01T00:00:00.000Z" },
+      ],
+    }),
+  );
+  expect(projectBaseline("left-pad", root)).toEqual({ version: "1.1.0", source: "recorded" });
+
+  rmSync(root, { recursive: true });
+});
+
+test("a project with nothing to compare against falls back to the previous release", () => {
+  const root = mkdtempSync(join(tmpdir(), "warden-baseline-"));
+  expect(projectBaseline("nothing-here", root)).toBeUndefined();
+  expect(projectBaseline("nothing-here", join(root, "does-not-exist"))).toBeUndefined();
+  rmSync(root, { recursive: true });
 });
