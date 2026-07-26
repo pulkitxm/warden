@@ -43,17 +43,17 @@ Reads the root manifest and every `node_modules/*/package.json`, and inspects on
 | `script_env_exfiltration` | block | A hook reads the environment and sends it over the network. |
 | `script_inline_node_eval` | warn | A hook evaluates inline JavaScript instead of a reviewable file. |
 | `script_lifecycle_present` | warn | A hook exists and did not match a dangerous pattern. |
-| `script_not_allowlisted` | warn | The package declares a hook but is absent from the install-script allowlist. |
-| `script_allowlist_overbroad` | warn | The allowlist entry is a wildcard or `x` range, so future releases run unreviewed. |
-| `script_allowlist_stale` | warn | The allowlist range no longer covers the installed version. |
+| `script_not_allowlisted` | warn | The package declares an install hook but no approval in the active package manager covers it. |
+| `script_allowlist_overbroad` | warn | The approval is name-only or uses a non-exact range, so future releases can run unreviewed. |
+| `script_allowlist_stale` | warn | Exact approvals exist for the package, but none covers the installed version. |
 
 If `node_modules` is absent, only the root manifest is scanned and a note says so, so a clean result is not misread as a clean tree.
 
 ### The install-script allowlist
 
-npm v12 turns dependency install hooks off by default and skips unapproved ones without failing, so a native module can go uncompiled while `npm ci` still exits `0`. Warden reads whichever allowlist your project uses, in this order: npm `allowScripts`, bun `trustedDependencies`, pnpm `onlyBuiltDependencies`, yarn `dependenciesMeta.<pkg>.built`. Boolean allowlists are treated as a wildcard range, because they approve every version.
+npm records approvals as boolean package matchers in `package.json#allowScripts`. pnpm 11 uses `allowBuilds` in `pnpm-workspace.yaml`; older pnpm projects may still use `pnpm.onlyBuiltDependencies`. Bun uses `trustedDependencies`, and Yarn uses `dependenciesMeta.<pkg>.built`. Warden selects the active package manager from `packageManager` or the lockfile, then reads that manager's policy. Explicit denials are treated as intentional.
 
-The three allowlist rules cover both directions of the mistake. `script_not_allowlisted` names packages whose hooks will silently stop running. `script_allowlist_overbroad` and `script_allowlist_stale` name entries that approve more than anyone reviewed: a range like `0.x` keeps approving hooks for releases that do not exist yet. The root manifest is never judged against the allowlist, since it governs dependencies rather than itself.
+The three allowlist rules cover missing, broad, and stale approvals. npm and pnpm exact pins such as `pkg@1.2.3` are clean, while bare names and non-exact ranges are broad. Bun approvals are necessarily name-only, so they remain visible as upgrade-sensitive. Each installed version is judged separately, and the root manifest is never judged against a dependency policy.
 
 ## check config
 
