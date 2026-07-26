@@ -6,11 +6,13 @@ Next.js App Router site for [warden.pulkit.page](https://warden.pulkit.page). It
 
 ```sh
 cd web
-npm install
-npm run dev      # http://localhost:3000
-npm run build    # production build
-npm run start    # serve the production build
+bun install
+bun run dev      # http://localhost:3000
+bun run build    # production build
+bun run start    # serve the production build
 ```
+
+`make web-dev` and `make web-build` from the repository root do the same thing. `make ci-web` installs from the lockfile, type-checks, and builds, which is what CI runs.
 
 ## Configuration
 

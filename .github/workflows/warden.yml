@@ -24,7 +24,7 @@ jobs:
       - name: Install the dependency graphs to audit
         run: |
           bun install --frozen-lockfile
-          npm ci --prefix web
+          cd web && bun install --frozen-lockfile
 
       - name: Install the published warden
         if: github.event_name == 'push'
