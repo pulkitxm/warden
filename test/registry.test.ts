@@ -1,15 +1,27 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { resolvePackage } from "../src/registry.ts";
 
+const version = (v: string) => ({
+  version: v,
+  dist: { tarball: `http://localhost/demo-pkg-${v}.tgz`, integrity: `sha512-${v}` },
+});
+
 const packument = {
   name: "demo-pkg",
-  "dist-tags": { latest: "1.0.0" },
-  time: { "1.0.0": "2026-01-01T00:00:00.000Z" },
+  "dist-tags": { latest: "2.1.0" },
+  time: {
+    "1.0.0": "2026-01-01T00:00:00.000Z",
+    "1.4.2": "2026-02-01T00:00:00.000Z",
+    "2.0.0": "2026-03-01T00:00:00.000Z",
+    "2.1.0": "2026-04-01T00:00:00.000Z",
+    "3.0.0-beta.1": "2026-05-01T00:00:00.000Z",
+  },
   versions: {
-    "1.0.0": {
-      version: "1.0.0",
-      dist: { tarball: "http://localhost/demo-pkg-1.0.0.tgz", integrity: "sha512-x" },
-    },
+    "1.0.0": version("1.0.0"),
+    "1.4.2": version("1.4.2"),
+    "2.0.0": version("2.0.0"),
+    "2.1.0": version("2.1.0"),
+    "3.0.0-beta.1": version("3.0.0-beta.1"),
   },
   maintainers: [{ name: "dev" }],
 };
@@ -55,4 +67,39 @@ test("a downloads-API outage is reported as unknown, not zero", async () => {
   expect(meta.existsOnRegistry).toBe(true);
   expect(meta.weeklyDownloads).toBeUndefined();
   expect(meta.downloadsUnknown).toBe(true);
+});
+
+test("a caret range resolves to the highest version that satisfies it", async () => {
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  const meta = await resolvePackage("demo-pkg", "^1.0.0");
+  expect(meta.existsOnRegistry).toBe(true);
+  expect(meta.version).toBe("1.4.2");
+  expect(meta.requestedVersionMissing).toBeFalsy();
+});
+
+test("a range is not mistaken for a version that was never published", async () => {
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  for (const range of ["^2.0.0", ">=1.4.2 <2.0.0", "~1.4.0", "1.x", "*"]) {
+    const meta = await resolvePackage("demo-pkg", range);
+    expect(meta.existsOnRegistry).toBe(true);
+    expect(meta.requestedVersionMissing).toBeFalsy();
+  }
+});
+
+test("a prerelease is only chosen when the range asks for one", async () => {
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  expect((await resolvePackage("demo-pkg", "^2.0.0")).version).toBe("2.1.0");
+  expect((await resolvePackage("demo-pkg", "3.0.0-beta.1")).version).toBe("3.0.0-beta.1");
+});
+
+test("an exact version that was never published is still reported as missing", async () => {
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  const meta = await resolvePackage("demo-pkg", "9.9.9");
+  expect(meta.requestedVersionMissing).toBe(true);
+});
+
+test("a range no published version satisfies is reported as missing", async () => {
+  process.env.WNPM_REGISTRY = `http://localhost:${server.port}`;
+  const meta = await resolvePackage("demo-pkg", "^9.0.0");
+  expect(meta.requestedVersionMissing).toBe(true);
 });

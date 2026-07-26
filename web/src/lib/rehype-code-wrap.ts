@@ -1,35 +1,31 @@
 import type { Element, Root } from "hast";
+import { Check, Copy, type IconNode } from "lucide";
 import { visit } from "unist-util-visit";
 
-const COPY_ICON: Element = {
-  type: "element",
-  tagName: "svg",
-  properties: {
-    viewBox: "0 0 24 24",
-    width: "13",
-    height: "13",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    ariaHidden: "true",
-  },
-  children: [
-    {
-      type: "element",
-      tagName: "rect",
-      properties: { x: "9", y: "9", width: "12", height: "12", rx: "2" },
-      children: [],
+function icon(node: IconNode, className: string, strokeWidth: string): Element {
+  return {
+    type: "element",
+    tagName: "svg",
+    properties: {
+      className: [className],
+      viewBox: "0 0 24 24",
+      width: "13",
+      height: "13",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ariaHidden: "true",
     },
-    {
+    children: node.map(([tagName, properties]) => ({
       type: "element",
-      tagName: "path",
-      properties: { d: "M5 15V5a2 2 0 0 1 2-2h10" },
+      tagName,
+      properties,
       children: [],
-    },
-  ],
-};
+    })),
+  };
+}
 
 function copyButton(): Element {
   return {
@@ -42,7 +38,8 @@ function copyButton(): Element {
       "aria-label": "Copy code",
     },
     children: [
-      COPY_ICON,
+      icon(Copy, "copy-icon-idle", "2"),
+      icon(Check, "copy-icon-done", "2.4"),
       {
         type: "element",
         tagName: "span",
