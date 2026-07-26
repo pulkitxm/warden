@@ -316,7 +316,7 @@ Every run also writes \`.warden/last-run.json\`, which is what \`warden handoff\
 
 Warden gates its own repository. [\`.github/workflows/warden.yml\`](https://github.com/pulkitxm/warden/blob/main/.github/workflows/warden.yml) is the real file, and it shows two things the snippet above leaves out.
 
-\`warden ci\` is scoped to the diff, so it says nothing about the dependencies you already have. Pair it with a full audit of each project in the repo, and tolerate warnings so only blocks stop the build:
+\`warden ci\` is scoped to the diff, so it says nothing about the dependencies you already have. Pair it with a full audit of each project in the repo:
 
 \`\`\`yaml
 - run: |
@@ -328,6 +328,16 @@ Warden gates its own repository. [\`.github/workflows/warden.yml\`](https://gith
 \`\`\`
 
 The scripts surface reads \`node_modules\`, so install each project's dependencies before auditing it or only the root manifest gets scanned.
+
+## Warnings and exit codes
+
+A warn verdict exits \`10\`, which a plain \`run:\` step treats as failure. That is stricter than \`ci.failOn\` implies, so decide once and apply it to every step:
+
+- \`|| [ $? -le 10 ]\` lets warnings through and stops only on a block, matching the \`ci.failOn: block\` default.
+- Drop it, and any warning fails the build.
+- Set \`ci.failOn\` to \`warn\` to promote warnings to blocks in the report itself.
+
+Mixing them is the trap: a strict \`warden ci\` next to a tolerant audit fails on a newly introduced warning while ignoring the same warning in a dependency you already had.
 `;
 
 const agents = `
