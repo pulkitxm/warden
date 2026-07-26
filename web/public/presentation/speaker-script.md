@@ -1,47 +1,121 @@
 # Warden speaker script
 
-One block per slide, in order. Read it straight through, pause where the terminal is typing. Every terminal slide has a SKIP control in its title bar: press it to jump straight to the final state when you are short on time.
+One block per slide, in order. Terminal slides have a SKIP control that jumps to the final state when time is short.
 
 ## 1. Cover
 
-Every dependency change becomes a verified transaction. That's Warden in one line. Not a scanner that reports on a package after the fact, but a layer that plans the whole change, makes you approve only the part that executes, and can prove in CI that the change went through the reviewed path. It works the same whether a developer or a coding agent made the request.
+Every dependency change becomes a verified transaction. Warden protects the moment before package code can execute, then proves that the graph installed was the graph reviewed. It plans the complete change, names the exact authority required, suppresses lifecycle scripts, verifies the project, and leaves evidence for CI.
 
-## 2. The attack surface
+## 2. The dangerous moment
 
-The package is the payload. In 2025 alone, Sonatype found four hundred fifty four thousand six hundred forty eight malicious packages. The CVE program published forty eight thousand vulnerabilities. And a USENIX study found language models hallucinating over two hundred thousand fake package names, names attackers can register before anyone else does.
+Most dependency tools tell you what they found after a package has been installed. That is too late for a lifecycle script. It already ran with your permissions and could already have reached source, environment variables, registry tokens, or cloud credentials.
 
-## 3. Core loop: check
+Warden moves the decision to the point before download, unpack, or execution. That timing is the product.
 
-Here's the loop: resolve, verify, diff, scan, score, before anything runs. Watch this. We run `warden check` against a typosquatted package. It verifies integrity, checks the release diff, checks provenance, scans the code, and blocks it at a risk score of one hundred, before the install even starts.
+## 3. One request becomes a graph
 
-## 4. The core loop: plan and approve
+The package name a developer types is not the dependency change. In this example, asking for esbuild changes twenty-seven packages. Twenty-six are transitive.
 
-This is the slide that matters. You type `npm install esbuild`. That is one name, but twenty-seven packages arrive with it. Checking the name you typed leaves the other twenty-six unexamined, and a transitive addition is exactly where a compromised release hides.
+Checking only esbuild leaves the rest of the prospective graph unexamined. A compromised transitive release is exactly the kind of change a one-package check misses.
 
-So Warden resolves the complete prospective graph from registry metadata, without running a line of package code, and analyzes all twenty-seven. Watch the counters: that is real work, and Warden narrates it rather than going quiet, because a tool that goes silent for half a minute is a tool people turn off.
+## 4. The transaction model
 
-Then the decision. Exactly one package in this change wants to execute code at install time: esbuild's own postinstall. So the answer is not "allow" and not "block", it is "approve this one script". And that approval is bound to the version, the tarball digest, the hook, and the script body. Change any of them and it is void. Everything else installs with scripts suppressed.
+Warden gives the change four stages because each stage closes a different failure mode.
 
-## 5. Live product: doctor
+Plan resolves and analyzes the complete prospective graph. Approve replaces a broad bypass with one typed requirement. Apply replays the reviewed request with package scripts suppressed. Verify compares what landed with what was reviewed and runs the project's own checks.
 
-Same gate, run backward, across what's already installed. `wnpm doctor` audits your dependencies against OSV advisories, finds a critical vulnerability, and tries the official fix. But the official fix itself fails the supply chain gate, so it's marked unfixable and Warden tells you exactly why.
+Incomplete coverage cannot become a confident allow.
 
-## 5. Live product: intent
+## 5. Plan demonstration
 
-This is the new one: claims from the prompt, checked against the diff. You tell your agent to add rate limiting, keep the retry logic, and log every rate-limited request. Warden extracts those three claims, checks them against what actually changed, and catches what most reviewers miss: a dropped requirement, scope creep in a file nobody asked to touch, and a hallucinated API call that doesn't exist.
+Here is the whole-graph decision. The request names one package. Warden resolves twenty-seven changed artifacts and analyzes all twenty-seven.
 
-## 6. Product surface
+One package introduces execution at install time, so the decision is not allow and not a generic block. It is needs approval, with the exact hook named.
 
-One trust layer, every workflow. Eight commands, one contract: allow, warn, or block. Check a package, gate CI, audit and repair, diff intent against a prompt, map your workspace, wire up guardrails, hand off a fix to an agent, or just observe. It shims npm, pnpm, yarn, bun, npx, and bunx. Protect mode blocks. Observe mode just records.
+The approval is bound to the package, version, tarball integrity, hook, and script body. Change any field and it no longer matches. Approval authorizes the transaction. The package script still never runs.
 
-## 7. Agent-first guardrail
+## 6. Apply and receipt
 
-Your agent gets evidence, a fix, and a finish line. Warden writes a structured handoff file the agent can read, so instead of guessing, it gets the finding, the evidence, and the fix already spelled out. It works the same way across Claude Code, Codex, Cursor, Copilot, Gemini, aider, and opencode: detect, handoff, fix, verify clean.
+Apply replays the exact manager command that was planned, suppresses every lifecycle script through the manager's native setting, and runs test, typecheck, and build when the project provides them.
 
-## 8. Close
+It then digests the graph that actually landed. If that graph differs from the plan, or a verification step fails, Warden restores the manifest and every lockfile.
 
-Keep the workflow, add the checkpoint. Request goes to Warden, Warden returns a verified execution, everywhere: local, package managers, CI, coding agents. Same package we opened with, now allowed, risk four out of a hundred.
+The receipt records the reviewed graph, observed graph, policy, coverage, approvals, suppressed scripts, verification, and result. The honest boundary is that rollback does not restore node_modules or side effects from project verification.
 
-## 9. Sources
+## 7. The control that survives bypass
 
-Everything on the numbers slide traces back to four sources: the CVE Program, the Sonatype 2026 report, the USENIX Security 2025 hallucination study, and the OSV advisory database. Figures checked July 14th, 2026.
+There are three enforcement layers. Guidance teaches the safe loop. Interception mediates normal package-manager commands. Verification makes CI demand a valid transaction receipt.
+
+An absolute path or a container can bypass a PATH shim. Warden does not pretend otherwise. The receipt gate is the control that does not trust the developer machine. If the dependency graph changed without valid evidence, the pull request does not merge.
+
+## 8. Release evidence and repository surfaces
+
+The package engine verifies integrity, compares the release with its predecessor, scans JavaScript through an AST walk, checks name attacks and curated intel, and produces a deterministic score.
+
+Warden also audits three repository surfaces. The lockfile answers where bytes will come from. The lifecycle-script audit answers what code would run during installation. The registry-config audit answers where credentials could be sent.
+
+Repeat verdicts are cached by tarball integrity and analyzer version, so analysis stays fast without trusting an older result for different bytes or different rules.
+
+## 9. One policy across managers
+
+Package managers already expose valuable controls, but each manager names and types them differently. Warden takes one repository intent and compiles it into the strongest native settings available for npm, pnpm, Yarn, or Bun.
+
+It also names gaps instead of hiding them. If a manager cannot express semantic downgrade blocking or lockfile reverification, Warden enforces that intent in the transaction plan and receipt gate.
+
+The project keeps its chosen package manager. Warden detects and preserves it rather than silently changing tools.
+
+## 10. Safe dependency repair
+
+A vulnerability advisory can name a fixed version that is itself a supply-chain risk. Doctor does more than list CVEs.
+
+It reads advisories, builds minimal and latest repair plans, gates every candidate through the same package engine, and verifies surviving plans in an isolated copy of the project before applying one.
+
+In this demonstration, the official fix adds a suspicious install script and loses provenance, so Warden marks it unfixable. A different safe repair installs, passes tests, and is applied.
+
+## 11. Intent verification
+
+Dependency security is only one failure mode in agent-driven changes. Code can compile while dropping a requirement, changing unrelated scope, or calling an API that never existed.
+
+Warden decomposes the prompt into claims and compares those claims with the diff. It separates delivered and preserved requirements from dropped work and scope creep. A deterministic symbol scan checks newly added member calls against package exports it can prove.
+
+When the repository carries a prompt file, CI runs the same check automatically for changed JavaScript and TypeScript.
+
+## 12. Automation contract
+
+Automation needs something stronger than prose logs. Every Warden surface follows the same exit-code contract and exposes structured JSON, versioned schemas, typed errors, evidence, a suggested fix, and a verification command.
+
+Registry-authored strings are sanitized and kept under an untrusted boundary so a security tool does not become an instruction-injection path.
+
+Adapter setup reports which guidance, interception, post-change, and tool capabilities are actually available. The generated tool surface is read-only. Project-changing commands remain human-controlled.
+
+## 13. The full product
+
+This is the shipped command surface organized by the question it answers.
+
+For package trust, teams can check, explain, trace history, compare candidates, record a trusted baseline, and inventory scripts awaiting approval.
+
+For guardrail health, teams can publish interception coverage, diagnose integrations, detect the workspace, initialize project controls, choose protect or observe behavior, and inspect verdict history.
+
+For dependable automation, Warden preserves the selected package manager, emits five CI reporter formats, publishes schemas and completions, reproduces its benchmark, and provides a complete uninstall path.
+
+## 14. Evidence and limits
+
+The benchmark is reproducible from the repository. It runs twenty-one curated dependency-graph shapes through the real resolver and transaction decision. All twelve attack shapes stop. None of the nine benign shapes stop.
+
+These are regression cases, not a claim about field accuracy.
+
+The limits matter too. Local shims are not a sandbox. Scripts remain suppressed even after approval. Rollback covers project manifests and lockfiles, not node_modules. Receipts are unsigned evidence rather than independent attestation.
+
+This is a technical alpha with a working control plane and explicit boundaries.
+
+## 15. Close
+
+Warden does not ask developers to replace their package manager, coding workflow, or CI system. It adds a chain of custody.
+
+A human or automated request becomes a plan, the plan names any required authority, the exact request is applied under suppression and verification, and CI receives a receipt it can enforce.
+
+One decision contract, everywhere: allow, warn, needs approval, or block.
+
+## 16. Sources
+
+The external scale claims come from the Sonatype software supply-chain report and the USENIX Security package hallucination study. Advisory data is represented by OSV. Product and benchmark claims point to the shipped repository documentation, command registry, and published corpus.
