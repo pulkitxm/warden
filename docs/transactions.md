@@ -7,11 +7,22 @@ A package name is not a dependency change. Typing `npm install @fastify/jwt` add
 ## What a plan does
 
 1. Read the requirements: the packages named on the command line, plus everything the manifest already declares.
-2. Resolve the complete prospective graph from registry metadata, direct and transitive. Nothing is downloaded, unpacked, or executed to do this.
+2. Resolve the complete prospective graph, direct and transitive. Nothing is downloaded, unpacked, or executed to do this.
 3. Read the graph that exists today from the lockfile, and the lifecycle hooks of what is actually installed under `node_modules`.
 4. Diff the two: additions, version moves, removals, and the packages whose install scripts are new relative to the graph already in place.
 5. Vet every added or changed package through the same engine as `warden check`.
 6. Return one decision for the transaction, and write the plan to `.warden/plans/<plan-id>.json`.
+
+Every plan also records the `request` it was built from: the manager, the operation, the exact argv, the working directory, the specs, and the dependency class. `warden apply` replays that request rather than reconstructing an install command, so what is applied is the command that was planned.
+
+## Two resolvers
+
+Step 2 has two implementations, and the plan says which one produced it in its `resolver` field. They differ in who picks the versions, not in what gets reported about them.
+
+- `resolver: "manager"`. Warden copies the manifest, lockfile, and registry config into a temporary directory and asks the project's own package manager to resolve there with no scripts and no downloads: `npm install --package-lock-only`, `pnpm --lockfile-only`, `yarn install --mode=update-lockfile`. The manager's own solver picks the versions, so the answer is the one that manager would actually install, peer resolution and all. Used whenever the manager is on PATH and can do it.
+- `resolver: "metadata"`. Warden walks the registry metadata itself, breadth-first, taking one version per package name. This is the fallback, and it is what `bun`, `yarn add`, and the interception shim use.
+
+Either way, every changed package is then described from its registry manifest, so install scripts, deprecations, and platform constraints are reported the same on both paths. What a manager-resolved graph does not carry is the dependency structure: `requiredBy` is empty and every node sits at depth 1, because a lockfile records what was selected rather than who asked for it.
 
 ```bash
 warden plan -- npm install @fastify/jwt
@@ -55,7 +66,7 @@ Resolution is flat: one version per package name, which matches how a hoisting i
 
 ## Graph digests
 
-Each plan records `graph_before` and `graph_after` as sha256 digests over the sorted `name@version` set. The plan id is derived from the command and the resulting graph, so replanning the same change in the same project yields the same id, and any difference in what would be installed yields a different one.
+Each plan records `graph_before` and `graph_after` as sha256 digests over the sorted `name@version|integrity|source` lines of the graph, so a republished tarball at the same version changes the digest. The plan id is derived from the command and the resulting graph, so replanning the same change in the same project yields the same id, and any difference in what would be installed yields a different one.
 
 ## Applying
 
@@ -63,10 +74,13 @@ Each plan records `graph_before` and `graph_after` as sha256 digests over the so
 
 1. Refuse outright if the plan was blocked.
 2. Refuse if any new install script has no matching approval, unless `--allow-unapproved` is passed.
-3. Install through the project's own package manager with lifecycle scripts suppressed by that manager's native mechanism.
-4. Run the project's `test`, `typecheck`, and `build` scripts, in that order, stopping at the first failure.
-5. Restore `package.json` if the install or any verification step fails. This is a manifest rollback, not a transaction rollback: the lockfile, `node_modules`, and anything verification touched are left as the failure left them.
-6. Write a transaction receipt.
+3. Refuse if the graph was truncated or any changed package went unanalyzed, unless `--allow-incomplete-analysis` is passed.
+4. Refuse if the project's graph has moved since the plan was made, unless `--allow-stale-plan` is passed.
+5. Replay the planned request through the project's own package manager with lifecycle scripts suppressed by that manager's native mechanism.
+6. Run the project's `test`, `typecheck`, and `build` scripts, in that order, stopping at the first failure.
+7. Digest the graph that actually landed and record it as `observed_graph`. If it is not the graph the plan reviewed, roll back.
+8. Restore the manifest and every lockfile if the install fails, a verification step fails, or the observed graph does not match. `node_modules` and anything verification touched are left as the failure left them, so this is not a full transaction rollback.
+9. Write a transaction receipt.
 
 Scripts stay suppressed for the entire install, including for approved packages. An approval governs whether the transaction may proceed at all; it is not a handoff of execution to package code mid-install.
 
@@ -91,20 +105,30 @@ Applying writes a receipt to `.warden/receipts/<transaction-id>.json`, mirrored 
 ```json
 {
   "schema_version": 1,
-  "transaction_id": "wtxn_...",
-  "plan_id": "wtxn_...",
+  "transaction_id": "wtxn_acb0875bfa27e1ebfa8caeaf",
+  "plan_id": "wtxn_8f2eb19ab77eb529",
   "command": "npm install @fastify/jwt",
   "manager": { "name": "npm" },
-  "graph_before": "sha256:...",
-  "graph_after": "sha256:...",
-  "policy_digest": "sha256:...",
-  "artifacts": [{ "package": "@fastify/jwt", "version": "9.1.0", "verdict": "allow" }],
+  "graph_before": "sha256:3bc2b0696976ac757083c3619fc897fcd717ac39d5785209bcc9639785c06fdb",
+  "graph_after": "sha256:a127760fecb753989d333faeadc1cc2d2fd46d384fea3649fd8431414af3d9f5",
+  "observed_graph": "sha256:a127760fecb753989d333faeadc1cc2d2fd46d384fea3649fd8431414af3d9f5",
+  "request_digest": "sha256:851a2325b0d111e16d289f244a18ffb39ff1d06485c9167feabe397f203e914d",
+  "policy_digest": "sha256:835c4b54e47b8c9348b7a79a86bb8bd55a0d25e95d8cd4608e383744667794d7",
+  "artifacts": [{ "package": "@fastify/jwt", "version": "10.2.0", "verdict": "allow" }],
   "approvals": [],
   "suppressed_scripts": [],
-  "verification": { "install": "pass", "test": "pass", "typecheck": "skipped", "build": "skipped" },
-  "result": "applied"
+  "verification": {
+    "install": "pass",
+    "test": "skipped",
+    "typecheck": "skipped",
+    "build": "skipped"
+  },
+  "result": "applied",
+  "analyzer_version": "0.1.0"
 }
 ```
+
+`graph_after` is what the plan predicted. `observed_graph` is what the lockfile said once the install finished, and `request_digest` covers the manager, operation, argv, working directory, workspace, dependency class, and the exact and global flags, so a receipt cannot be reused for a different command that happened to produce the same graph.
 
 ## Verifying in CI
 

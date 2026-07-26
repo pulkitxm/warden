@@ -54,7 +54,7 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
 
   plan: {
     intro:
-      "The transaction verb. `warden plan` resolves the complete prospective dependency graph from the registry, without running a single line of package code, diffs it against what is installed today, vets every added or changed package, and returns one decision for the whole change rather than a verdict per package name you happened to type.",
+      "The transaction verb. `warden plan` resolves the complete prospective dependency graph, without running a single line of package code, diffs it against what is installed today, vets every added or changed package, and returns one decision for the whole change rather than a verdict per package name you happened to type.",
     whenToUse: [
       "Before adding a dependency, to see what actually enters the graph rather than only what you asked for.",
       "In an agent loop, with `--json`, as the gate that decides whether the install proceeds at all.",
@@ -76,9 +76,10 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       },
     ],
     behaviour:
-      "Resolution walks the registry metadata for every requirement, direct and transitive, choosing one version per package. Nothing is downloaded, unpacked, or executed to build the graph. The delta names additions, version moves, removals, the packages that carry install scripts, and specifically which of those scripts are new relative to the graph you already trust. Every added or changed package is then vetted through the same engine as `warden check`. The plan is written to `.warden/plans/` under an id derived from the command and the resulting graph, so the same change always produces the same plan id.",
+      "Resolution has two paths and the plan says which one it used in its `resolver` field. When your package manager is on `PATH` and can resolve without downloading, Warden copies the manifest, lockfile, and registry config into a throwaway directory and lets that manager's own solver pick the versions. Otherwise Warden walks registry metadata itself, choosing one version per package. Nothing is downloaded, unpacked, or executed either way, and changed packages are described from their registry manifests on both paths. The delta names additions, version moves, removals, the packages that carry install scripts, and specifically which of those scripts are new relative to the graph you already trust. Every added or changed package is then vetted through the same engine as `warden check`. The plan is written to `.warden/plans/` under an id derived from the command and the resulting graph, so the same change always produces the same plan id, along with the `request` that produced it so `warden apply` can replay exactly that command.",
     gotchas: [
       "The decision is `NEEDS_APPROVAL`, not `ALLOW`, whenever new install scripts appear, the graph was truncated, or some changed packages fell outside the analysis budget. Warden reports incomplete coverage rather than implying it checked everything.",
+      "A manager-resolved graph knows which versions would be installed but not which dependents asked for them, so `requiredBy` is empty, every node sits at depth 1, and `conflicts` is always empty on that path. The execution surface is unaffected: changed packages are described from their registry manifests either way.",
       "A requirement that does not resolve from the registry blocks the transaction. Failing open on a resolution error would defeat the point of planning.",
       "Git, URL, file, link, and workspace ranges are outside registry resolution and are reported as unresolved rather than silently trusted.",
       "The plan describes what the resolver believes will happen. The package manager remains the thing that actually installs, which is why the receipt verified in CI matters.",
@@ -94,21 +95,25 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
       "When you want an installation whose outcome is recorded rather than assumed.",
     ],
     examples: [
-      { command: "warden apply wtxn_0a1b2c3d", description: "Apply a plan by its id." },
       {
-        command: "warden apply wtxn_0a1b2c3d --no-verify",
+        command: "warden apply wtxn_8f2eb19ab77eb529",
+        description: "Apply a plan by its id.",
+      },
+      {
+        command: "warden apply wtxn_8f2eb19ab77eb529 --no-verify",
         description: "Install without running the project's test, typecheck, and build scripts.",
       },
       {
-        command: "warden apply wtxn_0a1b2c3d --json",
+        command: "warden apply wtxn_8f2eb19ab77eb529 --json",
         description: "The receipt on stdout, for CI or an agent to store.",
       },
     ],
     behaviour:
-      "Scripts stay suppressed for the whole install, including for packages whose scripts are approved: approval governs whether the transaction may proceed, not whether Warden hands execution to arbitrary code mid-install. Suppression uses each manager's own mechanism. After a successful install the project's `test`, `typecheck`, and `build` scripts run in that order, stopping at the first failure, and any failure restores `package.json`. The receipt lands in `.warden/receipts/` and is mirrored to `.warden/last-receipt.json`.",
+      "The install is a replay of the request the plan recorded, not a reconstructed command, so what runs is what was planned. Scripts stay suppressed for the whole install, including for packages whose scripts are approved: approval governs whether the transaction may proceed, not whether Warden hands execution to arbitrary code mid-install. Suppression uses each manager's own mechanism. After a successful install the project's `test`, `typecheck`, and `build` scripts run in that order, stopping at the first failure. Warden then digests the graph that actually landed and records it as `observed_graph`. Any failure, or an observed graph that is not the one the plan reviewed, restores the manifest and every lockfile. The receipt lands in `.warden/receipts/` and is mirrored to `.warden/last-receipt.json`.",
     gotchas: [
       "A blocked plan is refused outright. There is no flag that turns a block into an install.",
-      "Failure restores `package.json`. It does not restore the lockfile, `node_modules`, or anything project verification touched, so this is a manifest rollback rather than a full transaction rollback. Staged application is the fix and is not built yet.",
+      "A plan is refused when the project's graph has moved since it was made. Re-plan, or pass `--allow-stale-plan` if you know why it moved.",
+      "Failure restores `package.json` and every lockfile. It does not restore `node_modules` or anything project verification touched, so this is not a full transaction rollback. Staged application is the fix and is not built yet.",
       "A plan is also refused when the graph was truncated or any changed package went unanalyzed. A script approval does not cover incomplete analysis.",
       "`--allow-unapproved` proceeds past missing script approvals, but the receipt still records every suppressed script, so the bypass is visible afterwards.",
       "The plan must still be on disk. Re-run `warden plan` if `.warden/plans/` was cleaned.",
@@ -158,13 +163,13 @@ export const COMMAND_NOTES: Record<string, CommandNote> = {
     examples: [
       { command: "warden verify", description: "Verify the most recent receipt." },
       {
-        command: "warden verify wtxn_0a1b2c3d",
+        command: "warden verify wtxn_acb0875bfa27e1ebfa8caeaf",
         description: "Verify one specific transaction by id.",
       },
       { command: "warden verify --json", description: "The machine-readable verification report." },
     ],
     behaviour:
-      "The installed graph is digested from the lockfile and compared against the digest in the receipt. The policy digest is compared against the plan still on disk when one is present. The receipt's own result and verification steps are checked, and any artifact that was never analyzed fails coverage. All five checks must hold for the transaction to verify.",
+      "The installed graph is digested from the lockfile and compared against the `graph_after` the receipt records. The policy digest is compared against the plan still on disk when one is present. The receipt's own result and verification steps are checked, and any artifact that was never analyzed fails coverage. All five checks must hold for the transaction to verify.",
     gotchas: [
       "A verified receipt says the committed graph matches a recorded, analyzed transaction. It does not prove that nothing ran outside Warden on the developer's machine.",
       "Exit `20` means a mismatch, which is deliberately the same code as a blocked package: both mean do not merge this.",

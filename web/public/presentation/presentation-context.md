@@ -22,7 +22,7 @@ Checking the package name you typed misses the change you actually made. `npm in
 
 So Warden treats the change as a transaction:
 
-1. **Plan.** Resolve the complete prospective graph from registry metadata, without running a line of package code. Diff it against the lockfile. Vet every added or changed package.
+1. **Plan.** Resolve the complete prospective graph, direct and transitive, without running a line of package code. Diff it against the lockfile. Vet every added or changed package.
 2. **Approve.** If the change introduces an install script, approve that one script, bound to its exact version, tarball digest, hook, and script body. Change any of those and the approval is void.
 3. **Apply.** Install through the project's own package manager with lifecycle scripts suppressed by that manager's native setting. Run the project's tests.
 4. **Verify.** Emit a receipt. In CI, `warden ci --require-transaction-receipt` fails a pull request whose graph changed without one.

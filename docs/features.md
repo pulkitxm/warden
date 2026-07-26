@@ -40,7 +40,7 @@ Verdicts are cached in SQLite (`~/.wnpm-cache/verdicts.sqlite`) keyed by tarball
 
 ## Dependency transactions
 
-`warden plan` resolves the complete prospective dependency graph, direct and transitive, before anything is installed. It diffs that graph against the one in the lockfile, vets every added or changed package through the same engine as `warden check`, names the install scripts that are new relative to the graph already trusted, and returns one decision for the whole change. Coverage is reported rather than assumed: a truncated graph or an unanalyzed package downgrades the decision to `NEEDS_APPROVAL` instead of allowing. See [transactions](transactions.md).
+`warden plan` resolves the complete prospective dependency graph, direct and transitive, before anything is installed, either through the project's own package manager in a throwaway directory or by walking registry metadata. It diffs that graph against the one in the lockfile, vets every added or changed package through the same engine as `warden check`, names the install scripts that are new relative to the graph already trusted, and returns one decision for the whole change. Coverage is reported rather than assumed: a truncated graph or an unanalyzed package downgrades the decision to `NEEDS_APPROVAL` instead of allowing. `warden apply` replays the exact request that was planned, and the receipt records the graph that actually landed alongside the graph that was reviewed. See [transactions](transactions.md).
 
 ## Command coverage
 

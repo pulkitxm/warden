@@ -619,16 +619,19 @@ It is probably resolving or downloading. \`warden plan\` reads a packument for e
 Every long command reports what it is doing on stderr. On a terminal that is one line, rewritten in place, naming the phase, how far through it is, and the package it is on:
 
 \`\`\`text
-⠹ vetting 40 changed packages · 12/40 · fast-jwt@5.0.6: downloading tarball 48.2s
+⠋ vetting 46 changed packages · 15/46 · fastify@5.10.0: downloading tarball 502ms
 \`\`\`
 
 When stderr is a pipe, a file, or an agent, there is no spinner. A phase that is still running after two seconds announces itself, repeats every fifteen, and prints a line with its duration when it ends:
 
 \`\`\`text
-  resolving the prospective dependency graph · 61/74 · reading fast-jwt (2.0s)
- ok resolving the prospective dependency graph · 74/74 12.4s
-  vetting 40 changed packages · 12/40 · fast-jwt@5.0.6: downloading tarball (17.0s)
+  resolving the prospective dependency graph · 9 · reading @esbuild/linux-arm (2.0s)
+ ok resolving the prospective dependency graph · 27 6.3s
+  vetting 27 changed packages · 1/27 · @esbuild/android-x64@0.28.1: diffing against 0.28.0 (2.0s)
+ ok vetting 27 changed packages · 27/27 11.1s
 \`\`\`
+
+Resolution reports how many nodes it has selected so far, with no total, because the size of the graph is not known until the walk finishes. Vetting knows its total up front and reports both.
 
 Phases shorter than a second leave nothing behind, so a fast run stays silent. \`--quiet\` silences progress entirely, and \`--json\` is unaffected either way: reports go to stdout, progress goes to stderr.
 
@@ -684,34 +687,72 @@ warden plan
 warden plan --json -- pnpm add zod
 \`\`\`
 
-Planning resolves the complete prospective graph from registry metadata, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. The graph is diffed against the one in your lockfile, and every added or changed package goes through the same engine as \`warden check\`.
+Planning resolves the complete prospective graph, direct and transitive. Nothing is downloaded, unpacked, or executed to build it. The graph is diffed against the one in your lockfile, and every added or changed package goes through the same engine as \`warden check\`.
 
 \`\`\`text
 Warden plan: npm install @fastify/jwt
 
 Direct changes
-  + @fastify/jwt 9.1.0
+  + @fastify/jwt 10.2.0
 
 Graph changes
-  + 7 transitive packages
-  ~ 2 existing packages resolved to a different version
+  + 20 transitive packages
+  ~ 0 existing packages resolved to a different version
   - 0 packages no longer required
-  = 214 unchanged
+  = 65 unchanged
+
+Execution surface
+  0 changed packages carry an install script
+  0 of those are new relative to the current graph
+  0 platform-specific artifacts will be added
+  0 requirements did not resolve from the registry
+
+Analysis coverage
+  21 of 21 changed packages analyzed (100%)
+
+Decision: WARN
+  @fastify/error: @fastify/error@4.2.0 warrants review: code requires child_process; code recursively deletes files; publisher email changed from the previous version.
+
+Next action
+  warden apply wtxn_8f2eb19ab77eb529
+
+  plan wtxn_8f2eb19ab77eb529 written to .warden/plans/wtxn_8f2eb19ab77eb529.json
+\`\`\`
+
+## Two resolvers
+
+The plan records which resolver produced its graph, and the difference is who picks the versions, not what gets reported about them. With \`resolver: "manager"\`, Warden copies the manifest, lockfile, and registry config into a throwaway directory and asks your own package manager to resolve there with no scripts and no downloads: \`npm install --package-lock-only\`, \`pnpm --lockfile-only\`, \`yarn install --mode=update-lockfile\`. That manager's own solver picks the versions, so the graph is the one it would actually install. With \`resolver: "metadata"\`, Warden walks registry metadata itself, one version per package name, which is the fallback and what \`bun\`, \`yarn add\`, and the interception shim use.
+
+Either way, every changed package is described from its registry manifest, so install scripts, deprecations, and platform constraints read the same on both paths. The graph above has no install script in it. This one does:
+
+\`\`\`text
+Warden plan: npm install esbuild
+
+Direct changes
+  + esbuild 0.28.1
+
+Graph changes
+  + 26 transitive packages
+  ~ 0 existing packages resolved to a different version
+  - 0 packages no longer required
+  = 0 unchanged
 
 Execution surface
   1 changed packages carry an install script
   1 of those are new relative to the current graph
-  1 platform-specific artifacts will be added
+  26 platform-specific artifacts will be added
   0 requirements did not resolve from the registry
 
 Analysis coverage
-  9 of 9 changed packages analyzed (100%)
+  27 of 27 changed packages analyzed (100%)
 
 Decision: NEEDS_APPROVAL
-  fast-jwt@5.0.6 has a postinstall script
+  esbuild@0.28.1 has a postinstall script
 
 Next action
-  warden approve-script fast-jwt@5.0.6 --hook postinstall --plan wtxn_0a1b2c3d
+  warden approve-script esbuild@0.28.1 --hook postinstall --plan wtxn_d0d5d95c8db60694
+
+  plan wtxn_d0d5d95c8db60694 written to .warden/plans/wtxn_d0d5d95c8db60694.json
 \`\`\`
 
 ## The decision
@@ -740,10 +781,25 @@ This replaces the pattern of a single broad override. A bypass scoped to exactly
 ## Apply
 
 \`\`\`sh
-warden apply wtxn_0a1b2c3d
+warden apply wtxn_8f2eb19ab77eb529
 \`\`\`
 
-Applying refuses a blocked plan outright, refuses while any new install script is unapproved, installs through your own package manager with lifecycle scripts suppressed by that manager's native mechanism, runs your \`test\`, \`typecheck\`, and \`build\` scripts in that order, restores \`package.json\` on any failure, and writes a receipt.
+Applying refuses a blocked plan outright, refuses while any new install script is unapproved, refuses a truncated or partially analyzed plan, and refuses a plan whose project has moved since it was made. It then replays the exact request that was planned through your own package manager with lifecycle scripts suppressed by that manager's native mechanism, runs your \`test\`, \`typecheck\`, and \`build\` scripts in that order, digests the graph that actually landed, restores the manifest and every lockfile on any failure or mismatch, and writes a receipt.
+
+\`\`\`text
+Warden apply: npm install @fastify/jwt
+
+  APPLIED  wtxn_acb0875bfa27e1ebfa8caeaf
+
+  Verification
+    install    pass
+    test       skipped
+    typecheck  skipped
+    build      skipped
+
+  0 approved scripts, 0 packages with scripts suppressed
+  receipt written to .warden/receipts/wtxn_acb0875bfa27e1ebfa8caeaf.json
+\`\`\`
 
 Scripts stay suppressed for the entire install, including for approved packages. Approval governs whether the transaction may proceed, not whether Warden hands execution to package code mid-install.
 
@@ -754,7 +810,19 @@ warden verify
 warden ci --require-transaction-receipt
 \`\`\`
 
-The receipt records both graph digests, the policy digest, every artifact verdict, every approval, every suppressed script, and the verification result. \`warden verify\` compares the graph digest of the committed lockfile against the one the receipt was issued for.
+The receipt records the reviewed graph digest, the graph that was actually observed after the install, a digest of the request itself, the policy digest, every artifact verdict, every approval, every suppressed script, and the verification result. \`warden verify\` runs five checks over it and all five must hold.
+
+\`\`\`text
+WARDEN VERIFY  wtxn_acb0875bfa27e1ebfa8caeaf
+
+  ok    graph matches receipt  the installed graph is the one the receipt was issued for
+  ok    policy digest          the receipt was issued under the plan still on disk
+  ok    result                 the transaction was applied
+  ok    project verification   no verification step failed
+  ok    artifact coverage      21 artifacts carry a verdict
+
+  plan wtxn_8f2eb19ab77eb529
+\`\`\`
 
 This is the honest answer to the fact that PATH shims can be bypassed. The local shim is convenience. CI receipt verification is the control that catches a developer or an agent installing outside Warden, without pretending the shim was ever a sandbox.
 
@@ -977,7 +1045,7 @@ Warden works best when you do not have to remember it. The installer places smal
 
 1. Classifies the command against a published grammar. Anything outside it passes straight through, untouched.
 2. Blocks sources with no registry provenance: git, url, and local paths.
-3. Builds the full transaction plan for an install, exactly as \`warden plan\` would.
+3. Builds the full transaction plan for an install, resolving from registry metadata rather than asking the package manager it is standing in front of.
 4. Delegates to the real package manager with lifecycle scripts suppressed by that manager's own mechanism.
 
 ## An install is gated on the whole graph
@@ -985,11 +1053,15 @@ Warden works best when you do not have to remember it. The installer places smal
 The shim used to vet only the package names you typed, which is precisely how a malicious transitive dependency slips through. It now gates on the complete prospective graph.
 
 \`\`\`text
-$ npm install @fastify/jwt
+$ npm install esbuild
 
 warden: install scripts new to this graph are suppressed and will not run:
-warden:   fast-jwt@5.0.6 (postinstall)
-warden:     approve with: warden approve-script fast-jwt@5.0.6 --hook postinstall
+warden:   esbuild@0.28.1 (postinstall)
+warden:     approve with: warden approve-script esbuild@0.28.1 --hook postinstall
+
+added 2 packages, and audited 3 packages in 990ms
+
+found 0 vulnerabilities
 \`\`\`
 
 \`\`\`text
@@ -1417,7 +1489,15 @@ The popularity table is 108 hardcoded names, so a typosquat of anything outside 
 `;
 
 const graphInternals = `
-Warden's transaction path has four stages that run in order: \`resolveGraph\` in \`src/graph/resolve.ts\` walks the registry to produce a flat set of nodes, \`graphDelta\` in \`src/graph/delta.ts\` diffs that set against what is already installed, \`buildPlan\` in \`src/graph/plan.ts\` vets the changed packages and reaches a decision, and \`applyTransaction\` in \`src/graph/apply.ts\` runs the install with lifecycle scripts suppressed and rolls back if anything fails. Each stage is deterministic and its output is serialisable, which is how \`warden plan\` can write a plan to \`.warden/plans/<plan_id>.json\` and \`warden apply\` can later act on exactly that plan.
+Warden's transaction path has four stages that run in order: a resolver produces a flat set of nodes, \`graphDelta\` in \`src/graph/delta.ts\` diffs that set against what is already installed, \`buildPlan\` in \`src/graph/plan.ts\` vets the changed packages and reaches a decision, and \`applyTransaction\` in \`src/graph/apply.ts\` runs the install with lifecycle scripts suppressed and rolls back if anything fails. Each stage is deterministic and its output is serialisable, which is how \`warden plan\` can write a plan to \`.warden/plans/<plan_id>.json\` and \`warden apply\` can later act on exactly that plan.
+
+## Two resolvers
+
+\`buildPlan\` calls \`deps.resolveWithManager\` first. \`resolveWithManager\` in \`src/graph/manager-resolve.ts\` copies \`package.json\`, every lockfile it recognises, \`.npmrc\`, \`.yarnrc.yml\`, and \`pnpm-workspace.yaml\` into a temporary directory and runs \`lockfileOnlyCommand\` there: \`npm install [specs] --package-lock-only --ignore-scripts --no-audit --no-fund\`, \`pnpm add|install --lockfile-only --ignore-scripts\`, or \`yarn install --mode=update-lockfile\`. It returns null for \`bun\`, for \`yarn\` with any spec, when the manager is not on \`PATH\`, when no \`package.json\` could be copied, when the command exits non-zero, or when the resulting lockfile parses to nothing. The plan records \`resolver: "manager"\` when it succeeded and \`resolver: "metadata"\` when it fell back.
+
+The manager path reads its result back through \`readInstalledGraph\`, which knows versions, integrity, and resolved URLs but takes hooks from \`node_modules/<name>/package.json\`, and the temporary directory has no \`node_modules\`. So \`buildPlan\` then calls \`describeFromRegistry\`, which fetches the packument for every node whose version differs from what is installed and overwrites \`hooks\` from \`hooksOf(version.scripts)\`, \`deprecated\`, and \`platformSpecific\` from \`os\` and \`cpu\`. Both resolvers therefore report the same execution surface. A packument that cannot be fetched leaves the lockfile's view of that node in place rather than failing the plan.
+
+What the manager path still does not carry is the dependency structure. Every manager-resolved node sits at \`depth: 1\` with an empty \`requiredBy\`, and \`conflicts\` is always empty, because a lockfile records the versions that were selected rather than which dependents asked for them.
 
 ## Walking the registry
 
@@ -1425,7 +1505,7 @@ Warden's transaction path has four stages that run in order: \`resolveGraph\` in
 
 For each queued requirement the range is first checked by \`isRegistryRange\`. Anything matching \`git\`, \`git+\`, \`github:\`, \`https?:\`, \`file:\`, \`link:\`, \`workspace:\`, \`npm:\`, or \`portal:\` is pushed to \`unresolved\` with the reason \`not a registry range\` and never fetched. Otherwise the packument is loaded once per name and memoised, so a package with fifty dependents costs one request. A rejected or throwing \`packument\` call is caught and treated as a null packument, which surfaces as the reason \`not found on the registry\` rather than an exception.
 
-\`selectVersion\` picks a version in this order: a \`dist-tags\` entry whose key equals the range; then, if the range is \`""\`, \`"*"\`, or \`"latest"\`, the \`latest\` dist-tag falling back to \`maxSatisfying(versions, "*")\`; then an exact version key; then \`maxSatisfying\`. Resolved nodes carry \`integrity\` and \`tarball\` from \`dist\`, the depth at which they were first reached, a \`requiredBy\` list of \`name@version\` labels, \`deprecated\`, and \`platformSpecific\` (true when the manifest declares any \`os\` or \`cpu\`). The \`hooks\` field is the subset of \`LIFECYCLE_HOOKS\`, which is exactly \`["preinstall", "install", "postinstall", "prepare", "prepublish"]\`, present as a non-empty string in \`scripts\`. Children are enqueued from \`dependencies\` and \`optionalDependencies\` at depth + 1. \`peerDependencies\` and bundled dependencies are not walked at all.
+\`selectVersion\` picks a version in this order: a \`dist-tags\` entry whose key equals the range; then, if the range is \`""\`, \`"*"\`, or \`"latest"\`, the \`latest\` dist-tag falling back to \`maxSatisfying(versions, "*")\`; then an exact version key; then \`maxSatisfying\`. Resolved nodes carry \`integrity\` and \`tarball\` from \`dist\`, the depth at which they were first reached, a \`requiredBy\` list of \`name@version\` labels, \`deprecated\`, and \`platformSpecific\` (true when the manifest declares any \`os\` or \`cpu\`). The \`hooks\` field is the subset of \`INSTALL_HOOKS\`, which is exactly \`["preinstall", "install", "postinstall"]\`, present as a non-empty string in \`scripts\`. \`LIFECYCLE_HOOKS\` adds \`prepare\` and is used only for sources built locally rather than installed from a registry tarball. Children are enqueued from \`dependencies\` and \`optionalDependencies\` at depth + 1. \`peerDependencies\` and bundled dependencies are not walked at all.
 
 ## One version per name
 
@@ -1438,15 +1518,15 @@ For each queued requirement the range is first checked by \`isRegistryRange\`. A
 | Budget | Constant | Default | Effect when hit |
 | --- | --- | --- | --- |
 | Nodes resolved | \`DEFAULT_MAX_NODES\` in resolve.ts | 750 | \`truncated = true\`, remaining queue entries dropped |
-| Packages analyzed | \`DEFAULT_MAX_CHECKS\` in plan.ts | 60 | artifact recorded with verdict \`unchecked\` |
+| Packages analyzed | \`DEFAULT_MAX_CHECKS\` in plan.ts | 400 | artifact recorded with verdict \`unchecked\` |
 
-Both are overridable through \`deps.maxNodes\` and \`deps.maxChecks\`, but neither CLI command passes an override, so the shipped defaults are 750 and 60. Truncated requirements are silently dropped from the node set: they do not appear in \`unresolved\`, only the \`truncated\` flag records that the walk was cut short. The check budget is spent in the order added-then-changed, each alphabetical, so it is deterministic but not risk-prioritised. A check that throws still consumes budget and produces an \`unanalyzable\` artifact.
+Both are overridable through \`deps.maxNodes\` and \`deps.maxChecks\`, but neither CLI command passes an override, so the shipped defaults are 750 and 400. Vetting runs \`DEFAULT_CONCURRENCY\` lanes, which is 8. Truncated requirements are silently dropped from the node set: they do not appear in \`unresolved\`, only the \`truncated\` flag records that the walk was cut short. The check budget is spent in the order added-then-changed, each alphabetical, so it is deterministic but not risk-prioritised. A check that throws still consumes budget and produces an \`unanalyzable\` artifact.
 
 ## The diff
 
 \`graphDelta\` compares resolved nodes to an \`InstalledGraph\` read by \`readInstalledGraph\` from the first parseable lockfile among \`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`. A node with no installed entry is \`added\`, an identical version increments \`unchanged\`, anything else is \`changed\` with a \`level\` from \`diffLevel\`. Installed names absent from the resolution become \`removed\`, sorted by name.
 
-The interesting field is \`newHooks\`. For an added package it is every hook the package has. For a changed package it is the hooks not present in the installed version's hook list, which \`hooksFromManifest\` reads from \`node_modules/<name>/package.json\`. If that manifest is missing or unreadable, hooks are undefined and every hook counts as new. From this, \`newScriptSurface\` is every touched package with at least one new hook, alongside \`scriptSurface\` (any hook at all), \`platformArtifacts\`, and \`deprecatedIntroduced\`. \`digestGraph\` hashes the sorted \`name@version\` lines with SHA-256.
+The interesting field is \`newHooks\`. For an added package it is every hook the package has. For a changed package it is the hooks not present in the installed version's hook list, which \`hooksFromManifest\` reads from \`node_modules/<name>/package.json\`. If that manifest is missing or unreadable, hooks are undefined and every hook counts as new. From this, \`newScriptSurface\` is every touched package with at least one new hook, alongside \`scriptSurface\` (any hook at all), \`platformArtifacts\`, and \`deprecatedIntroduced\`. \`digestGraph\` hashes the sorted \`name@version|integrity|source\` lines with SHA-256, where \`source\` is the lockfile's resolved URL or the packument's tarball URL, so a republished tarball at the same version changes the digest.
 
 ## Reaching a decision
 
@@ -1465,15 +1545,17 @@ Because the function returns early, a plan that reaches \`needs_approval\` never
 
 \`applyTransaction\` first builds an \`ApprovalRequest\` for every hook in \`newScriptSurface\`, fetching each script body through \`deps.scriptBody\`, and matches it against stored approvals. \`matchesApproval\` requires package, version, integrity, hook, and \`script_hash\` (SHA-256 of the trimmed body, truncated to 32 hex characters) to all be equal, so an approval dies when the version, the tarball integrity, or a single character of the script changes. Note that the integrity used comes from the plan artifact, and \`unchecked\` or \`unanalyzable\` artifacts carry none.
 
-A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--allow-unapproved\` is passed. Otherwise the manifest text is read and held in memory, and the install runs through \`installCommand(manager, packages, true)\`. Suppression is unconditional and applies even when every script is approved, so approval means "we read it", not "we ran it".
+A plan with decision \`block\` is refused outright. Missing approvals refuse unless \`--allow-unapproved\` is passed. A \`truncated\` plan, or one carrying any \`unchecked\` artifact, refuses unless \`--allow-incomplete-analysis\` is passed. \`checkPreconditions\` then digests the project's current graph and refuses when it is no longer \`plan.graph_before\`, unless \`--allow-stale-plan\` is passed, so a plan cannot be applied to a project that moved underneath it. Each refusal returns a receipt with result \`refused\` and every verification step \`skipped\`.
 
-Verification then runs \`<manager> run <step>\` for \`test\`, \`typecheck\`, \`build\` in that order, skipping any step the project's \`package.json\` does not define, unless \`--no-verify\` was given. A non-zero install or a failing step writes the original \`package.json\` text back and returns a receipt with result \`rolled_back\`. Otherwise the result is \`applied\`. The receipt records both graph digests, a \`policy_digest\`, the approvals used, and \`suppressed_scripts\` derived from the full \`scriptSurface\`.
+Past those gates, \`snapshotProject\` reads \`package.json\` and every lockfile it knows (\`package-lock.json\`, \`npm-shrinkwrap.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`bun.lockb\`) and holds their text in memory. The install itself is \`replayCommand(plan.request)\`: the manager plus the exact argv that was planned, with any \`--ignore-scripts\` the user typed filtered out and the manager's own suppression appended, which is \`--ignore-scripts\` for everything except yarn and \`YARN_ENABLE_SCRIPTS=0\` for yarn. A plan with no \`request\`, meaning one written before requests existed, falls back to \`installCommand(manager, packages, true)\`. Suppression is unconditional and applies even when every script is approved, so approval means "we read it", not "we ran it".
+
+Verification then runs \`<manager> run <step>\` for \`test\`, \`typecheck\`, \`build\` in that order, skipping any step the project's \`package.json\` does not define, unless \`--no-verify\` was given. Finally \`deps.currentGraphDigest\` digests what actually landed. A non-zero install, a failing step, or an observed graph that is not \`plan.graph_after\` restores the snapshot and returns a receipt with result \`rolled_back\`. Otherwise the result is \`applied\`. Either way the receipt records \`graph_before\`, \`graph_after\`, the \`observed_graph\` it measured, a \`request_digest\` over the request, a \`policy_digest\`, the approvals used, and \`suppressed_scripts\` derived from the full \`scriptSurface\`.
 
 ## Limitations worth knowing
 
-Script suppression in the apply path depends entirely on \`installCommand\`, which appends \`--ignore-scripts\` for npm and pnpm only. Yarn and Bun installs run with no suppression flag and no environment override, so \`warden apply\` does not stop lifecycle scripts under those two managers. The shim path carries a separate \`SUPPRESS_ENV\` with \`YARN_ENABLE_SCRIPTS=0\`, but \`applyTransaction\` does not use it.
+A plan written before requests existed has no \`request\`, so it falls back to \`installCommand\`, which appends \`--ignore-scripts\` for npm, pnpm, and bun but not for yarn. Re-plan rather than applying an old plan under yarn.
 
-Rollback restores only \`package.json\`. The lockfile and \`node_modules\` are left as the failed install left them. Resolution is a hoisted approximation, not a real npm tree, so it will not reproduce a case where two versions of a package legitimately coexist. Conflicts and version selection can therefore differ from what the manager actually installs.
+Rollback restores \`package.json\` and every lockfile, but \`node_modules\` and anything project verification touched are left as the failure left them, so this is not a full transaction rollback. Resolution is a hoisted approximation, not a real npm tree, so it will not reproduce a case where two versions of a package legitimately coexist. Conflicts and version selection can therefore differ from what the manager actually installs.
 `;
 
 const intentInternals = `

@@ -34,11 +34,19 @@ export const TRANSACTION_COMMANDS: readonly CommandDefinition[] = [
     flags: [
       { name: "--no-verify", description: "skip the project verification steps" },
       { name: "--allow-unapproved", description: "install even when scripts are unapproved" },
+      {
+        name: "--allow-incomplete-analysis",
+        description: "install a truncated or partially analyzed plan",
+      },
+      {
+        name: "--allow-stale-plan",
+        description: "install even though the graph moved since the plan was made",
+      },
       { name: "--json", description: "write the transaction receipt to stdout" },
       helpFlag,
     ],
     exitCodes: "0 applied · 20 refused · 30 rolled back or error",
-    example: "warden apply wtxn_0a1b2c3d",
+    example: "warden apply wtxn_8f2eb19ab77eb529",
     run: runWardenApply,
   },
   {
