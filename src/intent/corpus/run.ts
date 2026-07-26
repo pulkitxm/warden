@@ -3,10 +3,12 @@ import { parseProposals } from "../match.ts";
 import { liveIntentLlm, runIntentPipeline } from "../pipeline.ts";
 import type {
   ClaimStatus,
+  DependencyRule,
   IntentLlm,
   IntentPipelineDeps,
   IntentReport,
   MatchProposal,
+  PackageExists,
 } from "../types.ts";
 import type { CorpusCase } from "./cases.ts";
 import { corpusDiffText } from "./diff.ts";
@@ -89,6 +91,8 @@ export interface CaseResult {
   actualScopeCreep: boolean;
   expectedHallucinations: number;
   actualHallucinations: number;
+  expectedDependencyRules: DependencyRule[];
+  actualDependencyRules: DependencyRule[];
   correct: boolean;
   knownGap: boolean;
 }
@@ -154,6 +158,12 @@ export const KNOWN_GAPS: Record<string, string> = {
     "a preservation claim the prompt itself contradicts is reported dropped, where abstaining is the honest answer",
 };
 
+export function replayRegistry(entry: CorpusCase): PackageExists | undefined {
+  const table = entry.registry;
+  if (!table) return undefined;
+  return (name: string) => Promise.resolve(name in table ? table[name]! : null);
+}
+
 export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise<CaseResult> {
   let report: IntentReport | null = null;
   try {
@@ -163,6 +173,7 @@ export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise
       "corpusbase",
       entry.prompt,
       llm ?? replayLlm(entry),
+      replayRegistry(entry),
     );
     report = run.report;
   } catch {
@@ -172,6 +183,8 @@ export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise
   const actualVerdict: VerdictLevel | "error" = report?.verdict ?? "error";
   const actualScopeCreep = (report?.scope_creep.length ?? 0) > 0;
   const actualHallucinations = report?.hallucinations.length ?? 0;
+  const expectedDependencyRules = [...(entry.dependencyRules ?? [])].sort();
+  const actualDependencyRules = (report?.dependencies ?? []).map((finding) => finding.rule).sort();
   const claimsMatch =
     entry.expected.claims === "unpinned" ||
     JSON.stringify(actualClaims) === JSON.stringify(entry.expected.claims);
@@ -179,6 +192,7 @@ export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise
     actualVerdict === entry.expected.verdict &&
     actualScopeCreep === entry.expected.scopeCreep &&
     actualHallucinations === entry.expected.hallucinations &&
+    JSON.stringify(actualDependencyRules) === JSON.stringify(expectedDependencyRules) &&
     claimsMatch;
   return {
     id: entry.id,
@@ -192,6 +206,8 @@ export async function runCorpusCase(entry: CorpusCase, llm?: IntentLlm): Promise
     actualScopeCreep,
     expectedHallucinations: entry.expected.hallucinations,
     actualHallucinations,
+    expectedDependencyRules,
+    actualDependencyRules,
     correct,
     knownGap: entry.id in KNOWN_GAPS,
   };
@@ -210,6 +226,7 @@ export async function runCorpus(
   const claimCounts = emptyCounts();
   const creepCounts = emptyCounts();
   const hallucinationCounts = emptyCounts();
+  const dependencyCounts = emptyCounts();
   for (const result of results) {
     const expectedClaims = result.expectedClaims;
     if (expectedClaims !== "unpinned") {
@@ -228,6 +245,14 @@ export async function runCorpus(
       result.expectedHallucinations > 0,
       result.actualHallucinations > 0,
     );
+    const rules = new Set([...result.expectedDependencyRules, ...result.actualDependencyRules]);
+    for (const rule of rules) {
+      tally(
+        dependencyCounts,
+        result.expectedDependencyRules.includes(rule),
+        result.actualDependencyRules.includes(rule),
+      );
+    }
   }
 
   const conforming = results.filter((result) => result.kind === "conforming");
@@ -259,6 +284,7 @@ export async function runCorpus(
       claim_matching: score(claimCounts),
       scope_creep: score(creepCounts),
       hallucination: score(hallucinationCounts),
+      dependency: score(dependencyCounts),
     },
     results,
     knownGaps: results.filter((result) => result.knownGap && !result.correct).map((r) => r.id),
@@ -270,6 +296,8 @@ export async function runCorpus(
       "a degraded case exercises behaviour when a provider is unavailable, so it is scored for correctness but kept out of the false-positive denominator",
       "claim matching is scored on detecting a dropped claim, which is the outcome that blocks",
       "scope creep and hallucination are scored per case on whether the rule fired at all, not per hunk",
+      "the dependency rule is scored per rule per case, so an undeclared import reported as unpublished counts as both a miss and a false positive",
+      "registry answers are replayed from a per-case table, so no case reaches the network",
       "cases listed as known gaps are counted as failures in these figures, not excluded from them",
       "these are curated shapes, not a sample of real pull requests; read the rates as regression signals",
     ],

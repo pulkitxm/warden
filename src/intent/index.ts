@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { resolvePackage } from "../registry.ts";
 import { ANALYZER_VERSION, EXIT, INTENT_JSON_SCHEMA } from "../schema.ts";
 import type { WardenDeps } from "../shared/deps.ts";
 import { wardenFailure } from "../shared/errors.ts";
@@ -17,7 +18,12 @@ import {
   scanHallucinations,
 } from "./pipeline.ts";
 import { renderIntentReport } from "./report.ts";
-import type { ClassifiedHunk, HallucinationFinding, IntentLedger } from "./types.ts";
+import type {
+  ClassifiedHunk,
+  HallucinationFinding,
+  IntentLedger,
+  PackageExists,
+} from "./types.ts";
 
 export { liveIntentLlm, runIntentPipeline } from "./pipeline.ts";
 export type { IntentRun } from "./pipeline.ts";
@@ -27,6 +33,7 @@ export interface IntentFlags {
   prompt?: string;
   base?: string;
   json: boolean;
+  offline: boolean;
 }
 
 export function parseIntentArgs(argv: string[]): IntentFlags {
@@ -36,6 +43,7 @@ export function parseIntentArgs(argv: string[]): IntentFlags {
       prompt: { type: "string" },
       base: { type: "string" },
       json: { type: "boolean" },
+      offline: { type: "boolean" },
     },
     allowPositionals: true,
   });
@@ -44,8 +52,17 @@ export function parseIntentArgs(argv: string[]): IntentFlags {
     prompt: values.prompt,
     base: values.base,
     json: Boolean(values.json),
+    offline: Boolean(values.offline),
   };
 }
+
+export const registryPackageExists: PackageExists = async (name: string) => {
+  try {
+    return (await resolvePackage(name)).existsOnRegistry;
+  } catch {
+    return null;
+  }
+};
 
 function runIntentSchema(_flags: IntentFlags, deps: WardenDeps): number {
   deps.stdout(`${JSON.stringify(INTENT_JSON_SCHEMA, null, 2)}\n`);
@@ -151,7 +168,14 @@ async function runIntentCheck(flags: IntentFlags, deps: WardenDeps): Promise<num
   if (!prompt) return missingPrompt(deps, flags.json);
   gitResult(deps, root, ["rev-parse", "--is-inside-work-tree"]);
   const mergeBase = resolveMergeBase(deps, root, flags.base);
-  const { ledger, report }: IntentRun = await runIntentPipeline(deps, root, mergeBase, prompt);
+  const { ledger, report }: IntentRun = await runIntentPipeline(
+    deps,
+    root,
+    mergeBase,
+    prompt,
+    undefined,
+    flags.offline ? undefined : registryPackageExists,
+  );
   deps.stderr(renderLedger(ledger));
   writeWarden(deps, root, "claims.json", ledger);
   writeWarden(deps, root, "intent-report.json", report);

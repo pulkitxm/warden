@@ -1,5 +1,11 @@
 import { bold, dim } from "../shared/ansi.ts";
-import type { ClaimRow, IntentReport } from "./types.ts";
+import type { ClaimRow, DependencyRule, IntentReport } from "./types.ts";
+
+const DEPENDENCY_LABELS: Record<DependencyRule, string> = {
+  undeclared_import: "UNDECLARED",
+  known_hallucinated_name: "HALLUCINATED NAME",
+  unpublished_package: "NOT ON THE REGISTRY",
+};
 
 function icon(row: ClaimRow): string {
   if (row.verdict === "delivered") return "✅";
@@ -18,7 +24,8 @@ export function intentSummaryLine(report: IntentReport): string {
   const dropped = report.claims.filter((row) => row.verdict === "dropped").length;
   const partial =
     report.claims.filter((row) => row.verdict === "partial").length + report.scope_creep.length;
-  return `${delivered} ✅ · ${dropped} ❌ · ${partial} ⚠️ · ${report.hallucinations.length} 🚨`;
+  const flagged = report.hallucinations.length + report.dependencies.length;
+  return `${delivered} ✅ · ${dropped} ❌ · ${partial} ⚠️ · ${flagged} 🚨`;
 }
 
 export function renderIntentReport(report: IntentReport): string {
@@ -36,6 +43,13 @@ export function renderIntentReport(report: IntentReport): string {
         `[${row.file}:${row.line_start}-${row.line_end}]`,
       )}`,
     );
+  }
+  for (const finding of report.dependencies) {
+    lines.push(
+      `  🚨 ${DEPENDENCY_LABELS[finding.rule]}: ${finding.package}  ${dim(`[${finding.file}:${finding.line}]`)}`,
+    );
+    lines.push(`     ${finding.proof}`);
+    lines.push(`     fix: ${finding.fix}`);
   }
   for (const finding of report.hallucinations) {
     lines.push(`  🚨 HALLUCINATED: ${finding.symbol}  ${dim(`[${finding.file}:${finding.line}]`)}`);

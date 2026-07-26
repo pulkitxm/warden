@@ -3,6 +3,8 @@ import type { WardenDeps } from "../shared/deps.ts";
 
 export type IntentPipelineDeps = Pick<WardenDeps, "git" | "readFile">;
 
+export type PackageExists = (name: string) => Promise<boolean | null>;
+
 export type ClaimKind = "behavior" | "preservation" | "constraint" | "structural";
 
 export interface IntentClaim {
@@ -116,6 +118,21 @@ export interface IntentLlm {
 
 export type ClaimsStatus = "verified" | "unverifiable";
 
+export type DependencyRule =
+  | "undeclared_import"
+  | "known_hallucinated_name"
+  | "unpublished_package";
+
+export interface DependencyFinding {
+  package: string;
+  file: string;
+  line: number;
+  rule: DependencyRule;
+  level: "warn" | "block";
+  proof: string;
+  fix: string;
+}
+
 export interface IntentReport {
   schema_version: 2;
   source: "prompt";
@@ -125,6 +142,7 @@ export interface IntentReport {
   claims_status: ClaimsStatus;
   scope_creep: ScopeCreepRow[];
   hallucinations: HallucinationFinding[];
+  dependencies: DependencyFinding[];
   verdict: VerdictLevel;
   exit: number;
   llm: { extract_calls: number; match_calls: number };

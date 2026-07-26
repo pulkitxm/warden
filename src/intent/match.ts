@@ -5,6 +5,7 @@ import type {
   ClaimsStatus,
   ClaimStatus,
   ClassifiedHunk,
+  DependencyFinding,
   HallucinationFinding,
   IntentClaim,
   IntentReport,
@@ -333,6 +334,7 @@ export interface DecideInput {
   hunks: ClassifiedHunk[];
   proposals: MatchProposal[];
   hallucinations: HallucinationFinding[];
+  dependencies?: DependencyFinding[];
   llmMatchFailed: boolean;
   llmCalls: { extract_calls: number; match_calls: number };
   claimsStatus?: ClaimsStatus;
@@ -494,12 +496,14 @@ export function decide(input: DecideInput): IntentReport {
     );
   }
 
+  const dependencies = input.dependencies ?? [];
   const dropped = rows.some((row) => row.verdict === "dropped");
   const partial = rows.some((row) => row.verdict === "partial");
+  const blockingDependency = dependencies.some((finding) => finding.level === "block");
   const level: VerdictLevel =
-    dropped || input.hallucinations.length > 0
+    dropped || input.hallucinations.length > 0 || blockingDependency
       ? "block"
-      : partial || scopeCreep.length > 0 || claimsStatus === "unverifiable"
+      : partial || scopeCreep.length > 0 || claimsStatus === "unverifiable" || dependencies.length
         ? "warn"
         : "allow";
   return {
@@ -511,6 +515,7 @@ export function decide(input: DecideInput): IntentReport {
     claims_status: claimsStatus,
     scope_creep: scopeCreep,
     hallucinations: input.hallucinations,
+    dependencies,
     verdict: level,
     exit: exitCodeFor(level),
     llm: input.llmCalls,

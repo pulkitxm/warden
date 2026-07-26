@@ -10,13 +10,14 @@ $ warden intent bench
 
 Warden intent corpus  analyzer 0.1.0
 
-  verdicts        84.2%  16/19 cases match the expected verdict and per-claim outcomes
-  false positives 20.0%  2/10 conforming shapes not allowed  over budget 5.0%
+  verdicts        87.0%  20/23 cases match the expected verdict and per-claim outcomes
+  false positives 18.2%  2/11 conforming shapes not allowed  over budget 5.0%
 
   Per rule
     claim_matching   precision  60.0%  recall 100.0%  3/3 found, 2 false
     scope_creep      precision 100.0%  recall 100.0%  1/1 found, 0 false
     hallucination    precision 100.0%  recall 100.0%  3/3 found, 0 false
+    dependency       precision 100.0%  recall 100.0%  3/3 found, 0 false
 ```
 
 The first run of this corpus, before anything was fixed, measured **verdicts 72.2%, false positives
@@ -32,7 +33,7 @@ the code.
 ## The false-positive budget
 
 **At most 5%, targeting 2%.** That is a commitment, stated here so it can be held against the measured rate
-directly above it, which is currently **20%**, four times the budget.
+directly above it, which is currently **18.2%**, more than three times the budget.
 
 The number comes from what comparable tools measurably achieve. An independent three-week parallel run of four
 AI reviewers over 146 merged pull requests (May 2026) measured CodeRabbit at 2.3%, Cursor BugBot at 4.8%,
@@ -63,7 +64,8 @@ only from the exit code, so `warden intent bench` fails on a new regression rath
 | --- | --- | --- | --- |
 | `claim_matching` | 60.0% | 100.0% | Finds every dropped requirement, and is wrong two times in five when it says one was dropped. |
 | `scope_creep` | 100.0% | 100.0% | Correct on this corpus, on a single positive case. Do not read a rate off one case. |
-| `hallucination` | 100.0% | 100.0% | The only rule currently earning the authority to block. |
+| `hallucination` | 100.0% | 100.0% | Earning the authority to block. |
+| `dependency` | 100.0% | 100.0% | Earning it too, on three positive cases. Deterministic, so the rate should stay here. |
 
 Claim matching's precision being the weak number is not a surprise. Automated requirement-to-code trace-link
 recovery has been studied for two decades, and information-retrieval methods on six open-source projects
@@ -109,6 +111,9 @@ claim matching should not be blocking a pull request at this measured precision.
   one point in time. They do not measure how much a verdict moves between providers or between runs, which
   matters because the zero-key CLI providers cannot set temperature.
 - **Scope creep has one positive case.** Its 100% is arithmetic, not evidence.
+- **The registry is never actually called.** The dependency rule's `unpublished_package` case replays a
+  recorded registry answer from a per-case table. It measures that the rule reacts correctly to a "no such
+  package" answer, not that the registry lookup itself is reliable.
 
 ## Drift, on purpose
 

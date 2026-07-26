@@ -21,6 +21,7 @@ test("parseIntentArgs defaults to the check verb with no flags", () => {
     prompt: undefined,
     base: undefined,
     json: false,
+    offline: false,
   });
 });
 
@@ -30,6 +31,7 @@ test("parseIntentArgs reads verb, prompt, base, and json", () => {
     prompt: "add x",
     base: "main",
     json: true,
+    offline: false,
   });
 });
 
@@ -97,5 +99,10 @@ test("warden intent bench --json emits the report the docs are generated from", 
   };
   expect(report.schema_version).toBe(1);
   expect(report.falsePositives.budget).toBe(0.05);
-  expect(Object.keys(report.rules)).toEqual(["claim_matching", "scope_creep", "hallucination"]);
+  expect(Object.keys(report.rules)).toEqual([
+    "claim_matching",
+    "scope_creep",
+    "hallucination",
+    "dependency",
+  ]);
 });

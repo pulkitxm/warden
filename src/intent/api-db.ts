@@ -282,6 +282,11 @@ const NODE_BUILTINS = new Set([
   "zlib",
 ]);
 
+export function isNodeBuiltin(spec: string): boolean {
+  if (spec.startsWith("node:")) return true;
+  return NODE_BUILTINS.has(spec.split("/")[0] ?? spec);
+}
+
 export function curatedSurface(pkg: string): ApiSurface | undefined {
   const direct = API_SIGNATURES[pkg];
   if (direct) return direct;

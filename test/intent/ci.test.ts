@@ -201,6 +201,45 @@ test("warden ci github reporter annotates dropped claims and hallucinations", as
   expect(state.err.join("")).toContain("intent  1 ✅ · 1 ❌ · 0 ⚠️ · 1 🚨");
 });
 
+test("warden ci annotates an added import the manifest never declared", async () => {
+  mockLlm();
+  const undeclaredImage = ['import axios from "axios";', "export const client = axios;"].join("\n");
+  const undeclaredDiff = [
+    "diff --git a/api-client.ts b/api-client.ts",
+    "index 1111111..2222222 100644",
+    "--- a/api-client.ts",
+    "+++ b/api-client.ts",
+    "@@ -1,0 +1,2 @@",
+    '+import axios from "axios";',
+    "+export const client = axios;",
+    "",
+  ].join("\n");
+  const state = makeDeps({
+    readFile: (path) => {
+      if (slash(path) === "/repo/api-client.ts") return undeclaredImage;
+      if (slash(path) === "/repo/package.json") return '{"name":"probe","dependencies":{}}';
+      throw new Error("ENOENT");
+    },
+    git: (args) => {
+      if (args[0] === "rev-parse") return { exitCode: 0, stdout: "true\n", stderr: "" };
+      if (args[0] === "merge-base") return { exitCode: 0, stdout: "abc123def456\n", stderr: "" };
+      if (args[0] === "diff" && args[1] === "--name-only")
+        return { exitCode: 0, stdout: "api-client.ts\n", stderr: "" };
+      if (args[0] === "diff") return { exitCode: 0, stdout: undeclaredDiff, stderr: "" };
+      return { exitCode: 1, stdout: "", stderr: "unexpected git call" };
+    },
+  });
+  expect(
+    await runWarden(
+      ["ci", "--reporter", "github", "--intent-prompt", "add rate limiting"],
+      state.deps,
+    ),
+  ).toBe(20);
+  const annotations = state.out.join("");
+  expect(annotations).toContain("intent: undeclared_import axios");
+  expect(annotations).toContain("Fix: add \"axios\" to package.json");
+});
+
 test("warden ci keeps the guard verdict when it outranks intent", async () => {
   mockLlm();
   const state = makeDeps({

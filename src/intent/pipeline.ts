@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { gitResult } from "../shared/git.ts";
 import { classifyHunks, parseUnifiedDiff, symbolScanFiles } from "./diff.ts";
+import { type DependencyScan, scanDependencies } from "./deps.ts";
 import { extractClaims } from "./extract.ts";
 import { intentLlmStats } from "./llm.ts";
 import { decide, keywordPass, llmPass } from "./match.ts";
@@ -13,6 +14,7 @@ import type {
   IntentLlm,
   IntentPipelineDeps,
   IntentReport,
+  PackageExists,
 } from "./types.ts";
 
 export const liveIntentLlm: IntentLlm = { extract: extractClaims, match: llmPass };
@@ -67,12 +69,28 @@ export function collectFileDiffs(
   return parseUnifiedDiff(untracked === "" ? tracked : `${tracked}\n${untracked}`);
 }
 
+function scanFilesFor(
+  context: DiffContext,
+  deps: IntentPipelineDeps,
+): Map<string, { code: string; addedLines: Set<number> }> {
+  return symbolScanFiles(context.diffs, (path) => deps.readFile(join(context.root, path)));
+}
+
 export function scanHallucinations(
   context: DiffContext,
   deps: IntentPipelineDeps,
 ): HallucinationFinding[] {
-  const files = symbolScanFiles(context.diffs, (path) => deps.readFile(join(context.root, path)));
-  return findHallucinations(files, context.root, { readFile: deps.readFile });
+  return findHallucinations(scanFilesFor(context, deps), context.root, {
+    readFile: deps.readFile,
+  });
+}
+
+export function scanImports(
+  context: DiffContext,
+  deps: IntentPipelineDeps,
+  packageExists?: PackageExists,
+): Promise<DependencyScan> {
+  return scanDependencies(scanFilesFor(context, deps), context.root, deps, packageExists);
 }
 
 export interface IntentRun {
@@ -86,11 +104,13 @@ export async function runIntentPipeline(
   mergeBase: string,
   prompt: string,
   llm: IntentLlm = liveIntentLlm,
+  packageExists?: PackageExists,
 ): Promise<IntentRun> {
   const diffs = collectFileDiffs(deps, root, mergeBase);
   const hunks = classifyHunks(diffs, (path) => deps.readFile(join(root, path)));
   const context: DiffContext = { root, mergeBase, diffs, hunks };
   const hallucinations = scanHallucinations(context, deps);
+  const imports = await scanImports(context, deps, packageExists);
   const before = intentLlmStats.calls;
   let ledger: IntentLedger;
   try {
@@ -105,12 +125,14 @@ export async function runIntentPipeline(
         hunks,
         proposals: [],
         hallucinations,
+        dependencies: imports.findings,
         llmMatchFailed: false,
         llmCalls: { extract_calls: intentLlmStats.calls - before, match_calls: 0 },
         claimsStatus: "unverifiable",
         notes: [
           `claims not verifiable: ${(error as Error).message}`,
-          `deterministic checks still ran: ${hunks.length} hunk(s) classified, ${hallucinations.length} hallucinated api(s) found`,
+          `deterministic checks still ran: ${hunks.length} hunk(s) classified, ${hallucinations.length} hallucinated api(s) found, ${imports.findings.length} dependency finding(s)`,
+          ...imports.notes,
         ],
       }),
     };
@@ -129,14 +151,18 @@ export async function runIntentPipeline(
     hunks,
     proposals: [...keyword, ...matched.proposals],
     hallucinations,
+    dependencies: imports.findings,
     llmMatchFailed: matched.failed,
     llmCalls: {
       extract_calls: afterExtract - before,
       match_calls: intentLlmStats.calls - afterExtract,
     },
     notes: matched.failed
-      ? [`${leftovers.length} claim(s) could not be matched: the match call failed`]
-      : [],
+      ? [
+          `${leftovers.length} claim(s) could not be matched: the match call failed`,
+          ...imports.notes,
+        ]
+      : imports.notes,
     afterFile: (file) => deps.readFile(join(root, file)),
   });
   return { ledger, report };

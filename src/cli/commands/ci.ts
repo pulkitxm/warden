@@ -238,6 +238,12 @@ export async function runWardenCi(argv: string[], deps: WardenDeps): Promise<num
             `::error file=${annotationValue(finding.file)},line=${finding.line}::${annotationValue(`intent: hallucinated api ${finding.symbol}. ${finding.proof}`)}\n`,
           );
         }
+        for (const finding of intent?.dependencies ?? []) {
+          const command = finding.level === "block" ? "error" : "warning";
+          deps.stdout(
+            `::${command} file=${annotationValue(finding.file)},line=${finding.line}::${annotationValue(`intent: ${finding.rule} ${finding.package}. ${finding.proof} Fix: ${finding.fix}`)}\n`,
+          );
+        }
       }
     }
     return exit;

@@ -1,5 +1,5 @@
 import type { VerdictLevel } from "../../schema.ts";
-import type { ClaimKind, ClaimStatus } from "../types.ts";
+import type { ClaimKind, ClaimStatus, DependencyRule } from "../types.ts";
 import type { FileChange } from "./diff.ts";
 
 export interface RecordedClaim {
@@ -30,6 +30,8 @@ export interface CorpusCase {
   changes: FileChange[];
   manifest?: Record<string, unknown>;
   nodeModules?: Record<string, string>;
+  registry?: Record<string, boolean>;
+  dependencyRules?: DependencyRule[];
   extract: RecordedClaim[] | "unavailable";
   match?: RecordedMatch[] | "unavailable";
   expected: CorpusExpectation;
@@ -820,6 +822,123 @@ export const CORPUS_CASES: CorpusCase[] = [
     expected: {
       verdict: "allow",
       claims: ["delivered", "delivered"],
+      scopeCreep: false,
+      hallucinations: 0,
+    },
+  },
+  {
+    id: "undeclared-import",
+    shape: "an added import of a package that is installed but never declared in package.json",
+    kind: "violating",
+    prompt: "use lodash chunk to split the batch into groups of ten",
+    changes: [
+      {
+        path: "batch.js",
+        after: 'import { chunk } from "lodash";\n\nexport function batches(items) {\n  return chunk(items, 10);\n}\n',
+      },
+    ],
+    manifest: { name: "probe", dependencies: {} },
+    nodeModules: { "lodash/package.json": '{"name":"lodash","version":"4.17.21"}' },
+    dependencyRules: ["undeclared_import"],
+    extract: [
+      {
+        claim: "Split the batch into groups of ten using lodash chunk",
+        kind: "behavior",
+        keywords: ["chunk", "batch", "lodash"],
+        sourceText: "use lodash chunk to split the batch into groups of ten",
+      },
+    ],
+    match: [{ claim_id: "c1", hunk_ids: ["h1"], status: "delivered" }],
+    expected: {
+      verdict: "warn",
+      claims: ["delivered"],
+      scopeCreep: false,
+      hallucinations: 0,
+    },
+  },
+  {
+    id: "known-hallucinated-package",
+    shape: "an added import of a name on warden's curated slopsquat intel list",
+    kind: "violating",
+    prompt: "use react-codeshift to migrate the class components",
+    changes: [
+      {
+        path: "migrate.js",
+        after: 'import codeshift from "react-codeshift";\n\nexport function migrate(files) {\n  return codeshift.run(files);\n}\n',
+      },
+    ],
+    manifest: { name: "probe", dependencies: {} },
+    dependencyRules: ["known_hallucinated_name"],
+    extract: [
+      {
+        claim: "Migrate the class components with react-codeshift",
+        kind: "behavior",
+        keywords: ["migrate", "codeshift", "component"],
+        sourceText: "use react-codeshift to migrate the class components",
+      },
+    ],
+    match: [{ claim_id: "c1", hunk_ids: ["h1"], status: "delivered" }],
+    expected: {
+      verdict: "block",
+      claims: ["delivered"],
+      scopeCreep: false,
+      hallucinations: 0,
+    },
+  },
+  {
+    id: "unpublished-package",
+    shape: "an added import of a name the registry says has never been published",
+    kind: "violating",
+    prompt: "use fetch-retry-helper-pro to retry the upload",
+    changes: [
+      {
+        path: "upload.js",
+        after: 'import retry from "fetch-retry-helper-pro";\n\nexport function upload(url) {\n  return retry(url, 3);\n}\n',
+      },
+    ],
+    manifest: { name: "probe", dependencies: {} },
+    registry: { "fetch-retry-helper-pro": false },
+    dependencyRules: ["unpublished_package"],
+    extract: [
+      {
+        claim: "Retry the upload using fetch-retry-helper-pro",
+        kind: "behavior",
+        keywords: ["retry", "upload", "fetch"],
+        sourceText: "use fetch-retry-helper-pro to retry the upload",
+      },
+    ],
+    match: [{ claim_id: "c1", hunk_ids: ["h1"], status: "delivered" }],
+    expected: {
+      verdict: "block",
+      claims: ["delivered"],
+      scopeCreep: false,
+      hallucinations: 0,
+    },
+  },
+  {
+    id: "declared-import-is-quiet",
+    shape: "an added import of a package the manifest already declares, which must say nothing",
+    kind: "conforming",
+    prompt: "use the axios client to fetch the health endpoint",
+    changes: [
+      {
+        path: "health.js",
+        after: 'import axios from "axios";\n\nexport function health(base) {\n  return axios.get(base + "/health");\n}\n',
+      },
+    ],
+    manifest: { name: "probe", dependencies: { axios: "^1.18.1" } },
+    extract: [
+      {
+        claim: "Fetch the health endpoint with the axios client",
+        kind: "behavior",
+        keywords: ["health", "axios", "fetch"],
+        sourceText: "use the axios client to fetch the health endpoint",
+      },
+    ],
+    match: [{ claim_id: "c1", hunk_ids: ["h1"], status: "delivered" }],
+    expected: {
+      verdict: "allow",
+      claims: ["delivered"],
       scopeCreep: false,
       hallucinations: 0,
     },

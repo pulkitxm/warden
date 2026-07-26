@@ -2,18 +2,18 @@
   "schema_version": 1,
   "analyzer_version": "0.1.0",
   "totals": {
-    "cases": 19,
-    "conforming": 10,
-    "violating": 8,
+    "cases": 23,
+    "conforming": 11,
+    "violating": 11,
     "degraded": 1
   },
   "verdicts": {
-    "correct": 16,
-    "rate": 0.8421052631578947
+    "correct": 20,
+    "rate": 0.8695652173913043
   },
   "falsePositives": {
     "count": 2,
-    "rate": 0.2,
+    "rate": 0.18181818181818182,
     "budget": 0.05,
     "withinBudget": false
   },
@@ -35,6 +35,14 @@
       "recall": 1
     },
     "hallucination": {
+      "positives": 3,
+      "truePositives": 3,
+      "falsePositives": 0,
+      "falseNegatives": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "dependency": {
       "positives": 3,
       "truePositives": 3,
       "falsePositives": 0,
@@ -66,6 +74,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -91,6 +101,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -116,6 +128,8 @@
       "actualScopeCreep": true,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -134,6 +148,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 1,
       "actualHallucinations": 1,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -153,6 +169,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 1,
       "actualHallucinations": 1,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -178,6 +196,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": false,
       "knownGap": true
     },
@@ -199,6 +219,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -220,6 +242,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -241,6 +265,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": false,
       "knownGap": true
     },
@@ -262,6 +288,104 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "undeclared-import",
+      "shape": "an added import of a package that is installed but never declared in package.json",
+      "kind": "violating",
+      "expectedVerdict": "warn",
+      "actualVerdict": "warn",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "expectedDependencyRules": [
+        "undeclared_import"
+      ],
+      "actualDependencyRules": [
+        "undeclared_import"
+      ],
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "known-hallucinated-package",
+      "shape": "an added import of a name on warden's curated slopsquat intel list",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "expectedDependencyRules": [
+        "known_hallucinated_name"
+      ],
+      "actualDependencyRules": [
+        "known_hallucinated_name"
+      ],
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "unpublished-package",
+      "shape": "an added import of a name the registry says has never been published",
+      "kind": "violating",
+      "expectedVerdict": "block",
+      "actualVerdict": "block",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "expectedDependencyRules": [
+        "unpublished_package"
+      ],
+      "actualDependencyRules": [
+        "unpublished_package"
+      ],
+      "correct": true,
+      "knownGap": false
+    },
+    {
+      "id": "declared-import-is-quiet",
+      "shape": "an added import of a package the manifest already declares, which must say nothing",
+      "kind": "conforming",
+      "expectedVerdict": "allow",
+      "actualVerdict": "allow",
+      "expectedClaims": [
+        "delivered"
+      ],
+      "actualClaims": [
+        "delivered"
+      ],
+      "expectedScopeCreep": false,
+      "actualScopeCreep": false,
+      "expectedHallucinations": 0,
+      "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -283,6 +407,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -304,6 +430,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -319,6 +447,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 1,
       "actualHallucinations": 1,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -342,6 +472,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -363,6 +495,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -384,6 +518,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -403,6 +539,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -422,6 +560,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": true,
       "knownGap": false
     },
@@ -445,6 +585,8 @@
       "actualScopeCreep": false,
       "expectedHallucinations": 0,
       "actualHallucinations": 0,
+      "expectedDependencyRules": [],
+      "actualDependencyRules": [],
       "correct": false,
       "knownGap": true
     }
@@ -462,6 +604,8 @@
     "a degraded case exercises behaviour when a provider is unavailable, so it is scored for correctness but kept out of the false-positive denominator",
     "claim matching is scored on detecting a dropped claim, which is the outcome that blocks",
     "scope creep and hallucination are scored per case on whether the rule fired at all, not per hunk",
+    "the dependency rule is scored per rule per case, so an undeclared import reported as unpublished counts as both a miss and a false positive",
+    "registry answers are replayed from a per-case table, so no case reaches the network",
     "cases listed as known gaps are counted as failures in these figures, not excluded from them",
     "these are curated shapes, not a sample of real pull requests; read the rates as regression signals"
   ]
