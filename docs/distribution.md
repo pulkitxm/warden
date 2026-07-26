@@ -104,12 +104,12 @@ Notes the transcripts encode:
 Host stays clean while warden is in dev:
 
 - `Dockerfile` on `oven/bun`, copies the repo, runs `bun run build`.
-- `make docker-build` and `make docker-run ARGS="check left-pad"` wrap it; the run target mounts the current project directory read-only so checks see the real `package.json`.
+- `make docker-build` and `make docker-run ARGS="check left-pad"` wrap it; the run target mounts the current project directory so checks see the real `package.json` and installs can write to it.
 - CI can reuse the same image later.
 
 ```
 $ make docker-run ARGS="check left-pad"
-docker run --rm -v "$PWD":/work:ro warden:dev check left-pad
+docker run --rm -v "$PWD":/work warden:dev check left-pad
 
 ALLOW  left-pad@1.3.0  risk 3/100 · npm
   verdict: established package, no risk signals
