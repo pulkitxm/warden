@@ -110,8 +110,16 @@ function ClaudeIcon() {
   );
 }
 
+const COPY_STATES = {
+  idle: { icon: <CopyIcon />, label: "Copy Markdown", tone: "text-fog" },
+  loading: { icon: <SpinnerIcon />, label: "Copying", tone: "text-fog" },
+  copied: { icon: <CheckIcon />, label: "Copied", tone: "text-mint" },
+} as const;
+
+type CopyState = keyof typeof COPY_STATES;
+
 export function PageActions({ markdownPath, title }: { markdownPath: string; title: string }) {
-  const [state, setState] = useState<"idle" | "loading" | "copied">("idle");
+  const [state, setState] = useState<CopyState>("idle");
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
 
@@ -163,12 +171,20 @@ export function PageActions({ markdownPath, title }: { markdownPath: string; tit
         onClick={copyMarkdown}
         disabled={state === "loading"}
         aria-busy={state === "loading"}
-        className="flex items-center gap-2 rounded-l-lg border border-white/14 bg-navy-soft/60 px-3 py-1.5 text-[13px] font-medium text-white transition hover:border-mint/50 hover:bg-mint/10 hover:text-mint disabled:opacity-70 disabled:hover:border-white/14 disabled:hover:bg-navy-soft/60 disabled:hover:text-white"
+        className="grid rounded-l-lg border border-white/14 bg-navy-soft/60 px-3 py-1.5 text-[13px] font-medium text-white transition *:col-start-1 *:row-start-1 hover:border-mint/50 hover:bg-mint/10 hover:text-mint disabled:opacity-70 disabled:hover:border-white/14 disabled:hover:bg-navy-soft/60 disabled:hover:text-white"
       >
-        <span className={state === "copied" ? "text-mint" : "text-fog"}>
-          {state === "copied" ? <CheckIcon /> : state === "loading" ? <SpinnerIcon /> : <CopyIcon />}
-        </span>
-        {state === "copied" ? "Copied" : state === "loading" ? "Copying" : "Copy Markdown"}
+        {Object.entries(COPY_STATES).map(([key, { icon, label, tone }]) => (
+          <span
+            key={key}
+            aria-hidden={key !== state}
+            className={`flex items-center justify-center gap-2 transition-opacity duration-200 ${
+              key === state ? "" : "opacity-0"
+            }`}
+          >
+            <span className={tone}>{icon}</span>
+            {label}
+          </span>
+        ))}
       </button>
       <button
         type="button"
