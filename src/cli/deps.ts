@@ -13,10 +13,21 @@ import { runDoctor } from "../doctor/index.ts";
 import { checkPackage } from "../engine.ts";
 import type { RunDeps, WardenDeps } from "../shared/deps.ts";
 import { flushProgress, withoutProgress } from "../shared/progress.ts";
+import { baselinesFor } from "./commands/baseline.ts";
 import { selectManagers } from "./managers.ts";
 
+export function projectBaseline(
+  name: string,
+  root: string = process.cwd(),
+): { version: string; source: string } | undefined {
+  const [baseline] = baselinesFor(defaultWardenDeps, root, [name]);
+  if (!baseline || baseline.source === "none" || baseline.source === "previous-release")
+    return undefined;
+  return { version: baseline.version, source: baseline.source };
+}
+
 export const defaultDeps: RunDeps = {
-  check: checkPackage,
+  check: (spec) => checkPackage(spec, { baseline: projectBaseline }),
   stdout: (s) => {
     flushProgress();
     return process.stdout.write(s);

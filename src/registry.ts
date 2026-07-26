@@ -12,6 +12,7 @@ export interface PackageMeta {
   requestedVersionMissing?: boolean;
   versions: string[];
   previousVersion?: string;
+  previousIsTrustedBaseline?: boolean;
   publishedAt?: string;
   ageDays?: number;
   maintainers: string[];
@@ -99,7 +100,11 @@ export async function fetchPackument(name: string): Promise<GraphPackument | nul
   return getJson<GraphPackument>(`${registryBase()}/${encodeName(name)}`);
 }
 
-export async function resolvePackage(name: string, version = "latest"): Promise<PackageMeta> {
+export async function resolvePackage(
+  name: string,
+  version = "latest",
+  baselineVersion?: string,
+): Promise<PackageMeta> {
   const pack = await getJson<Packument>(`${registryBase()}/${encodeName(name)}`);
   if (!pack?.versions) {
     return { name, version, existsOnRegistry: false, versions: [], maintainers: [] };
@@ -122,7 +127,12 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
   if (!vd) return { name, version, existsOnRegistry: false, versions: ordered, maintainers: [] };
 
   const idx = ordered.indexOf(resolved);
-  const prev = idx > 0 ? ordered[idx - 1] : undefined;
+  const shipped = idx > 0 ? ordered[idx - 1] : undefined;
+  const trusted =
+    baselineVersion && baselineVersion !== resolved && pack.versions[baselineVersion]
+      ? baselineVersion
+      : undefined;
+  const prev = trusted ?? shipped;
   const prevData = prev ? pack.versions[prev] : undefined;
 
   const publishedAt = time[resolved];
@@ -141,6 +151,7 @@ export async function resolvePackage(name: string, version = "latest"): Promise<
     requestedVersionMissing,
     versions: ordered,
     previousVersion: prev,
+    ...(trusted ? { previousIsTrustedBaseline: true } : {}),
     publishedAt,
     ageDays,
     maintainers: names(vd.maintainers ?? pack.maintainers),

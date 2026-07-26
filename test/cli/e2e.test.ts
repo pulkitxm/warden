@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type FixturePackage, pkgJson } from "../../fixtures/registry/fixtures.ts";
 import { type MiniRegistry, startMiniRegistry } from "../../fixtures/registry/server.ts";
+import { defaultDeps } from "../../src/cli/deps.ts";
 import { CATEGORIES, type Evidence, VERDICT_JSON_SCHEMA, type Verdict } from "../../src/schema.ts";
 
 const warningFixture: FixturePackage = {
@@ -186,4 +187,51 @@ test("actual warden log tails recorded verdict JSON in order", async () => {
     .map((line) => JSON.parse(line) as Verdict);
   expect(entries.map((entry) => entry.package)).toEqual(["provenance-only", "chalk"]);
   expect(entries.map((entry) => entry.verdict)).toEqual(["warn", "block"]);
+});
+
+test("the default check compares a release against the baseline the project trusts", async () => {
+  const saved = {
+    registry: process.env.WNPM_REGISTRY,
+    downloads: process.env.WNPM_DOWNLOADS,
+    cache: process.env.WNPM_CACHE,
+  };
+  const project = mkdtempSync(join(tmpdir(), "warden-baseline-e2e-"));
+  const cwd = process.cwd();
+  process.env.WNPM_REGISTRY = registry.url;
+  process.env.WNPM_DOWNLOADS = registry.downloadsUrl;
+  process.env.WNPM_CACHE = ":memory:";
+  try {
+    process.chdir(project);
+    const withoutBaseline = (await defaultDeps.check("provenance-only@1.1.0")) as Verdict;
+    expect(withoutBaseline.compared_against).toEqual({
+      version: "1.0.0",
+      source: "previous-release",
+    });
+
+    mkdirSync(join(project, ".warden"), { recursive: true });
+    writeFileSync(
+      join(project, ".warden", "baselines.json"),
+      JSON.stringify({
+        schema_version: 1,
+        baselines: [
+          {
+            package: "provenance-only",
+            version: "1.0.0",
+            recordedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    const withBaseline = (await defaultDeps.check("provenance-only@1.1.0")) as Verdict;
+    expect(withBaseline.compared_against).toEqual({ version: "1.0.0", source: "recorded" });
+  } finally {
+    process.chdir(cwd);
+    rmSync(project, { recursive: true });
+    if (saved.registry === undefined) delete process.env.WNPM_REGISTRY;
+    else process.env.WNPM_REGISTRY = saved.registry;
+    if (saved.downloads === undefined) delete process.env.WNPM_DOWNLOADS;
+    else process.env.WNPM_DOWNLOADS = saved.downloads;
+    if (saved.cache === undefined) delete process.env.WNPM_CACHE;
+    else process.env.WNPM_CACHE = saved.cache;
+  }
 });
