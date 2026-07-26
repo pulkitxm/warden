@@ -734,9 +734,9 @@ body {
 
 .graph-edges path {
   fill: none;
-  stroke: #536992;
+  stroke: var(--blue);
   stroke-linecap: square;
-  stroke-width: 1.5;
+  stroke-width: 3;
 }
 
 .reveal .slides .graph-slide.present .graph-edges path {
@@ -1906,7 +1906,9 @@ body {
 }
 
 .maturity-note {
-  margin-top: 23px;
+  position: absolute;
+  bottom: 40px;
+  left: 58px;
   color: var(--coral);
   font: 600 13px / 1 var(--mono);
 }
@@ -2020,6 +2022,10 @@ body {
   opacity: 1 !important;
   transform: none !important;
   animation: none !important;
+}
+
+.static-export .reveal .slides .graph-slide.present .graph-edges path {
+  stroke-dashoffset: 0 !important;
 }
 
 @keyframes curtainFade {
