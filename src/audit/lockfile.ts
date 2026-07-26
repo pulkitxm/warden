@@ -1,6 +1,71 @@
 import { join } from "node:path";
+import { findNearestPopular } from "../distance/index.ts";
+import { parseIntegrity } from "../integrity.ts";
+import {
+  type Blocklist,
+  defaultBlocklist,
+  defaultHallucinated,
+  type HallucinatedNames,
+} from "../intel/index.ts";
 import { type LockEntry, lockfilesIn, unreadableLockfilesIn } from "../lockfile.ts";
 import type { AuditFinding, AuditFs, AuditReport } from "./types.ts";
+
+export interface LockIntel {
+  blocklist: Blocklist;
+  hallucinated: HallucinatedNames;
+}
+
+export const defaultLockIntel: LockIntel = {
+  blocklist: defaultBlocklist,
+  hallucinated: defaultHallucinated,
+};
+
+export function auditEntryIntel(entry: LockEntry, file: string, intel: LockIntel): AuditFinding[] {
+  const target = entry.version ? `${entry.name}@${entry.version}` : entry.name;
+
+  const known = intel.blocklist.match(entry.name, entry.version);
+  if (known) {
+    return [
+      {
+        rule: "lockfile_known_malware",
+        level: "block",
+        target,
+        file,
+        evidence: `resolved version is on the known-malware blocklist (${known.id})`,
+        fix: `remove ${entry.name} from the tree and reinstall a release outside the compromised range`,
+      },
+    ];
+  }
+
+  if (intel.hallucinated.has(entry.name)) {
+    return [
+      {
+        rule: "lockfile_hallucinated_name",
+        level: "block",
+        target,
+        file,
+        evidence: "name matches a package LLMs are known to invent, a standing slopsquat target",
+        fix: "remove the dependency and confirm the real package name before reinstalling",
+      },
+    ];
+  }
+
+  const near = findNearestPopular(entry.name, 1);
+  if (near) {
+    return [
+      {
+        rule: "lockfile_typosquat",
+        level: "warn",
+        target,
+        file,
+        evidence: `one edit from ${near.target}, which has ${near.targetWeekly.toLocaleString()} weekly downloads`,
+        fix: `confirm you meant ${entry.name} rather than ${near.target}`,
+      },
+    ];
+  }
+
+  return [];
+}
 
 const TRUSTED_HOSTS = new Set([
   "registry.npmjs.org",
@@ -112,12 +177,25 @@ export function auditLockEntry(entry: LockEntry, file: string): AuditFinding[] {
       evidence: "integrity uses sha1, which is not collision resistant",
       fix: "reinstall with a current package manager to upgrade the hash to sha512",
     });
+  } else if (entry.integrity && !parseIntegrity(entry.integrity)) {
+    out.push({
+      rule: "lockfile_malformed_integrity",
+      level: "block",
+      target,
+      file,
+      evidence: `integrity "${entry.integrity}" is not a valid subresource integrity hash`,
+      fix: "delete the lockfile and reinstall; a hash this shape can never be verified",
+    });
   }
 
   return out;
 }
 
-export function auditLockfile(root: string, fs: AuditFs): AuditReport {
+export function auditLockfile(
+  root: string,
+  fs: AuditFs,
+  intel: LockIntel = defaultLockIntel,
+): AuditReport {
   const notes: string[] = [];
   const findings: AuditFinding[] = [];
   let scanned = 0;
@@ -142,7 +220,10 @@ export function auditLockfile(root: string, fs: AuditFs): AuditReport {
       continue;
     }
     scanned += entries.length;
-    for (const entry of entries) findings.push(...auditLockEntry(entry, format.file));
+    for (const entry of entries) {
+      findings.push(...auditEntryIntel(entry, format.file, intel));
+      findings.push(...auditLockEntry(entry, format.file));
+    }
   }
 
   return { schema_version: 1, surface: "lockfile", root, scanned, findings, notes };

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { satisfies } from "../semver.ts";
 import type { AuditFinding, AuditFs, AuditReport } from "./types.ts";
 
 export const LIFECYCLE_SCRIPTS = ["preinstall", "install", "postinstall", "prepare", "prepublish"];
@@ -85,7 +86,93 @@ export function auditScript(
 
 interface ManifestScripts {
   name?: string;
+  version?: string;
   scripts?: Record<string, string>;
+  allowScripts?: Record<string, string>;
+  trustedDependencies?: string[];
+  pnpm?: { onlyBuiltDependencies?: string[] };
+  dependenciesMeta?: Record<string, { built?: boolean }>;
+}
+
+export interface Allowlist {
+  manager: "npm" | "bun" | "pnpm" | "yarn" | "none";
+  ranges: Map<string, string>;
+}
+
+export function readAllowlist(manifest: ManifestScripts): Allowlist {
+  const npm = Object.entries(manifest.allowScripts ?? {});
+  if (npm.length) return { manager: "npm", ranges: new Map(npm) };
+
+  const named = (manager: "bun" | "pnpm", names: string[] | undefined): Allowlist | null =>
+    names?.length ? { manager, ranges: new Map(names.map((name) => [name, "*"] as const)) } : null;
+
+  const bun = named("bun", manifest.trustedDependencies);
+  if (bun) return bun;
+
+  const pnpm = named("pnpm", manifest.pnpm?.onlyBuiltDependencies);
+  if (pnpm) return pnpm;
+
+  const yarn = Object.entries(manifest.dependenciesMeta ?? {})
+    .filter(([, meta]) => meta?.built)
+    .map(([name]) => [name, "*"] as const);
+  if (yarn.length) return { manager: "yarn", ranges: new Map(yarn) };
+
+  return { manager: "none", ranges: new Map() };
+}
+
+const OVERBROAD = /^\s*(\*|x|latest)\s*$/i;
+
+export function auditAllowlistEntry(
+  pkg: string,
+  version: string | undefined,
+  hook: string,
+  allowlist: Allowlist,
+  file: string,
+): AuditFinding[] {
+  const target = version ? `${pkg}@${version}` : pkg;
+  const range = allowlist.ranges.get(pkg);
+  const label = allowlist.manager === "none" ? "install-script" : allowlist.manager;
+
+  if (range === undefined) {
+    return [
+      {
+        rule: "script_not_allowlisted",
+        level: "warn",
+        target,
+        file,
+        evidence: `declares a ${hook} hook but is absent from the ${label} allowlist, so npm v12 skips it and still exits 0`,
+        fix: `run npm approve-scripts, or confirm ${pkg} works with its ${hook} hook skipped`,
+      },
+    ];
+  }
+
+  if (OVERBROAD.test(range) || /(^|[^\d])x(\.|$)|\.x/i.test(range)) {
+    return [
+      {
+        rule: "script_allowlist_overbroad",
+        level: "warn",
+        target,
+        file,
+        evidence: `allowlisted as "${range}", so any future release runs its ${hook} hook without review`,
+        fix: `narrow the ${pkg} allowlist entry to the versions you actually reviewed`,
+      },
+    ];
+  }
+
+  if (version && !satisfies(version, range)) {
+    return [
+      {
+        rule: "script_allowlist_stale",
+        level: "warn",
+        target,
+        file,
+        evidence: `allowlisted for "${range}", which the installed version does not satisfy`,
+        fix: `update the ${pkg} allowlist entry to cover ${version}, after reviewing what changed`,
+      },
+    ];
+  }
+
+  return [];
 }
 
 export function auditScripts(root: string, fs: AuditFs): AuditReport {
@@ -103,6 +190,14 @@ export function auditScripts(root: string, fs: AuditFs): AuditReport {
   if (!installed.length && !notes.length)
     notes.push("node_modules not installed; only the root manifest was scanned");
 
+  let allowlist: Allowlist = { manager: "none", ranges: new Map() };
+  try {
+    allowlist = readAllowlist(JSON.parse(fs.readFile(join(root, "package.json"))));
+  } catch {
+    allowlist = { manager: "none", ranges: new Map() };
+  }
+  const reviewed = new Set<string>();
+
   for (const rel of manifests) {
     let manifest: ManifestScripts;
     try {
@@ -114,8 +209,12 @@ export function auditScripts(root: string, fs: AuditFs): AuditReport {
     const name = manifest.name ?? rel;
     for (const hook of LIFECYCLE_SCRIPTS) {
       const command = manifest.scripts?.[hook];
-      if (typeof command === "string" && command.trim())
-        findings.push(...auditScript(name, hook, command.trim(), rel));
+      if (typeof command !== "string" || !command.trim()) continue;
+      findings.push(...auditScript(name, hook, command.trim(), rel));
+      if (rel !== "package.json" && !reviewed.has(name)) {
+        reviewed.add(name);
+        findings.push(...auditAllowlistEntry(name, manifest.version, hook, allowlist, rel));
+      }
     }
   }
 

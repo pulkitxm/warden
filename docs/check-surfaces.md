@@ -18,6 +18,9 @@ Reads `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, and `yarn.lo
 
 | Rule | Level | What it means |
 | --- | --- | --- |
+| `lockfile_known_malware` | block | The resolved version is on the known-malware blocklist, so a compromised release is caught in the tree even when nothing about the entry looks unusual. |
+| `lockfile_hallucinated_name` | block | The name is one LLMs are known to invent, a standing slopsquat target. |
+| `lockfile_malformed_integrity` | block | The integrity value is not a valid SRI hash, so it can never be verified. |
 | `lockfile_lookalike_registry` | block | An entry resolves from a host impersonating a real registry, the shape of the September 2025 `npmjs.help` phishing campaign. |
 | `lockfile_off_registry_host` | block | An entry resolves from a host that is not a known public registry. |
 | `lockfile_insecure_transport` | block | An entry resolves over plaintext `http`, so the tarball can be swapped in transit. |
@@ -25,6 +28,7 @@ Reads `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, and `yarn.lo
 | `lockfile_weak_integrity` | warn | The integrity hash is `sha1`, which is not collision resistant. |
 | `lockfile_git_dependency` | warn | The dependency comes from a git remote, so its contents can change under a tag. |
 | `lockfile_file_dependency` | warn | The dependency comes from a local path and is not reproducible elsewhere. |
+| `lockfile_typosquat` | warn | The name is one edit from a popular package. |
 
 ## check scripts
 
@@ -39,8 +43,17 @@ Reads the root manifest and every `node_modules/*/package.json`, and inspects on
 | `script_env_exfiltration` | block | A hook reads the environment and sends it over the network. |
 | `script_inline_node_eval` | warn | A hook evaluates inline JavaScript instead of a reviewable file. |
 | `script_lifecycle_present` | warn | A hook exists and did not match a dangerous pattern. |
+| `script_not_allowlisted` | warn | The package declares a hook but is absent from the install-script allowlist. |
+| `script_allowlist_overbroad` | warn | The allowlist entry is a wildcard or `x` range, so future releases run unreviewed. |
+| `script_allowlist_stale` | warn | The allowlist range no longer covers the installed version. |
 
 If `node_modules` is absent, only the root manifest is scanned and a note says so, so a clean result is not misread as a clean tree.
+
+### The install-script allowlist
+
+npm v12 turns dependency install hooks off by default and skips unapproved ones without failing, so a native module can go uncompiled while `npm ci` still exits `0`. Warden reads whichever allowlist your project uses, in this order: npm `allowScripts`, bun `trustedDependencies`, pnpm `onlyBuiltDependencies`, yarn `dependenciesMeta.<pkg>.built`. Boolean allowlists are treated as a wildcard range, because they approve every version.
+
+The three allowlist rules cover both directions of the mistake. `script_not_allowlisted` names packages whose hooks will silently stop running. `script_allowlist_overbroad` and `script_allowlist_stale` name entries that approve more than anyone reviewed: a range like `0.x` keeps approving hooks for releases that do not exist yet. The root manifest is never judged against the allowlist, since it governs dependencies rather than itself.
 
 ## check config
 
@@ -54,6 +67,8 @@ Reads the project `.npmrc` and the one in your home directory. Findings carry th
 | `config_tls_verification_disabled` | block | `strict-ssl=false` makes every install interceptable. |
 | `config_custom_registry` | warn | Packages resolve from an unfamiliar host. |
 | `config_scripts_forced_on` | warn | `ignore-scripts=false` re-enables install hooks. |
+
+One rule reads the file as a whole rather than line by line: `config_always_auth_third_party` blocks when `always-auth=true` is paired with a registry that is not a known public one, because that combination sends your credential to the third-party host. It is the mechanism behind the September 2025 `npmjs.help` campaign.
 
 ## Why these three
 
