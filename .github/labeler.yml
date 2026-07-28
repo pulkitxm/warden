@@ -1,0 +1,39 @@
+area:core:
+  - changed-files:
+      - any-glob-to-any-file:
+          - src/**
+          - scripts/**
+
+area:web:
+  - changed-files:
+      - any-glob-to-any-file:
+          - web/**
+
+area:docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+          - '**/*.md'
+
+area:tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - test/**
+          - fixtures/**
+
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - .githooks/**
+          - Makefile
+          - Dockerfile
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - package.json
+          - bun.lock
+          - bunfig.toml
+          - web/package.json
+          - web/bun.lock
