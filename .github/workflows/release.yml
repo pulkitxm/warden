@@ -80,7 +80,7 @@ jobs:
           cp web/public/install.sh release/install.sh
           cp scripts/shim.sh release/shim.sh
       - run: cd release && sha256sum ./*.tar.gz install.sh shim.sh > sha256sums.txt
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           token: ${{ steps.app-token.outputs.token }}
           tag_name: v${{ needs.version.outputs.version }}
